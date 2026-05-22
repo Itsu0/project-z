@@ -109,6 +109,10 @@ router.post('/:serverId/channels', requireAuth, async (req: Request, res: Respon
 
     const id = await channelQueries.create({ serverId, name: name.trim(), type: type ?? 'text', topic, bitrate })
     const channel = await channelQueries.findById(id)
+    try {
+      const { io } = await import('../index')
+      io.to(`server:${serverId}`).emit('CHANNEL_CREATE', { serverId, channel })
+    } catch {}
     return res.status(201).json({ channel })
   } catch (err) {
     console.error('[settings/create-channel]', err)
@@ -122,6 +126,10 @@ router.delete('/:serverId/channels/:channelId', requireAuth, async (req: Request
     const canManage = await canModerate(req.user!.userId, serverId, 'MANAGE_CHANNELS')
     if (!canManage) return res.status(403).json({ error: 'Wymagane uprawnienie: Zarządzaj kanałami' })
     await execute('DELETE FROM channels WHERE id = ? AND server_id = ?', [channelId, serverId])
+    try {
+      const { io } = await import('../index')
+      io.to(`server:${serverId}`).emit('CHANNEL_DELETE', { serverId, channelId })
+    } catch {}
     return res.json({ ok: true })
   } catch (err) {
     console.error('[settings/delete-channel]', err)
