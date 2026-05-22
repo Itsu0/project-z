@@ -24,8 +24,8 @@ try {
   console.warn('[uiohook] Nie udało się załadować uiohook-napi:', e.message)
 }
 
-const NEXUS_URL    = 'https://nexus-nexus-projects2.vercel.app'
-const APP_NAME     = 'Nexus'
+const APP_URL      = 'https://project-z.cloud'
+const APP_NAME     = 'Project-Z'
 
 app.commandLine.appendSwitch('disable-background-timer-throttling')
 app.commandLine.appendSwitch('disable-renderer-backgrounding')
@@ -122,10 +122,10 @@ function createWindow() {
     roundedCorners:  true,
   })
 
-  mainWindow.loadURL(NEXUS_URL)
+  mainWindow.loadURL(APP_URL)
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (!url.startsWith(NEXUS_URL)) shell.openExternal(url)
+    if (!url.startsWith(APP_URL)) shell.openExternal(url)
     return { action: 'deny' }
   })
 
@@ -133,8 +133,8 @@ function createWindow() {
 
   mainWindow.webContents.on('did-finish-load', () => {
     mainWindow.webContents.executeJavaScript(`
-      window.__NEXUS_ELECTRON__ = true;
-      window.dispatchEvent(new CustomEvent('nexus-ext-ready', { detail: { source: 'electron' } }));
+      window.__PZ_ELECTRON__ = true;
+      window.dispatchEvent(new CustomEvent('pz-ext-ready', { detail: { source: 'electron' } }));
     `).catch(() => {})
 
     pageReady = true
@@ -281,12 +281,12 @@ function updateTray() {
     { label: `Nakładka: ${OVERLAY_SHORTCUT}`, enabled: false },
     { type: 'separator' },
     {
-      label: 'Pokaż Nexus',
+      label: 'Pokaż Project-Z',
       click: () => { mainWindow?.show(); mainWindow?.focus() }
     },
     {
       label: 'Otwórz w przeglądarce',
-      click: () => shell.openExternal(NEXUS_URL)
+      click: () => shell.openExternal(APP_URL)
     },
     { type: 'separator' },
     {
@@ -512,7 +512,7 @@ app.whenReady().then(async () => {
   await session.defaultSession.clearCache()
 
   session.defaultSession.webRequest.onBeforeSendHeaders((details, callback) => {
-    if (details.url.startsWith(NEXUS_URL)) {
+    if (details.url.startsWith(APP_URL)) {
       details.requestHeaders['Cache-Control'] = 'no-cache'
       details.requestHeaders['Pragma'] = 'no-cache'
     }
