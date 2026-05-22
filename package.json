@@ -1,6 +1,6 @@
 {
-  "name": "nexus",
-  "version": "0.6.6",
+  "name": "project-z",
+  "version": "0.6.7",
   "private": true,
   "main": "electron/main.js",
   "scripts": {
@@ -52,8 +52,8 @@
     "typescript": "^5"
   },
   "build": {
-    "appId": "pl.nexus.app",
-    "productName": "Nexus",
+    "appId": "pl.projectz.app",
+    "productName": "Project-Z",
     "copyright": "Copyright © 2025",
     "asar": true,
     "asarUnpack": [
@@ -101,7 +101,7 @@
       "installerIcon": "extension/icons/icon.ico",
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Nexus",
+      "shortcutName": "Project-Z",
       "runAfterFinish": true
     },
     "publish": {
