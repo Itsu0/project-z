@@ -4,6 +4,7 @@ import { useStore } from '@/lib/store'
 import { RolesTab } from './RolesTab'
 import { usePermissions } from '@/hooks/usePermissions'
 import { ImageCropModal } from '@/components/ui/ImageCropModal'
+import { useT } from '@/lib/i18n'
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
@@ -32,6 +33,7 @@ const SERVER_COLORS = [
 ]
 
 function TabGeneral({ server, onClose }: { server: any; onClose: () => void }) {
+  const t = useT()
   const { token, servers, setServers } = useStore()
   const [name,         setName]         = useState(server.name)
   const [color,        setColor]        = useState(server.icon_color)
@@ -104,7 +106,7 @@ function TabGeneral({ server, onClose }: { server: any; onClose: () => void }) {
     <div className="flex flex-col gap-5">
       {}
       <div className="p-4 rounded-2xl" style={{ background: 'var(--eb-bg3)', border: '0.5px solid var(--eb-border)' }}>
-        <p className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: 'var(--eb-text3)' }}>Podgląd</p>
+        <p className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: 'var(--eb-text3)' }}>{t('serverSettings.general.preview')}</p>
         <div className="flex items-center gap-3">
           <div className="relative group cursor-pointer" onClick={() => logoRef.current?.click()}>
             <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-bold text-2xl overflow-hidden"
@@ -134,7 +136,7 @@ function TabGeneral({ server, onClose }: { server: any; onClose: () => void }) {
           )}
           <div>
             <div className="font-semibold" style={{ color: 'var(--eb-text1)' }}>{name}</div>
-            <div className="text-xs mt-0.5" style={{ color: 'var(--eb-text3)' }}>Serwer</div>
+            <div className="text-xs mt-0.5" style={{ color: 'var(--eb-text3)' }}>{t('serverSettings.general.server')}</div>
           </div>
         </div>
       </div>
@@ -142,8 +144,8 @@ function TabGeneral({ server, onClose }: { server: any; onClose: () => void }) {
       {}
       <div>
         <label className="block text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--eb-text2)' }}>
-          Kolor ikony
-          {logoUrl && <span className="ml-2 text-[10px] font-normal normal-case" style={{ color: 'var(--eb-text3)' }}>(nieaktywny — używasz własnego logo)</span>}
+          {t('serverSettings.general.iconColor')}
+          {logoUrl && <span className="ml-2 text-[10px] font-normal normal-case" style={{ color: 'var(--eb-text3)' }}>({t('settings.profile.avatarInactive')})</span>}
         </label>
         <div className="flex gap-2 flex-wrap">
           {SERVER_COLORS.map(c => (
@@ -154,7 +156,7 @@ function TabGeneral({ server, onClose }: { server: any; onClose: () => void }) {
           <button onClick={() => logoRef.current?.click()}
             className="w-9 h-9 rounded-xl flex items-center justify-center transition-all hover:bg-white/10"
             style={{ border: '1.5px dashed var(--eb-border2)', color: 'var(--eb-text3)', outline: logoUrl ? '2px solid white' : 'none', outlineOffset: 2 }}
-            title="Prześlij własne logo">
+            title={t('serverSettings.general.uploadLogo')}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
               <circle cx="12" cy="13" r="4"/>
@@ -165,14 +167,14 @@ function TabGeneral({ server, onClose }: { server: any; onClose: () => void }) {
 
       {}
       <div>
-        <label className="block text-xs font-semibold uppercase tracking-wide mb-1.5" style={{ color: 'var(--eb-text2)' }}>Nazwa serwera</label>
+        <label className="block text-xs font-semibold uppercase tracking-wide mb-1.5" style={{ color: 'var(--eb-text2)' }}>{t('serverSettings.general.serverName')}</label>
         <input value={name} onChange={e => setName(e.target.value)}
           className="ember-input w-full px-4 py-2.5" maxLength={100} />
       </div>
 
       <div className="flex items-center gap-3">
         <button onClick={save} disabled={saving} className="ember-btn px-6 py-2 text-sm">
-          {saving ? 'Zapisywanie...' : 'Zapisz zmiany'}
+          {saving ? t('serverSettings.general.saving') : t('serverSettings.general.save')}
         </button>
         {msg && <span className="text-xs" style={{ color: msg.startsWith('✓') ? 'var(--eb-online)' : 'var(--eb-accent2)' }}>{msg}</span>}
       </div>
@@ -180,7 +182,7 @@ function TabGeneral({ server, onClose }: { server: any; onClose: () => void }) {
       {}
       <div style={{ borderTop: '0.5px solid var(--eb-border)', paddingTop: 16 }}>
         <label className="block text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: 'var(--eb-text2)' }}>
-          Link zaproszenia
+          {t('serverSettings.general.inviteLink')}
         </label>
         {!inviteCode ? (
           <button onClick={generateInvite} disabled={generatingInvite}
@@ -189,7 +191,7 @@ function TabGeneral({ server, onClose }: { server: any; onClose: () => void }) {
               <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
               <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
             </svg>
-            {generatingInvite ? 'Generowanie...' : 'Wygeneruj link'}
+            {generatingInvite ? t('serverSettings.general.generating') : t('serverSettings.general.generateLink')}
           </button>
         ) : (
           <div className="flex gap-2">
@@ -204,7 +206,7 @@ function TabGeneral({ server, onClose }: { server: any; onClose: () => void }) {
                 color: inviteCopied ? 'var(--eb-online)' : 'var(--eb-voice)',
                 border: `0.5px solid ${inviteCopied ? 'rgba(34,197,94,0.3)' : 'rgba(74,158,255,0.2)'}`,
               }}>
-              {inviteCopied ? '✓ Skopiowano' : '📋 Kopiuj'}
+              {inviteCopied ? t('serverSettings.general.copied') : `📋 ${t('serverSettings.general.copyLink')}`}
             </button>
             <button onClick={() => setInviteCode(null)}
               className="px-2.5 py-2.5 rounded-xl transition-all hover:bg-white/10"
@@ -217,21 +219,21 @@ function TabGeneral({ server, onClose }: { server: any; onClose: () => void }) {
 
       {}
       <div style={{ borderTop: '0.5px solid var(--eb-border)', paddingTop: 16 }}>
-        <h3 className="text-sm font-semibold mb-2" style={{ color: 'var(--eb-accent2)' }}>Strefa niebezpieczna</h3>
+        <h3 className="text-sm font-semibold mb-2" style={{ color: 'var(--eb-accent2)' }}>{t('serverSettings.general.dangerZone')}</h3>
         {!confirm ? (
           <button onClick={() => setConfirm(true)}
             className="px-4 py-2 rounded-lg text-xs font-medium"
             style={{ background: 'rgba(220,38,38,0.12)', color: 'var(--eb-accent2)', border: '1px solid rgba(220,38,38,0.25)' }}>
-            Usuń serwer
+            {t('serverSettings.general.deleteServer')}
           </button>
         ) : (
           <div className="flex flex-col gap-2">
-            <p className="text-xs" style={{ color: 'var(--eb-accent2)' }}>Czy na pewno chcesz usunąć serwer <strong>{server.name}</strong>? Tej operacji nie można cofnąć.</p>
+            <p className="text-xs" style={{ color: 'var(--eb-accent2)' }}>{t('serverSettings.general.deleteConfirm')} <strong>{server.name}</strong></p>
             <div className="flex gap-2">
-              <button onClick={() => setConfirm(false)} className="ember-btn-ghost px-4 py-1.5 text-xs">Anuluj</button>
+              <button onClick={() => setConfirm(false)} className="ember-btn-ghost px-4 py-1.5 text-xs">{t('serverSettings.general.deleteCancel')}</button>
               <button className="px-4 py-1.5 rounded-lg text-xs font-medium"
                 style={{ background: 'rgba(220,38,38,0.2)', color: 'var(--eb-accent2)', border: '1px solid rgba(220,38,38,0.4)' }}>
-                Tak, usuń serwer
+                {t('serverSettings.general.deleteBtn')}
               </button>
             </div>
           </div>
@@ -242,6 +244,7 @@ function TabGeneral({ server, onClose }: { server: any; onClose: () => void }) {
 }
 
 function TabChannels({ server }: { server: any }) {
+  const t = useT()
   const { token, channels, setChannels, currentChannelId, setCurrentChannel } = useStore()
   const serverChannels = channels[server.id] ?? []
   const [newName,   setNewName]   = useState('')
@@ -285,9 +288,9 @@ function TabChannels({ server }: { server: any }) {
     <div className="flex flex-col gap-6">
       {}
       {[
-        { label: 'Tekstowe', icon: '~',  list: textChs },
-        { label: 'Głosowe',  icon: '🔊', list: voiceChs },
-        { label: 'Forum',    icon: '🗂',  list: forumChs },
+        { label: t('serverSettings.channels.type.text'),  icon: '~',  list: textChs },
+        { label: t('serverSettings.channels.type.voice'), icon: '🔊', list: voiceChs },
+        { label: t('serverSettings.channels.type.forum'), icon: '🗂',  list: forumChs },
       ].map(group => (
         <div key={group.label}>
           <div className="text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-2"
@@ -300,7 +303,7 @@ function TabChannels({ server }: { server: any }) {
           </div>
           {group.list.length === 0 ? (
             <p className="text-xs py-2 px-3 rounded-lg" style={{ color: 'var(--eb-text3)', background: 'rgba(255,255,255,0.02)', border: '0.5px dashed var(--eb-border)' }}>
-              Brak kanałów
+              {t('serverSettings.channels.noChannels')}
             </p>
           ) : (
             <div className="flex flex-col gap-1.5">
@@ -318,7 +321,7 @@ function TabChannels({ server }: { server: any }) {
                   <button onClick={() => deleteChannel(ch.id, ch.name)}
                     className="opacity-0 group-hover:opacity-100 text-xs px-2 py-1 rounded-lg transition-all"
                     style={{ background: 'rgba(220,38,38,0.12)', color: 'var(--eb-accent2)', border: '0.5px solid rgba(220,38,38,0.25)' }}>
-                    Usuń
+                    {t('serverSettings.channels.delete')}
                   </button>
                 </div>
               ))}
@@ -329,23 +332,23 @@ function TabChannels({ server }: { server: any }) {
 
       {}
       <div className="p-4 rounded-2xl" style={{ background: 'rgba(255,255,255,0.02)', border: '0.5px solid var(--eb-border)' }}>
-        <h4 className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: 'var(--eb-text2)' }}>Nowy kanał</h4>
+        <h4 className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: 'var(--eb-text2)' }}>{t('serverSettings.channels.addChannel')}</h4>
 
         {}
         <div className="grid grid-cols-3 gap-2 mb-3">
           {[
-            { id: 'text',  label: '# Tekstowy',  desc: 'Wiadomości i czat' },
-            { id: 'voice', label: '🔊 Głosowy',   desc: 'Rozmowy i stream' },
-            { id: 'forum', label: '🗂 Forum',      desc: 'Wątki i dyskusje' },
-          ].map(t => (
-            <button key={t.id} onClick={() => setNewType(t.id as any)}
+            { id: 'text',  label: `# ${t('serverSettings.channels.type.text')}`,  desc: t('chat.noMessages') },
+            { id: 'voice', label: `🔊 ${t('serverSettings.channels.type.voice')}`, desc: t('serverSettings.channels.type.voice') },
+            { id: 'forum', label: `🗂 ${t('serverSettings.channels.type.forum')}`, desc: t('serverSettings.channels.type.forum') },
+          ].map(ch => (
+            <button key={ch.id} onClick={() => setNewType(ch.id as any)}
               className="py-2.5 px-3 rounded-xl text-left transition-all"
               style={{
-                background: newType === t.id ? 'rgba(245,158,11,0.12)' : 'rgba(255,255,255,0.03)',
-                border: `0.5px solid ${newType === t.id ? 'rgba(245,158,11,0.4)' : 'var(--eb-border)'}`,
+                background: newType === ch.id ? 'rgba(245,158,11,0.12)' : 'rgba(255,255,255,0.03)',
+                border: `0.5px solid ${newType === ch.id ? 'rgba(245,158,11,0.4)' : 'var(--eb-border)'}`,
               }}>
-              <div className="text-xs font-semibold" style={{ color: newType === t.id ? 'var(--eb-accent)' : 'var(--eb-text1)' }}>{t.label}</div>
-              <div className="text-[10px] mt-0.5" style={{ color: 'var(--eb-text3)' }}>{t.desc}</div>
+              <div className="text-xs font-semibold" style={{ color: newType === ch.id ? 'var(--eb-accent)' : 'var(--eb-text1)' }}>{ch.label}</div>
+              <div className="text-[10px] mt-0.5" style={{ color: 'var(--eb-text3)' }}>{ch.desc}</div>
             </button>
           ))}
         </div>
@@ -353,7 +356,7 @@ function TabChannels({ server }: { server: any }) {
         {}
         <div className="mb-2">
           <label className="block text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: 'var(--eb-text3)' }}>
-            Nazwa kanału *
+            {t('serverSettings.channels.channelName')} *
           </label>
           <input value={newName} onChange={e => setNewName(e.target.value.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-ąćęłńóśźżA-ZĄĆĘŁŃÓŚŹŻ]/g, ''))}
             onKeyDown={e => e.key === 'Enter' && createChannel()}
@@ -378,9 +381,9 @@ function TabChannels({ server }: { server: any }) {
         <button onClick={createChannel} disabled={creating || !newName.trim()}
           className="ember-btn w-full py-2.5 text-sm font-semibold flex items-center justify-center gap-2">
           {creating ? (
-            <><svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>Tworzenie...</>
+            <><svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>{t('poll.creating')}</>
           ) : (
-            <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Utwórz kanał</>
+            <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>{t('serverSettings.channels.addChannel')}</>
           )}
         </button>
       </div>
@@ -389,6 +392,7 @@ function TabChannels({ server }: { server: any }) {
 }
 
 function TabMembers({ server }: { server: any }) {
+  const t = useT()
   const { token, members, removeMember } = useStore()
   const serverMembers = members[server.id] ?? []
   const [search, setSearch] = useState('')
@@ -426,20 +430,20 @@ function TabMembers({ server }: { server: any }) {
                 style={{ background: 'rgba(100,116,139,0.15)' }}>👢</div>
               <div>
                 <h3 className="font-semibold text-sm" style={{ color: 'var(--eb-text1)' }}>
-                  Wyrzuć {kickTarget.name}
+                  {t('serverSettings.members.kick')} {kickTarget.name}
                 </h3>
                 <p className="text-xs" style={{ color: 'var(--eb-text3)' }}>
-                  Użytkownik zostanie usunięty z serwera
+                  {t('serverSettings.members.kick')}
                 </p>
               </div>
             </div>
             {kickError && <p className="text-xs mb-3" style={{ color: 'var(--eb-accent2)' }}>{kickError}</p>}
             <div className="flex gap-2">
-              <button onClick={() => setKickTarget(null)} className="ember-btn-ghost flex-1 py-2.5 text-sm">Anuluj</button>
+              <button onClick={() => setKickTarget(null)} className="ember-btn-ghost flex-1 py-2.5 text-sm">{t('common.cancel')}</button>
               <button onClick={confirmKick} disabled={kickLoading}
                 className="flex-1 py-2.5 text-sm font-semibold rounded-xl transition-all"
                 style={{ background: 'rgba(100,116,139,0.2)', color: 'var(--eb-text2)', border: '1px solid rgba(100,116,139,0.4)' }}>
-                {kickLoading ? 'Wyrzucanie...' : '👢 Wyrzuć'}
+                {kickLoading ? '...' : `👢 ${t('serverSettings.members.kick')}`}
               </button>
             </div>
           </div>
@@ -452,7 +456,7 @@ function TabMembers({ server }: { server: any }) {
             Członkowie ({serverMembers.length})
           </h3>
           <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Szukaj..."
+            placeholder={t('serverSettings.members.search')}
             className="ember-input px-3 py-1.5 text-xs" style={{ width: 160 }} />
         </div>
         <div className="flex flex-col gap-1.5">
@@ -475,7 +479,7 @@ function TabMembers({ server }: { server: any }) {
               <button onClick={() => setKickTarget({ userId: m.user_id, name: m.display_name })}
                 className="opacity-0 group-hover:opacity-100 text-xs px-2 py-1 rounded-lg transition-all"
                 style={{ background: 'rgba(220,38,38,0.12)', color: 'var(--eb-accent2)' }}>
-                Wyrzuć
+                {t('serverSettings.members.kick')}
               </button>
             </div>
           ))}
@@ -486,6 +490,7 @@ function TabMembers({ server }: { server: any }) {
 }
 
 function TabEmoji({ server }: { server: any }) {
+  const t = useT()
   const { token } = useStore()
   const [emoji,     setEmoji]     = useState<any[]>([])
   const [loaded,    setLoaded]    = useState(false)
@@ -547,7 +552,7 @@ function TabEmoji({ server }: { server: any }) {
     <div className="flex flex-col gap-5">
       {}
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold" style={{ color: 'var(--eb-text1)' }}>Niestandardowe Emoji</h3>
+        <h3 className="text-sm font-semibold" style={{ color: 'var(--eb-text1)' }}>{t('serverSettings.tab.emoji')}</h3>
         <div className="flex items-center gap-2">
           <div className="h-1.5 rounded-full overflow-hidden w-24" style={{ background: 'rgba(255,255,255,0.08)' }}>
             <div className="h-full rounded-full transition-all"
@@ -569,7 +574,7 @@ function TabEmoji({ server }: { server: any }) {
               className="flex flex-col items-center gap-2 w-full py-6 rounded-xl transition-all hover:bg-white/[0.04]"
               style={{ border: '1.5px dashed var(--eb-border2)' }}>
               <span className="text-3xl">➕</span>
-              <span className="text-xs font-medium" style={{ color: 'var(--eb-text2)' }}>Kliknij aby wybrać emoji</span>
+              <span className="text-xs font-medium" style={{ color: 'var(--eb-text2)' }}>{t('serverSettings.emoji.add')}</span>
               <span className="text-[10px]" style={{ color: 'var(--eb-text3)' }}>PNG, GIF, JPEG, WEBP · maks. 256KB · zalecane 128×128px</span>
             </button>
           ) : (
@@ -596,11 +601,11 @@ function TabEmoji({ server }: { server: any }) {
               <div className="flex flex-col gap-1.5 flex-shrink-0">
                 <button onClick={uploadEmoji} disabled={uploading || !newName.trim()}
                   className="ember-btn px-3 py-1.5 text-xs">
-                  {uploading ? '...' : '✓ Dodaj'}
+                  {uploading ? '...' : `✓ ${t('serverSettings.emoji.add')}`}
                 </button>
                 <button onClick={() => { setPreview(null); setNewName('') }}
                   className="ember-btn-ghost px-3 py-1.5 text-xs">
-                  Anuluj
+                  {t('common.cancel')}
                 </button>
               </div>
             </div>
@@ -618,7 +623,7 @@ function TabEmoji({ server }: { server: any }) {
         <div className="flex flex-col items-center justify-center py-10 gap-2 rounded-2xl"
           style={{ border: '0.5px dashed var(--eb-border)' }}>
           <span className="text-4xl">😄</span>
-          <p className="text-xs" style={{ color: 'var(--eb-text3)' }}>Brak emoji — dodaj pierwszy!</p>
+          <p className="text-xs" style={{ color: 'var(--eb-text3)' }}>{t('serverSettings.emoji.noEmoji')}</p>
         </div>
       ) : (
         <div className="grid grid-cols-5 gap-2">
@@ -644,6 +649,7 @@ function TabEmoji({ server }: { server: any }) {
 }
 
 export function ServerSettings({ onClose }: { onClose: () => void }) {
+  const t = useT()
   const { currentServerId, servers } = useStore()
   const [activeTab, setActiveTab] = useState<Tab>('ogólne')
   const server = servers.find(s => s.id === currentServerId)
@@ -651,22 +657,22 @@ export function ServerSettings({ onClose }: { onClose: () => void }) {
   const { canManageServer, canManageChannels, canManageRoles, canKick, canBan, canMute } = usePermissions(currentServerId ?? null)
 
   const TABS = [
-    { id: 'ogólne'     as Tab, label: 'Ogólne',     icon: '⚙' },
-    { id: 'kanały'     as Tab, label: 'Kanały',      icon: '#' },
-    { id: 'role'       as Tab, label: 'Role',        icon: '🏷' },
-    { id: 'członkowie' as Tab, label: 'Członkowie',  icon: '👥' },
-    { id: 'emoji'      as Tab, label: 'Emoji',       icon: '😄' },
-  ].filter(t => {
-    if (t.id === 'ogólne')     return canManageServer
-    if (t.id === 'kanały')     return canManageChannels
-    if (t.id === 'role')       return canManageRoles || canKick || canBan || canMute
-    if (t.id === 'członkowie') return canKick || canBan || canMute
-    if (t.id === 'emoji')      return canManageServer
+    { id: 'ogólne'     as Tab, label: t('serverSettings.tab.general'),  icon: '⚙' },
+    { id: 'kanały'     as Tab, label: t('serverSettings.tab.channels'), icon: '#' },
+    { id: 'role'       as Tab, label: t('serverSettings.tab.roles'),    icon: '🏷' },
+    { id: 'członkowie' as Tab, label: t('serverSettings.tab.members'),  icon: '👥' },
+    { id: 'emoji'      as Tab, label: t('serverSettings.tab.emoji'),    icon: '😄' },
+  ].filter(tab => {
+    if (tab.id === 'ogólne')     return canManageServer
+    if (tab.id === 'kanały')     return canManageChannels
+    if (tab.id === 'role')       return canManageRoles || canKick || canBan || canMute
+    if (tab.id === 'członkowie') return canKick || canBan || canMute
+    if (tab.id === 'emoji')      return canManageServer
     return false
   })
 
   useEffect(() => {
-    if (TABS.length > 0 && !TABS.find(t => t.id === activeTab)) {
+    if (TABS.length > 0 && !TABS.find(tab => tab.id === activeTab)) {
       setActiveTab(TABS[0].id)
     }
   }, [TABS.length])
@@ -707,7 +713,7 @@ export function ServerSettings({ onClose }: { onClose: () => void }) {
               </div>
               <div className="min-w-0">
                 <div className="text-xs font-semibold truncate" style={{ color: 'var(--eb-text1)' }}>{server.name}</div>
-                <div className="text-[10px]" style={{ color: 'var(--eb-text3)' }}>Ustawienia serwera</div>
+                <div className="text-[10px]" style={{ color: 'var(--eb-text3)' }}>{t('serverSettings.title')}</div>
               </div>
             </div>
           </div>
@@ -732,7 +738,7 @@ export function ServerSettings({ onClose }: { onClose: () => void }) {
             <button onClick={onClose}
               className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm w-full transition-all hover:bg-white/[0.04]"
               style={{ color: 'var(--eb-text3)' }}>
-              <span>✕</span> Zamknij (Esc)
+              <span>✕</span> {t('serverSettings.close')}
             </button>
           </div>
         </div>
@@ -740,8 +746,8 @@ export function ServerSettings({ onClose }: { onClose: () => void }) {
         {}
         <div className="flex-1 overflow-y-auto p-6">
           <h2 className="text-base font-semibold mb-5 flex items-center gap-2" style={{ color: 'var(--eb-text1)' }}>
-            <span>{TABS.find(t => t.id === activeTab)?.icon}</span>
-            {TABS.find(t => t.id === activeTab)?.label}
+            <span>{TABS.find(tab => tab.id === activeTab)?.icon}</span>
+            {TABS.find(tab => tab.id === activeTab)?.label}
           </h2>
           {activeTab === 'ogólne'     && <TabGeneral server={server} onClose={onClose} />}
           {activeTab === 'kanały'     && <TabChannels server={server} />}
