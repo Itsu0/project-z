@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Nexus — Voice & Chat',
+  title: 'Project-Z — Voice & Chat',
   description: 'Nowoczesny komunikator głosowy i tekstowy',
 }
 
