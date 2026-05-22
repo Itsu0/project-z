@@ -73,17 +73,17 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   const pendingChannelId  = useRef<string | null>(null)
 
   const sendToOverlay = useCallback((parts: VoiceParticipant[]) => {
-    try { (window as any).electronNexus?.updateOverlayParticipants?.(parts) } catch {}
+    try { (window as any).electronPZ?.updateOverlayParticipants?.(parts) } catch {}
   }, [])
 
   useEffect(() => {
     const onSync = () => {
       try {
-        (window as any).electronNexus?.updateOverlayParticipants?.(participants)
+        (window as any).electronPZ?.updateOverlayParticipants?.(participants)
       } catch {}
     }
-    window.addEventListener('nexus-overlay-sync', onSync)
-    return () => window.removeEventListener('nexus-overlay-sync', onSync)
+    window.addEventListener('pz-overlay-sync', onSync)
+    return () => window.removeEventListener('pz-overlay-sync', onSync)
   }, [participants])
 
   useEffect(() => {
@@ -164,13 +164,13 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         }, 1000)
       }
     }
-    window.addEventListener('nexus-ext-ready', onReady)
-    window.addEventListener('nexus-ext-ping',  onPing)
-    window.addEventListener('nexus-ext-ptt',   onPTT as EventListener)
+    window.addEventListener('pz-ext-ready', onReady)
+    window.addEventListener('pz-ext-ping',  onPing)
+    window.addEventListener('pz-ext-ptt',   onPTT as EventListener)
     return () => {
-      window.removeEventListener('nexus-ext-ready', onReady)
-      window.removeEventListener('nexus-ext-ping',  onPing)
-      window.removeEventListener('nexus-ext-ptt',   onPTT as EventListener)
+      window.removeEventListener('pz-ext-ready', onReady)
+      window.removeEventListener('pz-ext-ping',  onPing)
+      window.removeEventListener('pz-ext-ptt',   onPTT as EventListener)
       if (extReleaseTimer) clearTimeout(extReleaseTimer)
     }
   }, [setVoiceMuted])
@@ -242,7 +242,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   }, [voice.connected, userSettings.pttEnabled, userSettings.pttKey, setVoiceMuted])
 
   useEffect(() => {
-    const eN = (window as any).electronNexus
+    const eN = (window as any).electronPZ
     if (!eN?.setPTTShortcut) return
     const { pttKey } = userSettings
     if (pttKey) eN.setPTTShortcut(pttKey).catch?.(() => {})
@@ -261,7 +261,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     } catch {  }
     setParticipants([...parts])
 
-    try { (window as any).electronNexus?.updateOverlayParticipants?.(parts) } catch {}
+    try { (window as any).electronPZ?.updateOverlayParticipants?.(parts) } catch {}
   }, [])
 
   const vadCleanupRef      = useRef<(() => void) | null>(null)
@@ -290,7 +290,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         const devices = await navigator.mediaDevices.enumerateDevices()
         const exists = devices.some(d => d.kind === 'audioinput' && d.deviceId === _selectedInput)
         if (!exists) {
-          console.warn('[Nexus] Zapisane urządzenie audio nie istnieje, używam domyślnego')
+          console.warn('[PZ] Zapisane urządzenie audio nie istnieje, używam domyślnego')
           _selectedInput = ''
         }
       } catch {}
@@ -367,8 +367,8 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           setParticipants([]); setMuted(false); setDeafened(false)
           setScreenSharing(false); setScreenTracks([]); setShowStream(false)
           setWatchingIdentity(null); setAudioBlocked(false); leaveVoice()
-          try { (window as any).electronNexus?.updateOverlayParticipants?.([]) } catch {}
-          try { (window as any).electronNexus?.hideOverlay?.() } catch {}
+          try { (window as any).electronPZ?.updateOverlayParticipants?.([]) } catch {}
+          try { (window as any).electronPZ?.hideOverlay?.() } catch {}
         })
         .on(RoomEvent.LocalTrackPublished, (pub: any) => {
 
@@ -546,7 +546,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       if (pttEnabled) { setMuted(true); setVoiceMuted(true) } else { setMuted(false) }
       update(); joinVoice(channelId)
 
-      try { (window as any).electronNexus?.showOverlay?.() } catch {}
+      try { (window as any).electronPZ?.showOverlay?.() } catch {}
 
     } catch (e: any) {
       const msg: string = e?.message ?? 'Błąd połączenia'
@@ -563,7 +563,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       if (isDeviceError && roomRef.current) {
 
         update(); joinVoice(channelId)
-        try { (window as any).electronNexus?.showOverlay?.() } catch {}
+        try { (window as any).electronPZ?.showOverlay?.() } catch {}
       } else {
         setError(msg)
       }
@@ -612,8 +612,8 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     vadCleanupRef.current?.(); vadCleanupRef.current = null
     setParticipants([]); setMuted(false); setDeafened(false); setScreenSharing(false); leaveVoice()
 
-    try { (window as any).electronNexus?.updateOverlayParticipants?.([]) } catch {}
-    try { (window as any).electronNexus?.hideOverlay?.() } catch {}
+    try { (window as any).electronPZ?.updateOverlayParticipants?.([]) } catch {}
+    try { (window as any).electronPZ?.hideOverlay?.() } catch {}
   }, [])
 
   const toggleMute = useCallback(async () => {
@@ -649,7 +649,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   const startScreenShareFromSource = useCallback(async (sourceId: string) => {
     if (!roomRef.current) return
     try {
-      const el = (window as any).electronNexus
+      const el = (window as any).electronPZ
 
       if (el?.selectDesktopSource) {
         await el.selectDesktopSource(sourceId)
