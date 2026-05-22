@@ -225,6 +225,31 @@ router.get('/warning-replies', requireAuth, async (req: Request, res: Response) 
   }
 })
 
+router.get('/users/all', requireAuth, async (req: Request, res: Response) => {
+  if (!(await requireCreator(req, res))) return
+  try {
+    const users = await queryMany(
+      `SELECT id, username, display_name, avatar_color, avatar_url, is_dev
+       FROM users
+       ORDER BY display_name ASC`
+    )
+    return res.json({ users })
+  } catch (err) {
+    return res.status(500).json({ error: 'Błąd serwera' })
+  }
+})
+
+router.patch('/users/:userId/dev', requireAuth, async (req: Request, res: Response) => {
+  if (!(await requireCreator(req, res))) return
+  try {
+    const { isDev } = req.body
+    await execute('UPDATE users SET is_dev = ? WHERE id = ?', [isDev ? 1 : 0, req.params.userId])
+    return res.json({ ok: true })
+  } catch (err) {
+    return res.status(500).json({ error: 'Błąd serwera' })
+  }
+})
+
 router.get('/users/search', requireAuth, async (req: Request, res: Response) => {
   if (!(await requireCreator(req, res))) return
   try {
