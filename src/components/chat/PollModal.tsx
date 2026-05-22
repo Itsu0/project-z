@@ -1,6 +1,7 @@
 'use client'
 import { useState, useRef, useEffect } from 'react'
 import { useStore } from '@/lib/store'
+import { useT } from '@/lib/i18n'
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
@@ -10,18 +11,19 @@ interface Props {
   onClose:   () => void
 }
 
-const DURATION_PRESETS: { label: string; minutes: number | null }[] = [
-  { label: 'Bez limitu', minutes: null },
-  { label: '5 min',      minutes: 5    },
-  { label: '10 min',     minutes: 10   },
-  { label: '30 min',     minutes: 30   },
-  { label: '1 h',        minutes: 60   },
-  { label: '6 h',        minutes: 360  },
-  { label: '24 h',       minutes: 1440 },
-]
-
 export function PollModal({ channelId, serverId, onClose }: Props) {
+  const t = useT()
   const { token } = useStore()
+
+  const DURATION_PRESETS: { label: string; minutes: number | null }[] = [
+    { label: t('poll.noLimit'), minutes: null },
+    { label: '5 min',          minutes: 5    },
+    { label: '10 min',         minutes: 10   },
+    { label: '30 min',         minutes: 30   },
+    { label: '1 h',            minutes: 60   },
+    { label: '6 h',            minutes: 360  },
+    { label: '24 h',           minutes: 1440 },
+  ]
   const [question, setQuestion]             = useState('')
   const [options, setOptions]               = useState(['', ''])
   const [expiresMinutes, setExpiresMinutes] = useState<number | null>(null)
@@ -51,9 +53,9 @@ export function PollModal({ channelId, serverId, onClose }: Props) {
   }
 
   const handleCreate = async () => {
-    if (!question.trim()) { setError('Wpisz pytanie'); return }
+    if (!question.trim()) { setError(t('poll.errorQuestion')); return }
     const filled = options.filter(o => o.trim())
-    if (filled.length < 2) { setError('Wymagane co najmniej 2 opcje'); return }
+    if (filled.length < 2) { setError(t('poll.errorOptions')); return }
 
     setLoading(true)
     setError('')
@@ -89,7 +91,7 @@ export function PollModal({ channelId, serverId, onClose }: Props) {
         style={{ background: 'var(--eb-bg1)', border: '0.5px solid var(--eb-border2)' }}
       >
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-bold" style={{ color: 'var(--eb-text1)' }}>Nowa ankieta</h2>
+          <h2 className="text-base font-bold" style={{ color: 'var(--eb-text1)' }}>{t('poll.title')}</h2>
           <button onClick={onClose} className="opacity-60 hover:opacity-100 transition-opacity" style={{ color: 'var(--eb-text3)' }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -99,13 +101,13 @@ export function PollModal({ channelId, serverId, onClose }: Props) {
 
         <div>
           <label className="text-xs font-semibold uppercase tracking-wide mb-1 block" style={{ color: 'var(--eb-text3)' }}>
-            Pytanie
+            {t('poll.question')}
           </label>
           <input
             autoFocus
             value={question}
             onChange={e => setQuestion(e.target.value)}
-            placeholder="O co chcesz zapytać?"
+            placeholder={t('poll.questionPlaceholder')}
             maxLength={512}
             className="w-full px-3 py-2 rounded-lg text-sm outline-none"
             style={{
@@ -118,7 +120,7 @@ export function PollModal({ channelId, serverId, onClose }: Props) {
 
         <div>
           <label className="text-xs font-semibold uppercase tracking-wide mb-1 block" style={{ color: 'var(--eb-text3)' }}>
-            Opcje ({options.length}/8)
+            {t('poll.options', { n: options.length })}
           </label>
           <div className="flex flex-col gap-2">
             {options.map((opt, i) => (
@@ -126,7 +128,7 @@ export function PollModal({ channelId, serverId, onClose }: Props) {
                 <input
                   value={opt}
                   onChange={e => updateOption(i, e.target.value)}
-                  placeholder={`Opcja ${i + 1}`}
+                  placeholder={t('poll.optionPlaceholder', { n: i + 1 })}
                   maxLength={256}
                   className="flex-1 px-3 py-1.5 rounded-lg text-sm outline-none"
                   style={{
@@ -155,14 +157,14 @@ export function PollModal({ channelId, serverId, onClose }: Props) {
               className="mt-2 text-xs px-3 py-1.5 rounded-lg transition-colors"
               style={{ color: 'var(--eb-accent)', background: 'rgba(255,255,255,0.04)', border: '0.5px solid var(--eb-border2)' }}
             >
-              + Dodaj opcję
+              {t('poll.addOption')}
             </button>
           )}
         </div>
 
         <div>
           <label className="text-xs font-semibold uppercase tracking-wide mb-2 block" style={{ color: 'var(--eb-text3)' }}>
-            Czas trwania
+            {t('poll.duration')}
           </label>
           <div className="flex flex-wrap gap-1.5">
             {DURATION_PRESETS.map(preset => {
@@ -185,11 +187,7 @@ export function PollModal({ channelId, serverId, onClose }: Props) {
           </div>
           {expiresMinutes !== null && (
             <p className="mt-1.5 text-[11px]" style={{ color: 'var(--eb-text3)' }}>
-              Ankieta zamknie się o{' '}
-              <span style={{ color: 'var(--eb-accent)' }}>
-                {new Date(Date.now() + expiresMinutes * 60_000).toLocaleTimeString('pl', { hour: '2-digit', minute: '2-digit' })}
-              </span>{' '}
-              i wyśle podsumowanie na kanał.
+              {t('poll.closesAt', { time: new Date(Date.now() + expiresMinutes * 60_000).toLocaleTimeString('pl', { hour: '2-digit', minute: '2-digit' }) })}
             </p>
           )}
         </div>
@@ -206,7 +204,7 @@ export function PollModal({ channelId, serverId, onClose }: Props) {
             className="px-4 py-1.5 rounded-lg text-sm transition-colors"
             style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--eb-text3)' }}
           >
-            Anuluj
+            {t('poll.cancel')}
           </button>
           <button
             onClick={handleCreate}
@@ -218,7 +216,7 @@ export function PollModal({ channelId, serverId, onClose }: Props) {
               opacity: loading ? 0.7 : 1,
             }}
           >
-            {loading ? 'Tworzenie…' : 'Utwórz ankietę'}
+            {loading ? t('poll.creating') : t('poll.create')}
           </button>
         </div>
       </div>
