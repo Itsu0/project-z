@@ -54,14 +54,14 @@ export const api = {
 export const tokenStore = {
   get: (): string | null => {
     if (typeof window === 'undefined') return null
-    return localStorage.getItem('nexus_token')
+    return localStorage.getItem('pz_token')
   },
   set: (token: string) => {
-    localStorage.setItem('nexus_token', token)
-    document.cookie = `nexus_token=${token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Strict`
+    localStorage.setItem('pz_token', token)
+    document.cookie = `pz_token=${token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Strict`
   },
   clear: () => {
-    localStorage.removeItem('nexus_token')
-    document.cookie = 'nexus_token=; path=/; max-age=0'
+    localStorage.removeItem('pz_token')
+    document.cookie = 'pz_token=; path=/; max-age=0'
   },
 }
