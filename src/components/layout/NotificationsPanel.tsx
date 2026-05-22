@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useStore } from '@/lib/store'
 import { useSocket } from '@/hooks/useSocket'
 import { UserSettings } from '@/components/settings/UserSettings'
+import { useT } from '@/lib/i18n'
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
@@ -394,6 +395,7 @@ const NOTIF_META: Record<NotifType, { color: string; label: string; icon: string
 }
 
 export function NotificationsPanelExpanded() {
+  const t = useT()
   const { token, currentServerId } = useStore()
   const { currentUser } = useStore()
   const socket = useSocket()
@@ -405,10 +407,10 @@ export function NotificationsPanelExpanded() {
   const [showSettings, setShowSettings] = useState(false)
 
   const STATUS_META: Record<string, { color: string; label: string }> = {
-    online:  { color: '#22c55e', label: 'Online' },
-    idle:    { color: '#f59e0b', label: 'Zaraz wracam' },
-    dnd:     { color: '#ef4444', label: 'Nie przeszkadzać' },
-    offline: { color: '#6b7280', label: 'Offline' },
+    online:  { color: '#22c55e', label: t('status.online') },
+    idle:    { color: '#f59e0b', label: t('status.idle') },
+    dnd:     { color: '#ef4444', label: t('status.dnd') },
+    offline: { color: '#6b7280', label: t('status.offline') },
   }
   const status     = (currentUser?.status as string) ?? 'offline'
   const statusMeta = STATUS_META[status] ?? STATUS_META.offline
@@ -521,7 +523,7 @@ export function NotificationsPanelExpanded() {
               <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
               <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
             </svg>
-            <span className="font-semibold text-sm" style={{ color: 'var(--eb-text1)' }}>Powiadomienia</span>
+            <span className="font-semibold text-sm" style={{ color: 'var(--eb-text1)' }}>{t('notif.title')}</span>
             {unreadCount > 0 && (
               <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full text-white"
                 style={{ background: 'var(--eb-accent2)' }}>{unreadCount}</span>
@@ -533,14 +535,14 @@ export function NotificationsPanelExpanded() {
             {unreadCount > 0 && (
               <button onClick={markAllRead} className="text-[10px] transition-opacity hover:opacity-70"
                 style={{ color: 'var(--eb-voice)' }}>
-                Oznacz wszystkie
+                {t('notif.markAllRead')}
               </button>
             )}
           </div>
         </div>
 
         <div className="flex gap-1 p-1 rounded-lg" style={{ background: 'rgba(255,255,255,0.03)' }}>
-          {([['unread', `Nowe (${unreadCount})`], ['all', 'Wszystkie'], ['patchnotes', '✦ Co nowego']] as const).map(([tab, label]) => (
+          {([['unread', t('notif.tabNew', { n: unreadCount })], ['all', t('notif.tabAll')], ['patchnotes', t('notif.tabChangelog')]] as [string, string][]).map(([tab, label]) => (
             <button key={tab} onClick={() => setActiveTab(tab as any)}
               className="flex-1 py-1 text-xs rounded-md font-medium transition-all duration-150"
               style={activeTab === tab
@@ -575,7 +577,7 @@ export function NotificationsPanelExpanded() {
               <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
               <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
             </svg>
-            <span style={{ fontSize: 12, color: 'var(--eb-text3)' }}>Brak nowych powiadomień</span>
+            <span style={{ fontSize: 12, color: 'var(--eb-text3)' }}>{activeTab === 'unread' ? t('notif.noNew') : t('notif.noAll')}</span>
           </div>
         )}
 
