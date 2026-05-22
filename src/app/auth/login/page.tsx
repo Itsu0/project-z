@@ -62,7 +62,7 @@ export default function LoginPage() {
           Witaj z powrotem
         </h1>
         <p className="text-sm mt-1" style={{ color: 'var(--eb-text2)' }}>
-          Zaloguj się do Nexus
+          Zaloguj się do Project-Z
         </p>
       </div>
 
