@@ -16,6 +16,7 @@ export interface UserSettings {
   fontSize: string
   compactMode: boolean
   colorTheme: string
+  language: 'pl' | 'en'
 }
 
 export const DEFAULT_SETTINGS: UserSettings = {
@@ -25,6 +26,7 @@ export const DEFAULT_SETTINGS: UserSettings = {
   audioProfile: 'zbalansowany', vadThreshold: 0,
   pttEnabled: false, pttKey: 'Space',
   fontSize: 'normal', compactMode: false, colorTheme: 'ember',
+  language: 'pl',
 }
 
 export interface AuthUser {
