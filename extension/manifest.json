@@ -1,0 +1,46 @@
+{
+  "manifest_version": 3,
+  "name": "Nexus PTT",
+  "version": "1.0.0",
+  "description": "Globalny Push-to-Talk dla Nexus — działa nawet gdy grasz w gry na pełnym ekranie.",
+  "permissions": ["commands", "tabs", "storage"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://nexus-sooty-nine.vercel.app/*",
+        "http://localhost:3000/*",
+        "http://localhost:3001/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "commands": {
+    "ptt-toggle": {
+      "description": "Nexus PTT — wciśnij aby mówić (tryb toggle)",
+      "suggested_key": {
+        "default": "Alt+Shift+P",
+        "windows": "Alt+Shift+P",
+        "mac": "Alt+Shift+P",
+        "linux": "Alt+Shift+P"
+      }
+    }
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16":  "icons/icon16.png",
+      "48":  "icons/icon48.png",
+      "128": "icons/icon128.png"
+    },
+    "default_title": "Nexus PTT"
+  },
+  "icons": {
+    "16":  "icons/icon16.png",
+    "48":  "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

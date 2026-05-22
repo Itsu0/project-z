@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  livekit:
+    image: livekit/livekit-server:latest
+    container_name: nexus-livekit
+    ports:
+      - "7880:7880"        # HTTP / WebSocket
+      - "7881:7881"        # TCP dla RTC
+      - "7882:7882/udp"    # UDP dla RTC (WebRTC)
+    volumes:
+      - ./livekit.yaml:/etc/livekit.yaml
+    command: --config /etc/livekit.yaml --dev
+    restart: unless-stopped
+
+# MySQL i backend uruchamiasz osobno (XAMPP + npm run dev)

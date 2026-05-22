@@ -1,0 +1,114 @@
+{
+  "name": "nexus",
+  "version": "0.6.6",
+  "private": true,
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "electron:dev": "node_modules\\electron\\dist\\electron.exe .",
+    "electron:build": "node scripts/build-extension.js && node scripts/generate-ico.js && node scripts/package-electron.js",
+    "electron:build:all": "node scripts/build-extension.js && node scripts/generate-ico.js && node scripts/package-electron.js",
+    "electron:installer": "node scripts/build-installer.js",
+    "electron:publish": "node scripts/build-extension.js && node scripts/generate-ico.js && node scripts/publish-release.js",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build"
+  },
+  "dependencies": {
+    "@livekit/components-react": "^2.6.4",
+    "@livekit/components-styles": "^1.1.2",
+    "@radix-ui/react-avatar": "^1.1.0",
+    "@radix-ui/react-context-menu": "^2.2.1",
+    "@radix-ui/react-dialog": "^1.1.1",
+    "@radix-ui/react-dropdown-menu": "^2.1.1",
+    "@radix-ui/react-tooltip": "^1.1.2",
+    "clsx": "^2.1.1",
+    "date-fns": "^3.6.0",
+    "electron-updater": "^6.6.2",
+    "livekit-client": "^2.5.7",
+    "lucide-react": "^0.427.0",
+    "next": "14.2.5",
+    "react": "^18",
+    "react-dom": "^18",
+    "react-textarea-autosize": "^8.5.3",
+    "socket.io-client": "^4.7.5",
+    "uiohook-napi": "^1.5.5",
+    "zustand": "^4.5.4"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.11.1",
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "autoprefixer": "^10.0.1",
+    "electron": "^31.7.7",
+    "electron-builder": "^24.13.3",
+    "eslint": "^8",
+    "eslint-config-next": "14.2.5",
+    "postcss": "^8",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5"
+  },
+  "build": {
+    "appId": "pl.nexus.app",
+    "productName": "Nexus",
+    "copyright": "Copyright © 2025",
+    "asar": true,
+    "asarUnpack": [
+      "**/node_modules/uiohook-napi/**/*",
+      "**/node_modules/node-gyp-build/**/*"
+    ],
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "electron/**/*",
+      "node_modules/uiohook-napi/**/*",
+      "node_modules/node-gyp-build/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "extension/icons",
+        "to": "icons"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "extension/icons/icon.ico",
+      "requestedExecutionLevel": "asInvoker"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "extension/icons/icon128.png"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "extension/icons/icon128.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": true,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "extension/icons/icon.ico",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Nexus",
+      "runAfterFinish": true
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "Itsu0",
+      "repo": "project-z",
+      "releaseType": "release"
+    }
+  }
+}

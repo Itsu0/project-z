@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nexus Overlay</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    background: transparent;
+    overflow: hidden;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    width: 100vw; height: 100vh;
+  }
+
+  #panel {
+    position: fixed;
+    top: 16px; right: 16px;
+    width: 232px;
+    background: rgba(8, 3, 10, 0.92);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 14px;
+    border: 0.5px solid rgba(255,255,255,0.10);
+    box-shadow: 0 8px 40px rgba(0,0,0,0.95), 0 0 0 0.5px rgba(0,0,0,0.6);
+    overflow: hidden;
+    display: block;
+  }
+
+  #empty-state {
+    padding: 10px 12px 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: rgba(255,255,255,0.28);
+    font-size: 11px;
+  }
+
+  /* ── Pasek tytułu ── */
+  #titlebar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 7px 10px 6px;
+    background: rgba(255,255,255,0.035);
+    border-bottom: 0.5px solid rgba(255,255,255,0.07);
+    -webkit-app-region: drag;
+    user-select: none;
+    cursor: grab;
+  }
+  #titlebar-left {
+    display: flex; align-items: center; gap: 5px;
+  }
+  #titlebar-label {
+    font-size: 9px; font-weight: 700;
+    letter-spacing: 0.09em;
+    color: rgba(245,158,11,0.9);
+  }
+  #close-btn {
+    -webkit-app-region: no-drag;
+    background: none; border: none;
+    cursor: pointer;
+    color: rgba(255,255,255,0.22);
+    font-size: 18px; line-height: 1;
+    padding: 0 1px;
+    transition: color 0.12s;
+  }
+  #close-btn:hover { color: rgba(255,80,80,0.85); }
+
+  /* ── Lista uczestników ── */
+  #participants {
+    padding: 6px 8px 8px;
+    display: flex; flex-direction: column; gap: 3px;
+  }
+
+  .pill {
+    display: flex; align-items: center; gap: 7px;
+    padding: 5px 8px; border-radius: 9px;
+    border: 0.5px solid rgba(255,255,255,0.07);
+    background: rgba(255,255,255,0.035);
+    transition: background 0.18s, border-color 0.18s;
+  }
+  .pill.speaking {
+    background: rgba(34,197,94,0.13);
+    border-color: rgba(34,197,94,0.35);
+  }
+  .pill.muted {
+    background: rgba(220,38,38,0.08);
+    border-color: rgba(220,38,38,0.22);
+  }
+
+  .avatar {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #dc2626, #f59e0b);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700; color: #fff;
+    flex-shrink: 0;
+    transition: box-shadow 0.2s;
+  }
+  .avatar.speaking {
+    box-shadow: 0 0 0 2.5px rgba(34,197,94,0.55), 0 0 10px rgba(34,197,94,0.25);
+  }
+
+  .name {
+    flex: 1; font-size: 12px; font-weight: 500;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    color: #d1d5db;
+  }
+  .name.speaking { color: #86efac; }
+  .name.muted    { color: #fca5a5; }
+
+  /* Ikona statusu */
+  .status { flex-shrink: 0; display: flex; align-items: center; }
+
+  /* Animowane słupki mówienia */
+  .bars { display: flex; gap: 2px; align-items: flex-end; height: 14px; }
+  .bar { display: inline-block; width: 3px; border-radius: 2px; background: #4ade80; }
+  .bar:nth-child(1) { animation: bar0 0.6s ease-in-out infinite alternate; }
+  .bar:nth-child(2) { animation: bar1 0.72s ease-in-out infinite alternate; }
+  .bar:nth-child(3) { animation: bar2 0.65s ease-in-out infinite alternate; }
+
+  @keyframes bar0 { from { height: 4px }  to { height: 12px } }
+  @keyframes bar1 { from { height: 11px } to { height: 4px  } }
+  @keyframes bar2 { from { height: 7px }  to { height: 11px } }
+</style>
+</head>
+<body>
+
+<div id="panel">
+  <div id="titlebar">
+    <div id="titlebar-left">
+      <svg width="9" height="9" viewBox="0 0 24 24" fill="none"
+           stroke="rgba(245,158,11,0.9)" stroke-width="2.5" stroke-linecap="round">
+        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+        <line x1="12" y1="19" x2="12" y2="23"/>
+        <line x1="8"  y1="23" x2="16" y2="23"/>
+      </svg>
+      <span id="titlebar-label">NEXUS VOICE</span>
+    </div>
+    <button id="close-btn" title="Ukryj nakładkę">×</button>
+  </div>
+  <div id="participants"></div>
+  <div id="empty-state">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+         stroke="rgba(255,255,255,0.28)" stroke-width="2" stroke-linecap="round">
+      <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+      <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+      <line x1="12" y1="19" x2="12" y2="23"/>
+      <line x1="8"  y1="23" x2="16" y2="23"/>
+    </svg>
+    Brak aktywnego kanału głosowego
+  </div>
+</div>
+
+<script>
+const panel      = document.getElementById('panel')
+const list       = document.getElementById('participants')
+const emptyState = document.getElementById('empty-state')
+const closeBtn   = document.getElementById('close-btn')
+const eN         = window.electronNexus
+
+// ── Ukryj przez przycisk × ────────────────────────────────────────────────────
+closeBtn.addEventListener('click', () => {
+  eN?.hideOverlay?.()
+})
+
+// ── Odbierz uczestników przez IPC ─────────────────────────────────────────────
+if (eN?.onOverlayParticipants) {
+  eN.onOverlayParticipants(render)
+}
+
+// ── Mouse-through: interaktywny gdy kursor NAD panelem ────────────────────────
+document.addEventListener('mousemove', (e) => {
+  if (!eN?.setOverlayInteractive) return
+  const r = panel.getBoundingClientRect()
+  const over = panel.style.display !== 'none' &&
+    e.clientX >= r.left && e.clientX <= r.right &&
+    e.clientY >= r.top  && e.clientY <= r.bottom
+  eN.setOverlayInteractive(over)
+})
+
+// ── Renderuj uczestników ──────────────────────────────────────────────────────
+function render(participants) {
+  if (!participants || participants.length === 0) {
+    list.innerHTML = ''
+    emptyState.style.display = 'flex'
+    return
+  }
+  emptyState.style.display = 'none'
+  list.innerHTML = ''
+
+  for (const p of participants) {
+    const speaking = p.isSpeaking && !p.isMuted
+    const pill = document.createElement('div')
+    pill.className = 'pill' + (speaking ? ' speaking' : p.isMuted ? ' muted' : '')
+
+    // Avatar
+    const av = document.createElement('div')
+    av.className = 'avatar' + (speaking ? ' speaking' : '')
+    av.textContent = p.name.slice(0, 1).toUpperCase()
+    pill.appendChild(av)
+
+    // Nazwa
+    const nm = document.createElement('span')
+    nm.className = 'name' + (speaking ? ' speaking' : p.isMuted ? ' muted' : '')
+    nm.textContent = p.name + (p.isLocal ? ' (Ty)' : '')
+    pill.appendChild(nm)
+
+    // Status icon
+    const st = document.createElement('div')
+    st.className = 'status'
+    if (speaking) {
+      st.innerHTML = `<div class="bars">
+        <span class="bar"></span>
+        <span class="bar"></span>
+        <span class="bar"></span>
+      </div>`
+    } else if (p.isMuted) {
+      st.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+        stroke="#f87171" stroke-width="2.5" stroke-linecap="round">
+        <line x1="2" y1="2" x2="22" y2="22"/>
+        <path d="M9 9v3a3 3 0 0 0 5.12 2.12"/>
+        <path d="M19 10v2a7 7 0 0 1-1.64 4.49"/>
+      </svg>`
+    } else {
+      st.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+        stroke="rgba(255,255,255,0.15)" stroke-width="2" stroke-linecap="round">
+        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+      </svg>`
+    }
+    pill.appendChild(st)
+    list.appendChild(pill)
+  }
+}
+</script>
+</body>
+</html>
