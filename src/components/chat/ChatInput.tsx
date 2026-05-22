@@ -4,12 +4,14 @@ import { useStore } from '@/lib/store'
 import { useSocket } from '@/hooks/useSocket'
 import { EmojiPicker } from './EmojiPicker'
 import { PollModal } from './PollModal'
+import { useT } from '@/lib/i18n'
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
 interface GifItem { id: string; url: string; preview: string; title: string }
 
 function GifPicker({ onSelect, onClose }: { onSelect: (url: string) => void; onClose: () => void }) {
+  const t = useT()
   const [query, setQuery]   = useState('')
   const [gifs,  setGifs]    = useState<GifItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -61,7 +63,7 @@ function GifPicker({ onSelect, onClose }: { onSelect: (url: string) => void; onC
           autoFocus
           value={query}
           onChange={e => onSearch(e.target.value)}
-          placeholder="Szukaj GIF..."
+          placeholder={t('chat.gifSearch')}
           className="w-full px-3 py-1.5 rounded-lg text-sm outline-none"
           style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--eb-text1)', border: '0.5px solid var(--eb-border2)' }}
         />
@@ -77,7 +79,7 @@ function GifPicker({ onSelect, onClose }: { onSelect: (url: string) => void; onC
           </div>
         ) : gifs.length === 0 ? (
           <div className="flex items-center justify-center h-full text-sm" style={{ color: 'var(--eb-text3)' }}>
-            Brak wyników
+            {t('chat.gifNoResults')}
           </div>
         ) : (
           <div className="columns-3 gap-1.5">
@@ -145,6 +147,7 @@ interface PendingAttachment {
 }
 
 export function ChatInput({ channelName, channelId, serverId, replyTo, onClearReply }: Props) {
+  const t = useT()
   const [value, setValue] = useState('')
   const [cursorPos, setCursorPos] = useState(0)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
@@ -505,13 +508,13 @@ export function ChatInput({ channelName, channelId, serverId, replyTo, onClearRe
             <polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/>
           </svg>
           <span className="text-xs font-semibold flex-shrink-0" style={{ color: 'var(--eb-accent)' }}>
-            Odpowiadasz {replyTo.authorName}
+            {t('chat.replyingTo', { user: replyTo.authorName })}
           </span>
           <span className="text-xs truncate flex-1" style={{ color: 'var(--eb-text3)' }}>
             {replyTo.content.length > 80 ? replyTo.content.slice(0, 80) + '…' : replyTo.content}
           </span>
           <button onClick={onClearReply} className="flex-shrink-0 opacity-60 hover:opacity-100 transition-opacity"
-            style={{ color: 'var(--eb-text3)' }} title="Anuluj odpowiedź">
+            style={{ color: 'var(--eb-text3)' }} title={t('chat.cancelReply')}>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
             </svg>
@@ -555,7 +558,7 @@ export function ChatInput({ channelName, channelId, serverId, replyTo, onClearRe
           <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--eb-accent)" strokeWidth="2">
             <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
           </svg>
-          <span className="text-xs" style={{ color: 'var(--eb-text3)' }}>Przesyłanie pliku…</span>
+          <span className="text-xs" style={{ color: 'var(--eb-text3)' }}>{t('chat.uploadFile')}…</span>
         </div>
       )}
 
@@ -609,7 +612,7 @@ export function ChatInput({ channelName, channelId, serverId, replyTo, onClearRe
           onKeyDown={onKey}
           onSelect={e => setCursorPos((e.target as HTMLTextAreaElement).selectionStart ?? 0)}
           onClick={e => setCursorPos((e.target as HTMLTextAreaElement).selectionStart ?? 0)}
-          placeholder={`Napisz coś na #${channelName}...`}
+          placeholder={t('chat.placeholder', { channel: channelName })}
           rows={1}
           className="flex-1 resize-none outline-none text-sm py-0.5"
           style={{
