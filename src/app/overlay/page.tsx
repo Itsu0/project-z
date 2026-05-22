@@ -37,7 +37,7 @@ export default function OverlayPage() {
   }, [])
 
   useEffect(() => {
-    const el = (window as any).electronNexus
+    const el = (window as any).electronPZ
     if (!el?.onOverlayParticipants) return
     const cleanup = el.onOverlayParticipants((parts: Participant[]) => {
       setParticipants(Array.isArray(parts) ? parts : [])
@@ -46,7 +46,7 @@ export default function OverlayPage() {
   }, [])
 
   useEffect(() => {
-    const el = (window as any).electronNexus
+    const el = (window as any).electronPZ
     if (!el?.setOverlayInteractive) return
     const onMove = (e: MouseEvent) => {
       const panel = panelRef.current
@@ -117,13 +117,13 @@ export default function OverlayPage() {
                   fontSize: 9, fontWeight: 700, letterSpacing: '0.09em',
                   color: 'rgba(245,158,11,0.9)',
                 }}>
-                  NEXUS VOICE
+                  PROJECT-Z VOICE
                 </span>
               </div>
 
               {}
               <button
-                onClick={() => (window as any).electronNexus?.hideOverlay?.()}
+                onClick={() => (window as any).electronPZ?.hideOverlay?.()}
                 title="Ukryj nakładkę"
                 style={{
                   WebkitAppRegion: 'no-drag',
