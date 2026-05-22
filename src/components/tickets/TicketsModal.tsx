@@ -1764,6 +1764,107 @@ function UsersAdmin({ token }: { token: string }) {
   )
 }
 
+function DevManager({ token }: { token: string }) {
+  const [users,    setUsers]    = useState<any[]>([])
+  const [loading,  setLoading]  = useState(true)
+  const [search,   setSearch]   = useState('')
+  const [toggling, setToggling] = useState<string | null>(null)
+
+  async function load() {
+    setLoading(true)
+    try {
+      const r = await fetch(`${BASE}/api/admin/users/all`, { headers: { Authorization: `Bearer ${token}` } })
+      const d = await r.json()
+      setUsers(d.users ?? [])
+    } catch {} finally { setLoading(false) }
+  }
+
+  useEffect(() => { load() }, [token])
+
+  async function toggleDev(userId: string, current: boolean) {
+    setToggling(userId)
+    try {
+      await fetch(`${BASE}/api/admin/users/${userId}/dev`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ isDev: !current }),
+      })
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, is_dev: !current ? 1 : 0 } : u))
+    } catch {} finally { setToggling(null) }
+  }
+
+  const filtered = users.filter(u =>
+    (u.display_name + u.username).toLowerCase().includes(search.toLowerCase())
+  )
+
+  if (loading) return <div className="flex justify-center py-8"><Spinner /></div>
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="px-3 py-2.5 rounded-xl flex items-center gap-2"
+        style={{ background: 'linear-gradient(135deg,rgba(139,92,246,0.1),rgba(167,139,250,0.07))', border: '1px solid rgba(167,139,250,0.25)' }}>
+        <span className="text-base">⚡</span>
+        <div>
+          <p className="text-xs font-semibold" style={{ color: '#c4b5fd' }}>Zarządzanie odznaką Dev</p>
+          <p className="text-[10px]" style={{ color: 'var(--eb-text3)' }}>
+            {users.filter(u => !!u.is_dev).length} / {users.length} użytkowników ma odznakę
+          </p>
+        </div>
+      </div>
+
+      <input
+        value={search}
+        onChange={e => setSearch(e.target.value)}
+        placeholder="Szukaj użytkownika..."
+        className="ember-input w-full px-3 py-2 text-sm"
+      />
+
+      <div className="flex flex-col gap-1.5">
+        {filtered.map(u => {
+          const isDev = !!u.is_dev
+          return (
+            <div key={u.id}
+              className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all"
+              style={{
+                background: isDev ? 'rgba(139,92,246,0.07)' : 'var(--eb-bg3)',
+                border: `1px solid ${isDev ? 'rgba(167,139,250,0.3)' : 'var(--eb-border)'}`,
+              }}>
+              <Avatar user={u} size={32} />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-semibold" style={{ color: 'var(--eb-text1)' }}>{u.display_name}</span>
+                  <span className="text-[10px]" style={{ color: 'var(--eb-text3)' }}>@{u.username}</span>
+                  {isDev && (
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                      style={{ background: 'linear-gradient(135deg,rgba(139,92,246,0.2),rgba(167,139,250,0.15))', color: '#c4b5fd', border: '0.5px solid rgba(167,139,250,0.4)' }}>
+                      ⚡ Dev
+                    </span>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={() => toggleDev(u.id, isDev)}
+                disabled={toggling === u.id}
+                className="flex-shrink-0 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all"
+                style={{
+                  background: isDev ? 'rgba(239,68,68,0.1)' : 'rgba(167,139,250,0.1)',
+                  color: isDev ? '#ef4444' : '#c4b5fd',
+                  border: `1px solid ${isDev ? 'rgba(239,68,68,0.3)' : 'rgba(167,139,250,0.3)'}`,
+                  opacity: toggling === u.id ? 0.5 : 1,
+                }}>
+                {toggling === u.id ? '...' : isDev ? 'Odbierz' : 'Nadaj Dev'}
+              </button>
+            </div>
+          )
+        })}
+        {filtered.length === 0 && (
+          <p className="text-xs text-center py-6" style={{ color: 'var(--eb-text3)' }}>Brak użytkowników</p>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function GhostLauncher({ token }: { token: string }) {
   const [serverId, setServerId] = useState('')
   const [ghost,    setGhost]    = useState<string | null>(null)
@@ -1819,7 +1920,7 @@ function GhostLauncher({ token }: { token: string }) {
 export function TicketsModal({ onClose }: { onClose: () => void }) {
   const t = useT()
   const { token } = useStore()
-  const [tab,       setTab]       = useState<'new' | 'my' | 'warnings' | 'tickets' | 'warnreply' | 'users' | 'ghost'>('new')
+  const [tab,       setTab]       = useState<'new' | 'my' | 'warnings' | 'tickets' | 'warnreply' | 'users' | 'ghost' | 'dev'>('new')
   const [isCreator, setIsCreator] = useState(false)
   const [myCount,   setMyCount]   = useState(0)
   const [warnCount, setWarnCount] = useState(0)
@@ -1845,6 +1946,7 @@ export function TicketsModal({ onClose }: { onClose: () => void }) {
     { key: 'warnreply',label: `💬 ${t('tickets.tabReplies')}` },
     { key: 'users',    label: `👤 ${t('tickets.tabUsers')}` },
     { key: 'ghost',    label: `👻 ${t('tickets.tabGhost')}` },
+    { key: 'dev',      label: `⚡ Dev` },
   ] as const
 
   return (
@@ -1916,6 +2018,7 @@ export function TicketsModal({ onClose }: { onClose: () => void }) {
           {tab === 'warnreply' && isCreator && <WarningRepliesAdmin token={token!} />}
           {tab === 'users'     && isCreator && <UsersAdmin token={token!} />}
           {tab === 'ghost'   && isCreator && <GhostLauncher token={token!} />}
+          {tab === 'dev'     && isCreator && <DevManager token={token!} />}
         </div>
       </div>
     </div>
