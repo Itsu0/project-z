@@ -1,0 +1,238 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Ember Design Tokens ─────────────────────────────────────────── */
+:root {
+  --eb-bg0:      #0f0008;
+  --eb-bg1:      #1c0a14;
+  --eb-bg2:      #221020;
+  --eb-bg3:      #2a1428;
+  --eb-bg4:      #341830;
+  --eb-surface:  #2e1828;
+  --eb-border:   rgba(255,255,255,0.06);
+  --eb-border2:  rgba(255,255,255,0.10);
+  --eb-text1:    #e4e5e9;
+  --eb-text2:    #a8a9af;
+  --eb-text3:    #5f6068;
+  --eb-accent:   #f59e0b;
+  --eb-accent2:  #dc2626;
+  --eb-online:   #22c55e;
+  --eb-voice:    #4a9eff;
+  --eb-mention:  #f87171;
+  --eb-purple:   #a855f7;
+  --eb-cyan:     #06b6d4;
+
+  --eb-gradient: linear-gradient(135deg, #dc2626, #f59e0b);
+  --eb-glow:     radial-gradient(ellipse 800px 400px at 50% 100%, #dc262622 0%, transparent 60%),
+                 radial-gradient(ellipse 500px 350px at 0% 30%, #f59e0b15 0%, transparent 55%),
+                 radial-gradient(ellipse 400px 300px at 100% 0%, #ec489910 0%, transparent 65%);
+}
+
+/* ─── Base reset ──────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  font-family: 'DM Sans', sans-serif;
+  background: var(--eb-bg0);
+  color: var(--eb-text1);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#__next, main { height: 100%; }
+
+/* ─── Scrollbars ──────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--eb-bg4); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--eb-border2); }
+
+/* GIF picker — scrollbar dopasowany do ciemnego tła okna */
+.gif-scroll::-webkit-scrollbar { width: 5px; }
+.gif-scroll::-webkit-scrollbar-track { background: var(--eb-bg1); border-radius: 0 12px 12px 0; }
+.gif-scroll::-webkit-scrollbar-thumb { background: var(--eb-bg4); border-radius: 4px; }
+.gif-scroll::-webkit-scrollbar-thumb:hover { background: var(--eb-border2); }
+.gif-scroll { scrollbar-width: thin; scrollbar-color: var(--eb-bg4) var(--eb-bg1); }
+
+/* ─── Selection ───────────────────────────────────────────────────── */
+::selection { background: rgba(245,158,11,0.25); color: var(--eb-text1); }
+
+/* ─── Typography ──────────────────────────────────────────────────── */
+.font-mono { font-family: 'JetBrains Mono', monospace; }
+
+/* ─── Ember UI Components ─────────────────────────────────────────── */
+
+/* Server icon pill */
+.server-icon {
+  @apply relative flex items-center justify-center rounded-[14px] cursor-pointer transition-all duration-200 select-none;
+  width: 40px;
+  height: 40px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+}
+.server-icon:hover { border-radius: 10px; transform: scale(1.05); }
+.server-icon.active { border-radius: 10px; }
+.server-icon::before {
+  content: '';
+  position: absolute;
+  left: -7px; top: 50%; transform: translateY(-50%);
+  width: 3px; height: 0;
+  background: var(--eb-text1);
+  border-radius: 0 2px 2px 0;
+  transition: height 0.2s;
+}
+.server-icon.active::before { height: 65%; background: var(--eb-accent); }
+.server-icon:hover:not(.active)::before { height: 30%; }
+
+/* Channel item */
+.channel-item {
+  @apply flex items-center gap-1.5 px-3 py-[5px] rounded-lg cursor-pointer mx-1.5 transition-all duration-100;
+  color: var(--eb-text2);
+  font-size: 13px;
+}
+.channel-item:hover { background: rgba(255,255,255,0.04); color: var(--eb-text1); }
+.channel-item.active { background: rgba(255,255,255,0.07); color: var(--eb-text1); }
+
+/* Tab navigation */
+.server-tab {
+  @apply flex items-center gap-1.5 px-3 py-[5px] rounded-[9px] text-xs cursor-pointer transition-all duration-150 whitespace-nowrap;
+  color: var(--eb-text2);
+}
+.server-tab:hover { color: var(--eb-text1); background: rgba(255,255,255,0.04); }
+.server-tab.active {
+  background: var(--eb-gradient);
+  color: #fff;
+  font-weight: 500;
+}
+
+/* Message hover */
+.message-row:hover { background: rgba(255,255,255,0.018); }
+.message-row:hover .msg-timestamp-hover { opacity: 1; }
+
+/* Reaction */
+.reaction-pill {
+  @apply flex items-center gap-1 px-2 py-0.5 rounded-full text-xs cursor-pointer transition-all duration-100;
+  background: rgba(255,255,255,0.05);
+  border: 0.5px solid var(--eb-border);
+  color: var(--eb-text2);
+}
+.reaction-pill:hover { background: rgba(255,255,255,0.08); border-color: var(--eb-border2); }
+.reaction-pill.active {
+  background: rgba(245,158,11,0.12);
+  border-color: rgba(245,158,11,0.35);
+  color: var(--eb-accent);
+}
+
+/* Voice user pill in dock */
+.voice-pill {
+  @apply flex items-center gap-1.5 px-2 py-0.5 rounded-2xl text-xs;
+  background: rgba(255,255,255,0.04);
+  border: 0.5px solid var(--eb-border);
+}
+.voice-pill.speaking {
+  background: rgba(34,197,94,0.1);
+  border-color: rgba(34,197,94,0.3);
+}
+
+/* Icon button */
+.icon-btn {
+  @apply flex items-center justify-center rounded-lg cursor-pointer transition-all duration-100;
+  width: 30px; height: 30px;
+  color: var(--eb-text2);
+  background: transparent;
+}
+.icon-btn:hover { background: rgba(255,255,255,0.06); color: var(--eb-text1); }
+
+/* Badge */
+.role-badge {
+  font-size: 10px;
+  font-weight: 500;
+  padding: 1px 6px;
+  border-radius: 10px;
+  line-height: 1.4;
+}
+
+/* Ember card (embed) */
+.ember-card {
+  background: rgba(245,158,11,0.05);
+  border: 0.5px solid rgba(245,158,11,0.18);
+  border-radius: 14px;
+}
+
+/* Online dot */
+.status-ring::after {
+  content: '';
+  position: absolute;
+  bottom: -1px; right: -1px;
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  border: 2px solid var(--eb-bg1);
+}
+.status-ring.online::after { background: var(--eb-online); }
+.status-ring.idle::after { background: var(--eb-accent); }
+.status-ring.dnd::after { background: var(--eb-accent2); }
+.status-ring.offline::after { background: var(--eb-text3); }
+
+/* Speaking bars animation */
+@keyframes bar1 { 0%,100%{height:2px} 50%{height:10px} }
+@keyframes bar2 { 0%,100%{height:6px} 50%{height:3px} }
+@keyframes bar3 { 0%,100%{height:10px} 50%{height:4px} }
+.speaking-bars span:nth-child(1) { animation: bar1 0.7s ease-in-out infinite; }
+.speaking-bars span:nth-child(2) { animation: bar2 0.7s ease-in-out infinite 0.15s; }
+.speaking-bars span:nth-child(3) { animation: bar3 0.7s ease-in-out infinite 0.3s; }
+
+/* Typing dots */
+@keyframes tdot { 0%,80%,100%{transform:scale(0.6);opacity:0.3} 40%{transform:scale(1);opacity:1} }
+.typing-dot { animation: tdot 1.2s ease-in-out infinite; }
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+/* Glow pulse on online status dot */
+@keyframes online-pulse { 0%,100%{box-shadow:0 0 0 0 rgba(34,197,94,0.4)} 50%{box-shadow:0 0 0 4px rgba(34,197,94,0)} }
+
+/* Input */
+.ember-input {
+  background: rgba(255,255,255,0.04);
+  border: 0.5px solid var(--eb-border2);
+  border-radius: 10px;
+  color: var(--eb-text1);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.ember-input:focus { border-color: rgba(245,158,11,0.4); }
+.ember-input::placeholder { color: var(--eb-text3); }
+
+/* Ember button */
+.ember-btn {
+  background: var(--eb-gradient);
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  padding: 6px 16px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.1s;
+  font-family: 'DM Sans', sans-serif;
+}
+.ember-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+.ember-btn:active { transform: scale(0.97); }
+.ember-btn-ghost {
+  background: rgba(255,255,255,0.06);
+  border: 0.5px solid var(--eb-border2);
+  color: var(--eb-text1);
+  border-radius: 12px;
+  padding: 6px 16px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+  font-family: 'DM Sans', sans-serif;
+}
+.ember-btn-ghost:hover { background: rgba(255,255,255,0.09); }
