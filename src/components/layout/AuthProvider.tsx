@@ -48,7 +48,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const isEmpty = !sData.settings || Object.keys(sData.settings).length === 0
           if (isEmpty) {
             try {
-              const local = JSON.parse(localStorage.getItem('nexus_audio_prefs') ?? '{}')
+              const local = JSON.parse(localStorage.getItem('pz_audio_prefs') ?? '{}')
               if (Object.keys(local).length > 0) {
                 settings = { ...settings, ...local }
 
