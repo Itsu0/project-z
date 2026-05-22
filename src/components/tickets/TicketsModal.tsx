@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useStore } from '@/lib/store'
+import { useT } from '@/lib/i18n'
 
 async function compressImage(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -945,6 +946,14 @@ function ServerSelect({ servers, value, onChange }: { servers: any[]; value: str
 }
 
 function NewTicketForm({ token, onCreated }: { token: string; onCreated: () => void }) {
+  const t = useT()
+  const CATS = [
+    { value: 'bug',      label: t('tickets.cat.bug'),      icon: '🐛' },
+    { value: 'abuse',    label: t('tickets.cat.abuse'),    icon: '🚨' },
+    { value: 'security', label: t('tickets.cat.security'), icon: '🔒' },
+    { value: 'spam',     label: t('tickets.cat.spam'),     icon: '📢' },
+    { value: 'other',    label: t('tickets.cat.other'),    icon: '💬' },
+  ]
   const [category,   setCategory]   = useState('bug')
   const [subject,    setSubject]    = useState('')
   const [desc,       setDesc]       = useState('')
@@ -1008,9 +1017,9 @@ function NewTicketForm({ token, onCreated }: { token: string; onCreated: () => v
     <div className="flex flex-col gap-4">
       <div>
         <label className="text-xs font-semibold uppercase tracking-wide mb-2 block"
-          style={{ color: 'var(--eb-text2)' }}>Kategoria</label>
+          style={{ color: 'var(--eb-text2)' }}>{t('tickets.category')}</label>
         <div className="grid grid-cols-2 gap-2">
-          {CATEGORIES.map(c => (
+          {CATS.map(c => (
             <button key={c.value} onClick={() => setCategory(c.value)}
               className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs text-left transition-all"
               style={{
@@ -1026,17 +1035,17 @@ function NewTicketForm({ token, onCreated }: { token: string; onCreated: () => v
 
       <div>
         <label className="text-xs font-semibold uppercase tracking-wide mb-1.5 block"
-          style={{ color: 'var(--eb-text2)' }}>Temat</label>
+          style={{ color: 'var(--eb-text2)' }}>{t('tickets.subject')}</label>
         <input value={subject} onChange={e => setSubject(e.target.value)}
-          placeholder="Krótko opisz problem..." maxLength={200}
+          placeholder={t('tickets.subjectPlaceholder')} maxLength={200}
           className="ember-input w-full px-3 py-2.5 text-sm" />
       </div>
 
       <div>
         <label className="text-xs font-semibold uppercase tracking-wide mb-1.5 block"
-          style={{ color: 'var(--eb-text2)' }}>Szczegółowy opis</label>
+          style={{ color: 'var(--eb-text2)' }}>{t('tickets.description')}</label>
         <textarea value={desc} onChange={e => setDesc(e.target.value)}
-          placeholder="Opisz dokładnie co się wydarzyło, kiedy i gdzie..."
+          placeholder={t('tickets.descriptionPlaceholder')}
           rows={5} className="ember-input w-full px-3 py-2.5 text-sm resize-none" />
       </div>
 
@@ -1044,7 +1053,7 @@ function NewTicketForm({ token, onCreated }: { token: string; onCreated: () => v
       <div>
         <label className="text-xs font-semibold uppercase tracking-wide mb-1.5 block"
           style={{ color: 'var(--eb-text2)' }}>
-          Serwer <span style={{ color: 'var(--eb-text3)', fontWeight: 400, textTransform: 'none' }}>(opcjonalnie)</span>
+          {t('tickets.server')}
         </label>
         {servers.length > 0 ? (
           <ServerSelect servers={servers} value={serverId} onChange={setServerId} />
@@ -1059,7 +1068,7 @@ function NewTicketForm({ token, onCreated }: { token: string; onCreated: () => v
       <div>
         <label className="text-xs font-semibold uppercase tracking-wide mb-1.5 block"
           style={{ color: 'var(--eb-text2)' }}>
-          Zrzut ekranu <span style={{ color: 'var(--eb-text3)', fontWeight: 400, textTransform: 'none' }}>(opcjonalnie)</span>
+          {t('tickets.screenshot')}
         </label>
         {screenshot ? (
           <div className="relative rounded-xl overflow-hidden"
@@ -1099,7 +1108,7 @@ function NewTicketForm({ token, onCreated }: { token: string; onCreated: () => v
       <button onClick={submit} disabled={loading || !subject.trim() || !desc.trim()}
         className="ember-btn py-2.5 text-sm font-semibold w-full"
         style={{ opacity: (!subject.trim() || !desc.trim()) ? 0.5 : 1 }}>
-        {loading ? 'Wysyłanie...' : 'Wyślij zgłoszenie'}
+        {loading ? t('tickets.submitting') : t('tickets.submit')}
       </button>
       <p className="text-[10px] text-center" style={{ color: 'var(--eb-text3)' }}>
         Zgłoszenie trafi bezpośrednio do twórcy platformy. Twoje dane są bezpieczne.
@@ -1808,6 +1817,7 @@ function GhostLauncher({ token }: { token: string }) {
 }
 
 export function TicketsModal({ onClose }: { onClose: () => void }) {
+  const t = useT()
   const { token } = useStore()
   const [tab,       setTab]       = useState<'new' | 'my' | 'warnings' | 'tickets' | 'warnreply' | 'users' | 'ghost'>('new')
   const [isCreator, setIsCreator] = useState(false)
@@ -1825,16 +1835,16 @@ export function TicketsModal({ onClose }: { onClose: () => void }) {
   }, [token])
 
   const userTabs = [
-    { key: 'new',      label: 'Nowe zgłoszenie' },
-    { key: 'my',       label: `Moje${myCount > 0 ? ` (${myCount})` : ''}` },
-    { key: 'warnings', label: warnCount > 0 ? `⚠️ Ostrzeżenia (${warnCount})` : 'Ostrzeżenia' },
+    { key: 'new',      label: t('tickets.tabNew') },
+    { key: 'my',       label: `${t('tickets.tabMine')}${myCount > 0 ? ` (${myCount})` : ''}` },
+    { key: 'warnings', label: warnCount > 0 ? `⚠️ ${t('tickets.tabWarnings')} (${warnCount})` : t('tickets.tabWarnings') },
   ] as const
 
   const adminTabs = [
-    { key: 'tickets',  label: '📋 Zgłoszenia' },
-    { key: 'warnreply',label: '💬 Odp. Ostrzeżenia' },
-    { key: 'users',    label: '👤 Użytkownicy' },
-    { key: 'ghost',    label: '👻 Ghost' },
+    { key: 'tickets',  label: `📋 ${t('tickets.tabSubmissions')}` },
+    { key: 'warnreply',label: `💬 ${t('tickets.tabReplies')}` },
+    { key: 'users',    label: `👤 ${t('tickets.tabUsers')}` },
+    { key: 'ghost',    label: `👻 ${t('tickets.tabGhost')}` },
   ] as const
 
   return (
@@ -1848,9 +1858,9 @@ export function TicketsModal({ onClose }: { onClose: () => void }) {
         {}
         <div className="flex items-center justify-between px-6 pt-5 pb-3 flex-shrink-0">
           <div>
-            <h2 className="text-base font-semibold" style={{ color: 'var(--eb-text1)' }}>Centrum wsparcia</h2>
+            <h2 className="text-base font-semibold" style={{ color: 'var(--eb-text1)' }}>{t('tickets.title')}</h2>
             <p className="text-[11px] mt-0.5" style={{ color: 'var(--eb-text3)' }}>
-              Zgłoszenia trafiają bezpośrednio do twórcy platformy
+              {t('tickets.subtitle')}
             </p>
           </div>
           <button onClick={onClose}
@@ -1866,14 +1876,14 @@ export function TicketsModal({ onClose }: { onClose: () => void }) {
 
         {}
         <div className="flex gap-1 px-6 pb-2 flex-shrink-0">
-          {userTabs.map(t => (
-            <button key={t.key} onClick={() => setTab(t.key as any)}
+          {userTabs.map(tab_ => (
+            <button key={tab_.key} onClick={() => setTab(tab_.key as any)}
               className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
               style={{
-                background: tab === t.key ? 'var(--eb-bg4)' : 'transparent',
-                color: tab === t.key ? 'var(--eb-text1)' : 'var(--eb-text3)',
+                background: tab === tab_.key ? 'var(--eb-bg4)' : 'transparent',
+                color: tab === tab_.key ? 'var(--eb-text1)' : 'var(--eb-text3)',
               }}>
-              {t.label}
+              {tab_.label}
             </button>
           ))}
         </div>
@@ -1882,15 +1892,15 @@ export function TicketsModal({ onClose }: { onClose: () => void }) {
         {isCreator && (
           <div className="flex gap-1 px-6 pb-3 flex-shrink-0" style={{ borderBottom: '0.5px solid var(--eb-border)' }}>
             <div className="text-[9px] font-bold uppercase tracking-widest self-center mr-1"
-              style={{ color: '#a855f7' }}>TWÓRCA</div>
-            {adminTabs.map(t => (
-              <button key={t.key} onClick={() => setTab(t.key as any)}
+              style={{ color: '#a855f7' }}>CREATOR</div>
+            {adminTabs.map(tab_ => (
+              <button key={tab_.key} onClick={() => setTab(tab_.key as any)}
                 className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
                 style={{
-                  background: tab === t.key ? 'rgba(168,85,247,0.12)' : 'transparent',
-                  color: tab === t.key ? '#a855f7' : 'var(--eb-text3)',
+                  background: tab === tab_.key ? 'rgba(168,85,247,0.12)' : 'transparent',
+                  color: tab === tab_.key ? '#a855f7' : 'var(--eb-text3)',
                 }}>
-                {t.label}
+                {tab_.label}
               </button>
             ))}
           </div>
