@@ -132,7 +132,7 @@ export default function RegisterPage() {
           {step === 1 ? 'Utwórz konto' : 'Prawie gotowe!'}
         </h1>
         <p className="text-sm mt-1" style={{ color: 'var(--eb-text2)' }}>
-          {step === 1 ? 'Dołącz do Nexus już teraz' : 'Ustaw hasło i spersonalizuj profil'}
+          {step === 1 ? 'Dołącz do Project-Z już teraz' : 'Ustaw hasło i spersonalizuj profil'}
         </p>
       </div>
 
