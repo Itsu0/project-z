@@ -9,7 +9,7 @@ export function middleware(req: NextRequest) {
     return NextResponse.next()
   }
 
-  const token = req.cookies.get('nexus_token')?.value
+  const token = req.cookies.get('pz_token')?.value
 
   if (!token && !PUBLIC_PATHS.some(p => pathname.startsWith(p))) {
     return NextResponse.redirect(new URL('/auth/login', req.url))
