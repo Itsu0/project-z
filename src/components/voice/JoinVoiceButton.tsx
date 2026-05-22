@@ -99,7 +99,7 @@ export function JoinVoiceButton({ channel }: Props) {
     showStream, setShowStream,
   } = hook
   const { pttEnabled, pttKey } = userSettings
-  const isElectron = typeof window !== 'undefined' && !!(window as any).electronNexus
+  const isElectron = typeof window !== 'undefined' && !!(window as any).electronPZ
   const [showSourcePicker, setShowSourcePicker] = useState(false)
 
   const isInThisChannel = voice.channelId === channel.id
