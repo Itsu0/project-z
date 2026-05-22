@@ -188,6 +188,25 @@ export function useSocket() {
       useStore.getState().updateMessage(data.channelId, data.messageId, { poll: data.poll })
     })
 
+    s.on('CHANNEL_CREATE', (data: { serverId: string; channel: any }) => {
+      const store = useStore.getState()
+      const existing = store.channels[data.serverId] ?? []
+      if (!existing.some(c => c.id === data.channel?.id)) {
+        store.setChannels(data.serverId, [...existing, data.channel])
+      }
+    })
+
+    s.on('CHANNEL_DELETE', (data: { serverId: string; channelId: string }) => {
+      const store = useStore.getState()
+      const existing = store.channels[data.serverId] ?? []
+      const updated = existing.filter(c => c.id !== data.channelId)
+      store.setChannels(data.serverId, updated)
+      if (store.currentChannelId === data.channelId) {
+        const next = updated.find(c => c.type === 'text' || c.type === 'announcement')
+        store.setCurrentChannel(next?.id ?? '')
+      }
+    })
+
     s.on('PROFILE_UPDATE', (data: { userId: string; displayName?: string; customStatus?: string | null; avatarColor?: string; avatarUrl?: string | null }) => {
       const store = useStore.getState()
 
