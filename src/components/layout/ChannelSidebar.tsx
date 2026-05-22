@@ -1,17 +1,19 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useStore } from '@/lib/store'
+import { useT } from '@/lib/i18n'
 import { UserSettings } from '@/components/settings/UserSettings'
-
-const STATUS_META: Record<string, { color: string; label: string }> = {
-  online:  { color: '#22c55e', label: 'Online' },
-  idle:    { color: '#f59e0b', label: 'Zaraz wracam' },
-  dnd:     { color: '#ef4444', label: 'Nie przeszkadzać' },
-  offline: { color: '#6b7280', label: 'Offline' },
-}
 
 export function ChannelSidebar() {
   const { currentUser } = useStore()
+  const t = useT()
+
+  const STATUS_META: Record<string, { color: string; label: string }> = {
+    online:  { color: '#22c55e', label: t('status.online') },
+    idle:    { color: '#f59e0b', label: t('status.idle') },
+    dnd:     { color: '#ef4444', label: t('status.dnd') },
+    offline: { color: '#6b7280', label: t('status.offline') },
+  }
   const [showSettings, setShowSettings] = useState(false)
   const [avatarImgError, setAvatarImgError] = useState(false)
 
@@ -33,7 +35,7 @@ export function ChannelSidebar() {
           className="flex items-center gap-2.5 px-3 py-2.5 border-t cursor-pointer transition-colors hover:bg-white/[0.04] group"
           style={{ background: 'var(--eb-bg0)', borderColor: 'var(--eb-border)' }}
           onClick={() => setShowSettings(true)}
-          title="Ustawienia użytkownika"
+          title={t('settings.title')}
         >
           <div className="relative flex-shrink-0">
             <div className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center text-white font-bold text-sm"
