@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useVoice } from '@/hooks/useVoice'
 import { useStore } from '@/lib/store'
+import { useT } from '@/lib/i18n'
 
 interface DesktopSource { id: string; name: string; thumbnail: string; appIcon: string | null }
 
@@ -39,6 +40,7 @@ export function DesktopSourcePicker({ onSelect, onClose }: { onSelect: (id: stri
   const [sources, setSources]   = useState<DesktopSource[]>([])
   const [loading, setLoading]   = useState(true)
   const wrapRef = useRef<HTMLDivElement>(null)
+  const t = useT()
 
   useEffect(() => {
     const eN = (window as any).electronPZ
@@ -74,10 +76,10 @@ export function DesktopSourcePicker({ onSelect, onClose }: { onSelect: (id: stri
         >
           <div>
             <div className="text-sm font-semibold" style={{ color: 'var(--eb-text1)' }}>
-              Udostępnij ekran
+              {t('screen.title')}
             </div>
             <div className="text-xs mt-0.5" style={{ color: 'var(--eb-text3)' }}>
-              Wybierz okno lub monitor do udostępnienia
+              {t('screen.subtitle')}
             </div>
           </div>
           <button onClick={onClose} className="icon-btn w-7 h-7 flex-shrink-0">
@@ -94,18 +96,18 @@ export function DesktopSourcePicker({ onSelect, onClose }: { onSelect: (id: stri
               <svg className="animate-spin" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--eb-text3)" strokeWidth="2">
                 <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
               </svg>
-              <span className="text-sm" style={{ color: 'var(--eb-text3)' }}>Ładowanie źródeł...</span>
+              <span className="text-sm" style={{ color: 'var(--eb-text3)' }}>{t('screen.loading')}</span>
             </div>
           ) : sources.length === 0 ? (
             <div className="flex items-center justify-center h-40 text-sm" style={{ color: 'var(--eb-text3)' }}>
-              Nie znaleziono żadnych źródeł
+              {t('screen.noSources')}
             </div>
           ) : (
             <>
               {screens.length > 0 && (
                 <div className="mb-5">
                   <div className="text-[10px] font-bold uppercase tracking-widest mb-2.5" style={{ color: 'var(--eb-text3)' }}>
-                    Cały ekran
+                    {t('screen.fullScreen')}
                   </div>
                   <div className="grid grid-cols-2 gap-2.5">
                     {screens.map(s => <SourceCard key={s.id} source={s} onSelect={id => { onSelect(id); onClose() }} />)}
@@ -115,7 +117,7 @@ export function DesktopSourcePicker({ onSelect, onClose }: { onSelect: (id: stri
               {windows.length > 0 && (
                 <div>
                   <div className="text-[10px] font-bold uppercase tracking-widest mb-2.5" style={{ color: 'var(--eb-text3)' }}>
-                    Okna aplikacji
+                    {t('screen.appWindows')}
                   </div>
                   <div className="grid grid-cols-2 gap-2.5">
                     {windows.map(s => <SourceCard key={s.id} source={s} onSelect={id => { onSelect(id); onClose() }} />)}
@@ -192,6 +194,7 @@ export function VoiceDock() {
     connected, toggleMute, toggleDeafen, toggleScreenShare, startScreenShareFromSource, disconnect,
   } = useVoice()
 
+  const t = useT()
   const isElectron = typeof window !== 'undefined' && !!(window as any).electronPZ
   const [overlayVisible, setOverlayVisible] = useState(false)
   const [showSourcePicker, setShowSourcePicker] = useState(false)
@@ -228,10 +231,10 @@ export function VoiceDock() {
         </svg>
         <div>
           <div className="font-semibold leading-none" style={{ fontSize: 11, color: '#fff' }}>
-            {connecting ? 'Łączenie...' : muted ? 'Wyciszony' : 'Połączono'}
+            {connecting ? t('voice.connecting') : muted ? t('voice.muted') : t('voice.connected')}
           </div>
           <div style={{ fontSize: 9, color: 'var(--eb-accent)', marginTop: 2 }}>
-            {connecting ? '...' : `${participants.length} osób · LiveKit`}
+            {connecting ? '...' : t('voice.participants', { n: participants.length })}
           </div>
         </div>
         <div className="w-2 h-2 rounded-full flex-shrink-0"
@@ -249,7 +252,7 @@ export function VoiceDock() {
               fill="none" stroke="var(--eb-text3)" strokeWidth="2">
               <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
             </svg>
-            <span style={{ fontSize: 11, color: 'var(--eb-text2)' }}>Łączenie...</span>
+            <span style={{ fontSize: 11, color: 'var(--eb-text2)' }}>{t('voice.connecting')}</span>
           </div>
         ) : participants.map(p => (
           <div key={p.identity}
@@ -265,7 +268,7 @@ export function VoiceDock() {
               {p.name.slice(0, 1).toUpperCase()}
             </div>
             <span style={{ fontSize: 11, color: 'var(--eb-text1)' }}>
-              {p.name}{p.isLocal ? ' (Ty)' : ''}
+              {p.name}{p.isLocal ? t('voice.you') : ''}
             </span>
             {p.isSpeaking && !p.isMuted
               ? <SpeakingBars />
@@ -285,7 +288,7 @@ export function VoiceDock() {
         {}
         <DockBtn
           onClick={toggleMute}
-          title={muted ? 'Włącz mikrofon (M)' : 'Wycisz mikrofon (M)'}
+          title={muted ? t('voice.unmuteMic') : t('voice.muteMic')}
           danger={muted}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -307,7 +310,7 @@ export function VoiceDock() {
         {}
         <DockBtn
           onClick={toggleDeafen}
-          title={deafened ? 'Odgłuś (D)' : 'Ogłuś (D)'}
+          title={deafened ? t('voice.undeafen') : t('voice.deafen')}
           danger={deafened}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -329,7 +332,7 @@ export function VoiceDock() {
               toggleScreenShare()
             }
           }}
-          title={screenSharing ? 'Zatrzymaj udostępnianie' : 'Udostępnij ekran'}
+          title={screenSharing ? t('voice.stopShareTitle') : t('voice.shareScreenTitle')}
           accent={screenSharing}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -357,7 +360,7 @@ export function VoiceDock() {
               await (window as any).electronPZ?.toggleOverlay?.()
 
             }}
-            title={overlayVisible ? 'Ukryj nakładkę w grze' : 'Pokaż nakładkę w grze'}
+            title={overlayVisible ? t('voice.overlay.hide') : t('voice.overlay.show')}
             accent={overlayVisible}
           >
             {}
@@ -371,7 +374,7 @@ export function VoiceDock() {
         )}
 
         {}
-        <DockBtn onClick={disconnect} title="Rozłącz" danger>
+        <DockBtn onClick={disconnect} title={t('voice.disconnectTitle')} danger>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.42 19.42 0 0 1-3.33-2.67"/>
             <path d="M6.5 6.5a19.29 19.29 0 0 0-2.07 4.9 2 2 0 0 0 1.72 2.3c.9.13 1.84.3 2.71.53"/>
