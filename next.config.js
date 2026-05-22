@@ -5,13 +5,11 @@ const nextConfig = {
   // Zostawiamy puste żeby nie crashował build na Vercel.
 
   images: {
-    // Zezwól na ładowanie obrazów (avatary) z backendu Railway i lokala
     remotePatterns: [
       { protocol: 'https', hostname: '*.railway.app' },
       { protocol: 'https', hostname: '*.up.railway.app' },
+      { protocol: 'https', hostname: '*.trycloudflare.com' },
       { protocol: 'http',  hostname: 'localhost' },
-      // AlexHost VPS — dodaj swoje IP/domenę po uruchomieniu
-      // { protocol: 'https', hostname: 'twoja-domena.pl' },
     ],
   },
 }
