@@ -1,9 +1,9 @@
-# Nexus — Voice & Chat Platform
+# Project-Z — Voice & Chat Platform
 
 Nowoczesny komunikator głosowy i tekstowy inspirowany Discordem.  
 Stack: **Next.js 14 · TypeScript · Tailwind · Electron · Zustand · LiveKit · MySQL · Socket.io**
 
-Aktualna wersja: **v0.6.3**
+Aktualna wersja: **v0.6.7**
 
 ---
 
@@ -22,7 +22,7 @@ Aktualna wersja: **v0.6.3**
 - 🔍 **Wyszukiwanie** — przeszukiwanie wiadomości na całym serwerze (Ctrl+F)
 
 ### Głos
-- 🎙️ **Kanały głosowe** — LiveKit (VAD, Push-to-Talk, wyciszenie, deafen)
+- 🎙️ **Kanały głosowe** — LiveKit self-hosted (VAD, Push-to-Talk, wyciszenie, deafen)
 - 🖥️ **Udostępnianie ekranu / kamera** — picker okien i monitorów
 - 🎮 **Nakładka głosowa** — overlay z listą uczestników (Alt+Shift+O)
 - 🖱️ **Globalny PTT** — mysz i klawiatura przez uiohook-napi
@@ -32,6 +32,7 @@ Aktualna wersja: **v0.6.3**
 - 🛡️ **Moderacja** — mute z czasem, kick, ban, zarządzanie wiadomościami
 - 🗂️ **Kanały forum** — posty, wątki, odpowiedzi z GIF-ami
 - 📨 **Zaproszenia** — generowanie linków, strona `/invite/[code]`
+- 🔄 **Synchronizacja w czasie rzeczywistym** — tworzenie i usuwanie kanałów widoczne natychmiast dla wszystkich
 
 ### Aplikacja
 - 🖥️ **Electron** — aplikacja desktopowa Windows z instalatorem NSIS
@@ -46,7 +47,7 @@ Aktualna wersja: **v0.6.3**
 ## Architektura
 
 ```
-nexus/
+project-z/
 ├── src/                          # Frontend Next.js
 │   ├── app/
 │   │   ├── page.tsx              # Główny widok (zalogowany)
@@ -99,6 +100,7 @@ nexus/
 │       │   ├── gifs.ts           # Proxy Tenor API
 │       │   ├── moderation.ts     # Mute, kick, ban, ostrzeżenia
 │       │   ├── notifications.ts  # Powiadomienia użytkownika
+│       │   ├── settings.ts       # Ustawienia użytkownika + CRUD kanałów
 │       │   └── livekit.ts        # Tokeny LiveKit
 │       ├── socket/               # Socket.io — eventy czatu i głosu
 │       ├── db/
@@ -114,7 +116,7 @@ nexus/
 │
 ├── electron/
 │   ├── main.js                   # Main process, IPC, auto-updater, overlay
-│   └── preload.js                # contextBridge (bezpieczne IPC)
+│   └── preload.js                # contextBridge — electronPZ (bezpieczne IPC)
 │
 └── scripts/
     ├── build-extension.js        # Budowanie rozszerzenia PTT
@@ -135,7 +137,6 @@ nexus/
 ### Frontend + Backend
 
 ```bash
-# Zainstaluj zależności
 npm install
 cd server && npm install && cd ..
 
@@ -162,6 +163,7 @@ npm run electron:dev
 
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:3001
+NEXT_PUBLIC_LIVEKIT_URL=ws://localhost:7880
 ```
 
 ### Backend (`server/.env`)
@@ -176,9 +178,9 @@ DB_NAME=nexus
 JWT_SECRET=tajny_klucz
 FRONTEND_URL=http://localhost:3000
 LIVEKIT_API_KEY=devkey
-LIVEKIT_SECRET=secret
+LIVEKIT_API_SECRET=secret
 LIVEKIT_URL=ws://localhost:7880
-DEV_USERNAMES=login          # konta z odznaką ⚡ Dev
+DEV_USERNAMES=login
 ```
 
 ---
@@ -189,7 +191,7 @@ DEV_USERNAMES=login          # konta z odznaką ⚡ Dev
 
 ```bash
 npm run electron:build
-# → dist-electron/Nexus Setup x.x.x.exe
+# → dist-electron/Project-Z Setup x.x.x.exe
 ```
 
 ### Publikacja na GitHub Releases
@@ -209,14 +211,16 @@ Przy starcie aplikacja sprawdza nowe wersje na GitHub Releases. Jeśli dostępna
 
 ---
 
-## Deployment
+## Deployment (produkcja)
 
 | Warstwa | Platforma |
 |---|---|
-| Frontend | Vercel (Next.js) |
-| Backend | Railway (Node.js) |
-| Baza danych | Railway MySQL |
-| LiveKit | Railway / własny VPS |
+| Frontend | Vercel (Next.js) + domena `project-z.cloud` |
+| Backend | OVH VPS (Express + Socket.io) via `api.project-z.cloud` |
+| Baza danych | MySQL 8 na VPS |
+| LiveKit | Self-hosted na VPS via `livekit.project-z.cloud` |
+| Tunel | Cloudflare Tunnel (stały, bez expiry) |
+| Monitoring | PM2 + PM2+ |
 | Pliki binarne | GitHub Releases |
 
 ---
