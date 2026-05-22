@@ -39,6 +39,7 @@ module.exports = {
       // ── Zmienne środowiskowe ──────────────────────────────────────────────
       env: {
         NODE_ENV: 'production',
+        DEV_USERNAMES: 'yatsu,Cyfrowy',
       },
       env_dev: {
         NODE_ENV: 'development',
