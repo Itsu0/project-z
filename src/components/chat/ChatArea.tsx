@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import clsx from 'clsx'
 import { useStore } from '@/lib/store'
+import { useT } from '@/lib/i18n'
 import { useMessages } from '@/hooks/useMessages'
 import { useSocket } from '@/hooks/useSocket'
 import { useVoice } from '@/hooks/useVoice'
@@ -17,6 +18,7 @@ import type { RealChannel } from '@/lib/store'
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
 function PinnedPanel({ channelId, onClose }: { channelId: string; onClose: () => void }) {
+  const t = useT()
   const { token } = useStore()
   const [pins, setPins] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -34,7 +36,7 @@ function PinnedPanel({ channelId, onClose }: { channelId: string; onClose: () =>
     <div className="absolute right-0 top-full mt-1 z-50 rounded-xl shadow-2xl overflow-hidden"
       style={{ width: 360, maxHeight: 480, background: 'var(--eb-bg1)', border: '0.5px solid var(--eb-border2)' }}>
       <div className="flex items-center justify-between px-3.5 py-2.5 border-b" style={{ borderColor: 'var(--eb-border)' }}>
-        <span className="text-sm font-semibold" style={{ color: 'var(--eb-text1)' }}>📌 Przypięte wiadomości</span>
+        <span className="text-sm font-semibold" style={{ color: 'var(--eb-text1)' }}>{t('chat.pinned')}</span>
         <button onClick={onClose} className="icon-btn" style={{ width: 22, height: 22 }}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -51,7 +53,7 @@ function PinnedPanel({ channelId, onClose }: { channelId: string; onClose: () =>
         ) : pins.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-8 gap-2">
             <span style={{ fontSize: 28 }}>📌</span>
-            <p className="text-sm font-medium" style={{ color: 'var(--eb-text2)' }}>Brak przypiętych wiadomości</p>
+            <p className="text-sm font-medium" style={{ color: 'var(--eb-text2)' }}>{t('chat.noPinned')}</p>
           </div>
         ) : pins.map(m => (
           <div key={m.id} className="px-3 py-2.5 border-b hover:bg-white/[0.03] transition-colors" style={{ borderColor: 'var(--eb-border)' }}>
@@ -304,19 +306,21 @@ function ChannelTabBar({ channels, activeId, serverId, serverName, serverColor, 
 }
 
 function EmptyServers() {
+  const t = useT()
   return (
     <div className="flex flex-col items-center justify-center flex-1 gap-4">
       <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl"
         style={{ background: 'var(--eb-bg3)' }}>🏰</div>
       <div className="text-center">
-        <p className="font-semibold mb-1" style={{ color: 'var(--eb-text1)' }}>Brak serwerów</p>
-        <p style={{ fontSize: 12, color: 'var(--eb-text3)' }}>Kliknij + w lewym panelu aby utworzyć swój pierwszy serwer</p>
+        <p className="font-semibold mb-1" style={{ color: 'var(--eb-text1)' }}>{t('chat.noMessages')}</p>
+        <p style={{ fontSize: 12, color: 'var(--eb-text3)' }}>{t('chat.noMessagesHint')}</p>
       </div>
     </div>
   )
 }
 
 export function ChatArea({ onOpenSettings }: { onOpenSettings?: () => void }) {
+  const t = useT()
   const { currentChannelId, currentServerId, setCurrentChannel, typing, servers, channels, members } = useStore()
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesTopRef = useRef<HTMLDivElement>(null)
@@ -452,14 +456,14 @@ export function ChatArea({ onOpenSettings }: { onOpenSettings?: () => void }) {
                 <svg className="animate-spin" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--eb-text3)" strokeWidth="2">
                   <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
                 </svg>
-                <span style={{ fontSize: 12, color: 'var(--eb-text3)' }}>Ładowanie wiadomości...</span>
+                <span style={{ fontSize: 12, color: 'var(--eb-text3)' }}>{t('chat.loading')}</span>
               </div>
             ) : messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-48 gap-2">
                 <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl"
                   style={{ background: 'var(--eb-bg3)' }}>💬</div>
-                <p className="font-semibold text-sm" style={{ color: 'var(--eb-text1)' }}>Brak wiadomości</p>
-                <p style={{ fontSize: 12, color: 'var(--eb-text3)' }}>Bądź pierwszy — napisz coś!</p>
+                <p className="font-semibold text-sm" style={{ color: 'var(--eb-text1)' }}>{t('chat.noMessages')}</p>
+                <p style={{ fontSize: 12, color: 'var(--eb-text3)' }}>{t('chat.noMessagesHint')}</p>
               </div>
             ) : (
               <>
@@ -491,8 +495,12 @@ export function ChatArea({ onOpenSettings }: { onOpenSettings?: () => void }) {
                   ))}
                 </div>
                 <span style={{ fontSize: 12, color: 'var(--eb-text2)' }}>
-                  <strong>{typingIndicators.map(t => t.username).join(', ')}</strong>{' '}
-                  {typingIndicators.length === 1 ? 'pisze' : 'piszą'}...
+                  {typingIndicators.length === 1
+                    ? t('chat.typingOne', { user: typingIndicators[0].username })
+                    : typingIndicators.length === 2
+                      ? t('chat.typingTwo', { u1: typingIndicators[0].username, u2: typingIndicators[1].username })
+                      : t('chat.typingMany')
+                  }
                 </span>
               </div>
             )}
