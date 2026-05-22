@@ -5,6 +5,7 @@ import { UserAvatar } from '@/components/ui/UserAvatar'
 import { MemberActions } from '@/components/moderation/ModerationMenu'
 import { usePermissions } from '@/hooks/usePermissions'
 import { useSocket } from '@/hooks/useSocket'
+import { useT } from '@/lib/i18n'
 
 const ROLE_ORDER_LIST = ['Administrator', 'Moderator', 'Członek', 'Do Weryfikacji']
 
@@ -143,6 +144,7 @@ function MemberRow({ member, serverId, currentUserId, canKick, canBan, canMute, 
 }
 
 export function MembersPanel() {
+  const t = useT()
   const { currentServerId, members, setMembers, addMember, removeMember, setChannels, currentUser, servers, token } = useStore()
   const serverMembers = currentServerId ? (members[currentServerId] ?? []) : []
   const [memberRoles, setMemberRoles] = useState<Record<string, string>>({})
@@ -287,7 +289,7 @@ export function MembersPanel() {
       <div className="flex items-center justify-between px-3.5 py-3 border-b"
         style={{ borderColor: 'var(--eb-border)' }}>
         <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--eb-text3)' }}>
-          Członkowie
+          {t('members.title')}
         </span>
         <span style={{ fontSize: 10, color: 'var(--eb-online)', fontWeight: 500 }}>{online.length} online</span>
       </div>
@@ -298,7 +300,7 @@ export function MembersPanel() {
           onChange={e => setSearch(e.target.value)}
           className="ember-input w-full py-1.5 px-2.5"
           style={{ fontSize: 11 }}
-          placeholder="Szukaj członków..."
+          placeholder={t('serverSettings.members.search')}
         />
       </div>
 
@@ -306,7 +308,7 @@ export function MembersPanel() {
         {online.length > 0 && (
           <div className="mb-3">
             <div className="px-2 py-1 text-[9px] font-bold tracking-widest uppercase" style={{ color: 'var(--eb-text3)' }}>
-              Online — {online.length}
+              {t('members.online', { n: online.length })}
             </div>
             {online.map(m => (
               <MemberRow
@@ -329,7 +331,7 @@ export function MembersPanel() {
         {offline.length > 0 && (
           <div>
             <div className="px-2 py-1 text-[9px] font-bold tracking-widest uppercase" style={{ color: 'var(--eb-text3)' }}>
-              Offline — {offline.length}
+              {t('members.offline', { n: offline.length })}
             </div>
             {offline.map(m => (
               <MemberRow
@@ -351,7 +353,7 @@ export function MembersPanel() {
         )}
         {serverMembers.length === 0 && (
           <div className="flex items-center justify-center h-20">
-            <span style={{ fontSize: 12, color: 'var(--eb-text3)' }}>Brak członków</span>
+            <span style={{ fontSize: 12, color: 'var(--eb-text3)' }}>{t('members.noMembers')}</span>
           </div>
         )}
       </div>
