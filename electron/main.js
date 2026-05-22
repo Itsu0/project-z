@@ -24,7 +24,7 @@ try {
   console.warn('[uiohook] Nie udało się załadować uiohook-napi:', e.message)
 }
 
-const NEXUS_URL    = 'https://nexus-sooty-nine.vercel.app'
+const NEXUS_URL    = 'https://nexus-nexus-projects2.vercel.app'
 const APP_NAME     = 'Nexus'
 
 app.commandLine.appendSwitch('disable-background-timer-throttling')
