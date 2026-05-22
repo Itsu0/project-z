@@ -729,7 +729,7 @@ function TabAccount() {
   const [updateState, setUpdateState] = useState<UpdateCheckState>('idle')
   const [updateMsg,   setUpdateMsg]   = useState('')
   const [appVersion,  setAppVersion]  = useState<string | null>(null)
-  const el = typeof window !== 'undefined' ? (window as any).electronNexus : null
+  const el = typeof window !== 'undefined' ? (window as any).electronPZ : null
 
   useEffect(() => {
     if (!el?.getAppVersion) return
@@ -793,14 +793,14 @@ function TabAccount() {
       cleanup()
     }
     function cleanup() {
-      window.removeEventListener('nexus-update-available', onAvailable)
-      window.removeEventListener('nexus-update-not-available', onNotAvailable)
-      window.removeEventListener('nexus-update-error', onError)
+      window.removeEventListener('pz-update-available', onAvailable)
+      window.removeEventListener('pz-update-not-available', onNotAvailable)
+      window.removeEventListener('pz-update-error', onError)
     }
 
-    window.addEventListener('nexus-update-available',     onAvailable)
-    window.addEventListener('nexus-update-not-available', onNotAvailable)
-    window.addEventListener('nexus-update-error',         onError)
+    window.addEventListener('pz-update-available',     onAvailable)
+    window.addEventListener('pz-update-not-available', onNotAvailable)
+    window.addEventListener('pz-update-error',         onError)
     el.updateCheck()
   }
 
