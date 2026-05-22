@@ -27,9 +27,17 @@ interface Notification {
 
 const PATCH_NOTES = [
   {
-    version: '0.6.8',
+    version: '0.6.9',
     date: '2026-05-22',
     label: 'Najnowsza',
+    entries: [
+      { type: 'new', text: 'Wielojęzyczność — dodano obsługę języka angielskiego; zmiana języka dostępna w Ustawieniach → Konto' },
+    ],
+  },
+  {
+    version: '0.6.8',
+    date: '2026-05-22',
+    label: '',
     entries: [
       { type: 'new', text: 'Rebrand — platforma działa teraz pod nazwą Project-Z' },
       { type: 'new', text: 'Własna domena — projekt dostępny pod adresem project-z.cloud z certyfikatem SSL' },
