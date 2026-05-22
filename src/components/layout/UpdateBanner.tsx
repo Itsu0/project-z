@@ -23,19 +23,19 @@ export function UpdateBanner() {
       setState({ phase: 'ready' })
     }
 
-    window.addEventListener('nexus-update-available',  onAvailable as EventListener)
-    window.addEventListener('nexus-update-progress',   onProgress  as EventListener)
-    window.addEventListener('nexus-update-downloaded', onReady     as EventListener)
+    window.addEventListener('pz-update-available',  onAvailable as EventListener)
+    window.addEventListener('pz-update-progress',   onProgress  as EventListener)
+    window.addEventListener('pz-update-downloaded', onReady     as EventListener)
     return () => {
-      window.removeEventListener('nexus-update-available',  onAvailable as EventListener)
-      window.removeEventListener('nexus-update-progress',   onProgress  as EventListener)
-      window.removeEventListener('nexus-update-downloaded', onReady     as EventListener)
+      window.removeEventListener('pz-update-available',  onAvailable as EventListener)
+      window.removeEventListener('pz-update-progress',   onProgress  as EventListener)
+      window.removeEventListener('pz-update-downloaded', onReady     as EventListener)
     }
   }, [])
 
   if (dismissed || state.phase === 'idle') return null
 
-  const el = (window as any).electronNexus
+  const el = (window as any).electronPZ
 
   return (
     <div
@@ -62,7 +62,7 @@ export function UpdateBanner() {
         {state.phase === 'available' && (
           <>
             <p className="text-xs font-semibold" style={{ color: 'var(--eb-text1)' }}>
-              Nexus {state.version} — dostępna aktualizacja
+              Project-Z {state.version} — dostępna aktualizacja
             </p>
             <p className="text-[10px] mt-0.5" style={{ color: 'var(--eb-text3)' }}>
               Pobierz i zainstaluj w tle
