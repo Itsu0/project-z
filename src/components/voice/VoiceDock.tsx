@@ -41,7 +41,7 @@ export function DesktopSourcePicker({ onSelect, onClose }: { onSelect: (id: stri
   const wrapRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const eN = (window as any).electronNexus
+    const eN = (window as any).electronPZ
     eN?.getDesktopSources?.()
       .then((data: DesktopSource[]) => setSources(data ?? []))
       .catch(() => setSources([]))
@@ -192,7 +192,7 @@ export function VoiceDock() {
     connected, toggleMute, toggleDeafen, toggleScreenShare, startScreenShareFromSource, disconnect,
   } = useVoice()
 
-  const isElectron = typeof window !== 'undefined' && !!(window as any).electronNexus
+  const isElectron = typeof window !== 'undefined' && !!(window as any).electronPZ
   const [overlayVisible, setOverlayVisible] = useState(false)
   const [showSourcePicker, setShowSourcePicker] = useState(false)
 
@@ -201,8 +201,8 @@ export function VoiceDock() {
       const visible = (e as CustomEvent).detail?.visible as boolean | undefined
       if (typeof visible === 'boolean') setOverlayVisible(visible)
     }
-    window.addEventListener('nexus-overlay-state', onState as EventListener)
-    return () => window.removeEventListener('nexus-overlay-state', onState as EventListener)
+    window.addEventListener('pz-overlay-state', onState as EventListener)
+    return () => window.removeEventListener('pz-overlay-state', onState as EventListener)
   }, [])
 
   if (!connected && !connecting) return null
@@ -354,7 +354,7 @@ export function VoiceDock() {
         {isElectron && (
           <DockBtn
             onClick={async () => {
-              await (window as any).electronNexus?.toggleOverlay?.()
+              await (window as any).electronPZ?.toggleOverlay?.()
 
             }}
             title={overlayVisible ? 'Ukryj nakładkę w grze' : 'Pokaż nakładkę w grze'}
