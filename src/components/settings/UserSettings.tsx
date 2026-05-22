@@ -1,6 +1,7 @@
 'use client'
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { useStore } from '@/lib/store'
+import { useT } from '@/lib/i18n'
 import { useRouter } from 'next/navigation'
 import { tokenStore } from '@/lib/api'
 import { ImageCropModal } from '@/components/ui/ImageCropModal'
@@ -55,6 +56,7 @@ function useAudioDevices() {
 
 function TabProfile() {
   const { token, currentUser, setAuth, setCurrentUserStatus } = useStore()
+  const t = useT()
   const [displayName,   setDisplayName]   = useState(currentUser?.display_name ?? '')
   const [customStatus,  setCustomStatus]  = useState(currentUser?.custom_status ?? '')
   const [avatarColor,   setAvatarColor]   = useState(currentUser?.avatar_color ?? AVATAR_COLORS[0])
@@ -90,10 +92,10 @@ function TabProfile() {
   }
 
   const STATUS_OPTIONS = [
-    { value: 'online',  color: '#22c55e', label: 'Online',             emoji: '🟢' },
-    { value: 'idle',    color: '#f59e0b', label: 'Zaraz wracam',       emoji: '🌙' },
-    { value: 'dnd',     color: '#ef4444', label: 'Nie przeszkadzać',   emoji: '⛔' },
-    { value: 'offline', color: '#6b7280', label: 'Niewidoczny',        emoji: '⭕' },
+    { value: 'online',  color: '#22c55e', label: t('status.online'),    emoji: '🟢' },
+    { value: 'idle',    color: '#f59e0b', label: t('status.idle'),      emoji: '🌙' },
+    { value: 'dnd',     color: '#ef4444', label: t('status.dnd'),       emoji: '⛔' },
+    { value: 'offline', color: '#6b7280', label: t('status.invisible'), emoji: '⭕' },
   ]
 
   const QUICK_EMOJI = ['😀','😎','🎮','🔥','💤','🎵','📚','🏆','⚔️','🌙','☕','🎯','💻','🚀','❤️','✨','🎉','😴']
@@ -125,7 +127,7 @@ function TabProfile() {
     <div className="flex flex-col gap-5">
       {}
       <div className="p-4 rounded-2xl" style={{ background: 'var(--eb-bg3)', border: '0.5px solid var(--eb-border)' }}>
-        <p className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: 'var(--eb-text3)' }}>Podgląd</p>
+        <p className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: 'var(--eb-text3)' }}>{t('settings.profile.preview')}</p>
         <div className="flex items-center gap-3">
           <div className="relative group cursor-pointer" onClick={() => fileRef.current?.click()}>
             <div className="w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-xl overflow-hidden"
@@ -169,7 +171,7 @@ function TabProfile() {
       {}
       <div>
         <label className="block text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--eb-text2)' }}>
-          Status
+          {t('settings.profile.status')}
         </label>
         <div className="grid grid-cols-2 gap-2">
           {STATUS_OPTIONS.map(s => (
@@ -190,8 +192,8 @@ function TabProfile() {
       {}
       <div>
         <label className="block text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--eb-text2)' }}>
-          Kolor avatara
-          {avatarUrl && <span className="ml-2 text-[10px] font-normal normal-case" style={{ color: 'var(--eb-text3)' }}>(nieaktywny — używasz własnego avatara)</span>}
+          {t('settings.profile.avatarColor')}
+          {avatarUrl && <span className="ml-2 text-[10px] font-normal normal-case" style={{ color: 'var(--eb-text3)' }}>{t('settings.profile.avatarInactive')}</span>}
         </label>
         <div className="flex gap-2 flex-wrap">
           {AVATAR_COLORS.map(c => (
@@ -202,7 +204,7 @@ function TabProfile() {
           <button onClick={() => fileRef.current?.click()}
             className="w-9 h-9 rounded-full flex items-center justify-center transition-all hover:bg-white/10"
             style={{ border: '1.5px dashed var(--eb-border2)', color: 'var(--eb-text3)', outline: avatarUrl ? '2px solid white' : 'none', outlineOffset: 2 }}
-            title="Prześlij własny avatar">
+            title={t('settings.profile.uploadAvatar')}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
               <circle cx="12" cy="13" r="4"/>
@@ -214,7 +216,7 @@ function TabProfile() {
       {}
       <div>
         <label className="block text-xs font-semibold uppercase tracking-wide mb-1.5" style={{ color: 'var(--eb-text2)' }}>
-          Wyświetlana nazwa
+          {t('settings.profile.displayName')}
         </label>
         <input value={displayName} onChange={e => setDisplayName(e.target.value)}
           className="ember-input w-full px-4 py-2.5" maxLength={32} />
@@ -223,7 +225,7 @@ function TabProfile() {
       {}
       <div>
         <label className="block text-xs font-semibold uppercase tracking-wide mb-1.5" style={{ color: 'var(--eb-text2)' }}>
-          Niestandardowy status
+          {t('settings.profile.customStatus')}
         </label>
         <div className="relative">
           <div className="flex gap-2">
@@ -233,7 +235,7 @@ function TabProfile() {
               {customStatus.match(/^\p{Emoji}/u)?.[0] ?? '😀'}
             </button>
             <input value={customStatus} onChange={e => setCustomStatus(e.target.value)}
-              placeholder="np. Gram w The Quinfall"
+              placeholder={t('settings.profile.customStatusPlaceholder')}
               className="ember-input flex-1 px-4 py-2.5" maxLength={128} />
           </div>
           {showEmoji && (
@@ -256,7 +258,7 @@ function TabProfile() {
 
       <div className="flex items-center gap-3">
         <button onClick={save} disabled={saving} className="ember-btn px-6 py-2 text-sm">
-          {saving ? 'Zapisywanie...' : 'Zapisz profil'}
+          {saving ? t('settings.profile.saving') : t('settings.profile.save')}
         </button>
         {msg && <span className="text-xs" style={{ color: msg.startsWith('✓') ? 'var(--eb-online)' : 'var(--eb-accent2)' }}>{msg}</span>}
       </div>
@@ -266,6 +268,7 @@ function TabProfile() {
 
 function TabAudio() {
   const { token, userSettings, patchUserSettings } = useStore()
+  const t = useT()
   const { inputs, outputs, loaded, error, load } = useAudioDevices()
   const s = userSettings
 
@@ -368,9 +371,9 @@ function TabAudio() {
   }
 
   const PROFILES = [
-    { id: 'oszczędny',     label: 'Oszczędny',     bitrate: '16 kbps',  icon: '📶' },
-    { id: 'zbalansowany',  label: 'Zbalansowany',  bitrate: '32 kbps',  icon: '⚖️' },
-    { id: 'wysoka_jakość', label: 'Wysoka jakość', bitrate: '64 kbps',  icon: '🎯' },
+    { id: 'oszczędny',     label: t('settings.audio.profile.oszczedny'), bitrate: '16 kbps', icon: '📶' },
+    { id: 'zbalansowany',  label: t('settings.audio.profile.zbalansowany'), bitrate: '32 kbps', icon: '⚖️' },
+    { id: 'wysoka_jakość', label: t('settings.audio.profile.wysoka'), bitrate: '64 kbps', icon: '🎯' },
   ]
 
   const Toggle = ({ value, onChange, label, desc }: { value: boolean; onChange: (v: boolean) => void; label: string; desc?: string }) => (
@@ -392,13 +395,13 @@ function TabAudio() {
     <div className="flex flex-col gap-6">
       {error && (
         <div className="px-3 py-2.5 rounded-xl text-xs" style={{ background: 'rgba(220,38,38,0.1)', color: '#f87171', border: '0.5px solid rgba(220,38,38,0.3)' }}>
-          ⚠ {error}
+          ⚠ {t('settings.audio.micError')}
         </div>
       )}
 
       {!loaded && (
         <button onClick={load} className="ember-btn py-2 text-sm">
-          🎤 Zezwól na dostęp do mikrofonu
+          {t('settings.audio.micPermission')}
         </button>
       )}
 
@@ -408,7 +411,7 @@ function TabAudio() {
           <div className="flex flex-col gap-3">
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wide mb-1.5" style={{ color: 'var(--eb-text2)' }}>
-                🎤 Mikrofon (wejście)
+                {t('settings.audio.micInput')}
               </label>
               <select value={inputDevice} onChange={e => setInputDevice(e.target.value)}
                 className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
@@ -425,14 +428,14 @@ function TabAudio() {
                 <button onClick={testMic}
                   className="text-xs px-3 py-1.5 rounded-lg flex-shrink-0 transition-all"
                   style={{ background: testing ? 'rgba(220,38,38,0.15)' : 'rgba(255,255,255,0.06)', color: testing ? 'var(--eb-accent2)' : 'var(--eb-text2)', border: '0.5px solid var(--eb-border)' }}>
-                  {testing ? '⏹ Stop' : '▶ Test'}
+                  {testing ? t('settings.audio.testStop') : t('settings.audio.test')}
                 </button>
               </div>
-              {testing && <p className="text-[10px] mt-1" style={{ color: 'var(--eb-text3)' }}>Mów do mikrofonu — zielony pasek powinien reagować</p>}
+              {testing && <p className="text-[10px] mt-1" style={{ color: 'var(--eb-text3)' }}>{t('settings.audio.testHint')}</p>}
 
               {}
               <div className="mt-2 flex items-center gap-3">
-                <span className="text-xs flex-shrink-0" style={{ color: 'var(--eb-text3)' }}>Głośność: {inputVolume}%</span>
+                <span className="text-xs flex-shrink-0" style={{ color: 'var(--eb-text3)' }}>{t('settings.audio.volume', { n: inputVolume })}</span>
                 <input type="range" min={0} max={200} value={inputVolume} onChange={e => setInputVolume(Number(e.target.value))}
                   className="flex-1 accent-orange-400" />
               </div>
@@ -440,7 +443,7 @@ function TabAudio() {
 
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wide mb-1.5" style={{ color: 'var(--eb-text2)' }}>
-                🔊 Głośniki / Słuchawki (wyjście)
+                {t('settings.audio.speakerOutput')}
               </label>
               <select value={outputDevice} onChange={e => setOutputDevice(e.target.value)}
                 className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
@@ -448,7 +451,7 @@ function TabAudio() {
                 {outputs.map(d => <option key={d.deviceId} value={d.deviceId}>{d.label || `Głośniki ${d.deviceId.slice(0,6)}`}</option>)}
               </select>
               <div className="mt-2 flex items-center gap-3">
-                <span className="text-xs flex-shrink-0" style={{ color: 'var(--eb-text3)' }}>Głośność: {outputVolume}%</span>
+                <span className="text-xs flex-shrink-0" style={{ color: 'var(--eb-text3)' }}>{t('settings.audio.volume', { n: outputVolume })}</span>
                 <input type="range" min={0} max={200} value={outputVolume} onChange={e => setOutputVolume(Number(e.target.value))}
                   className="flex-1 accent-orange-400" />
               </div>
@@ -457,28 +460,28 @@ function TabAudio() {
 
           {}
           <div className="p-4 rounded-xl" style={{ background: 'rgba(255,255,255,0.02)', border: '0.5px solid var(--eb-border)' }}>
-            <p className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: 'var(--eb-text2)' }}>Przetwarzanie audio</p>
+            <p className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: 'var(--eb-text2)' }}>{t('settings.audio.processing')}</p>
             <div className="divide-y" style={{ borderColor: 'var(--eb-border)' }}>
-              <Toggle value={noiseSuppression} onChange={setNoiseSuppression} label="Redukcja szumów" desc="Usuwa szumy tła (wentylatory, otoczenie)" />
-              <Toggle value={echoCancellation} onChange={setEchoCancellation} label="Usuwanie echa" desc="Eliminuje echo z głośników" />
-              <Toggle value={autoGain}         onChange={setAutoGain}         label="Automatyczne wzmocnienie" desc="Wyrównuje poziom głosu" />
+              <Toggle value={noiseSuppression} onChange={setNoiseSuppression} label={t('settings.audio.noiseSuppression')} desc={t('settings.audio.noiseSuppressionDesc')} />
+              <Toggle value={echoCancellation} onChange={setEchoCancellation} label={t('settings.audio.echoCancellation')} desc={t('settings.audio.echoCancellationDesc')} />
+              <Toggle value={autoGain}         onChange={setAutoGain}         label={t('settings.audio.autoGain')}         desc={t('settings.audio.autoGainDesc')} />
             </div>
 
             {}
             <div className="mt-4 pt-3" style={{ borderTop: '0.5px solid var(--eb-border)' }}>
               <div className="flex items-center justify-between mb-1">
                 <div>
-                  <div className="text-sm" style={{ color: 'var(--eb-text1)' }}>Czułość mikrofonu (VAD)</div>
+                  <div className="text-sm" style={{ color: 'var(--eb-text1)' }}>{t('settings.audio.vad')}</div>
                   <div className="text-xs mt-0.5" style={{ color: 'var(--eb-text3)' }}>
                     {vadThreshold === 0
-                      ? 'Wyłączone — mikrofon zawsze aktywny'
+                      ? t('settings.audio.vad.off')
                       : vadThreshold <= 5
-                      ? 'Bardzo czuły — wyłapuje ciche dźwięki'
+                      ? t('settings.audio.vad.1')
                       : vadThreshold <= 10
-                      ? 'Normalny — filtruje ciche szumy tła'
+                      ? t('settings.audio.vad.2')
                       : vadThreshold <= 15
-                      ? 'Mało czuły — tylko wyraźna mowa'
-                      : 'Bardzo mało czuły — tylko głośna mowa'}
+                      ? t('settings.audio.vad.3')
+                      : t('settings.audio.vad.4')}
                   </div>
                 </div>
                 <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded-md"
@@ -493,9 +496,9 @@ function TabAudio() {
                 className="w-full accent-orange-400"
               />
               <div className="flex justify-between text-[10px] mt-1" style={{ color: 'var(--eb-text3)' }}>
-                <span>Wyłączone</span>
-                <span>Normalne</span>
-                <span>Rygorystyczne</span>
+                <span>{t('settings.audio.vad.label.off')}</span>
+                <span>{t('settings.audio.vad.label.normal')}</span>
+                <span>{t('settings.audio.vad.label.strict')}</span>
               </div>
             </div>
           </div>
@@ -503,7 +506,7 @@ function TabAudio() {
           {}
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--eb-text2)' }}>
-              Domyślny profil jakości głosu
+              {t('settings.audio.qualityProfile')}
             </label>
             <div className="grid grid-cols-2 gap-1.5">
               {PROFILES.map((p, i) => (
@@ -522,7 +525,7 @@ function TabAudio() {
               ))}
             </div>
             <p className="text-[10px] mt-2" style={{ color: 'var(--eb-text3)' }}>
-              Ustawienia zapisywane lokalnie — możesz je zmienić przed każdym połączeniem
+              {t('settings.audio.qualityHint')}
             </p>
           </div>
 
@@ -530,8 +533,8 @@ function TabAudio() {
           <div className="p-4 rounded-xl" style={{ background: 'rgba(255,255,255,0.02)', border: '0.5px solid var(--eb-border)' }}>
             <div className="flex items-center justify-between mb-3">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--eb-text2)' }}>Push to Talk</p>
-                <p className="text-xs mt-0.5" style={{ color: 'var(--eb-text3)' }}>Mikrofon aktywny tylko gdy trzymasz przycisk</p>
+                <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--eb-text2)' }}>{t('settings.audio.ptt')}</p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--eb-text3)' }}>{t('settings.audio.pttDesc')}</p>
               </div>
               <button onClick={() => setPttEnabled(v => !v)}
                 className="relative w-10 h-5 rounded-full transition-all flex-shrink-0"
@@ -544,17 +547,17 @@ function TabAudio() {
             {pttEnabled && (
               <div className="flex flex-col gap-3 pt-3" style={{ borderTop: '0.5px solid var(--eb-border)' }}>
                 <div className="flex items-center gap-3">
-                  <span className="text-sm flex-1" style={{ color: 'var(--eb-text1)' }}>Przycisk PTT</span>
+                  <span className="text-sm flex-1" style={{ color: 'var(--eb-text1)' }}>{t('settings.audio.pttKey')}</span>
                   {bindingKey ? (
                     <div className="flex items-center gap-2">
                       <span className="text-xs animate-pulse" style={{ color: 'var(--eb-accent)' }}>
-                        Naciśnij klawisz lub przycisk myszy…
+                        {t('settings.audio.pttBind')}
                       </span>
                       <button
                         onClick={() => setBindingKey(false)}
                         className="text-xs px-2 py-1 rounded-lg"
                         style={{ background: 'var(--eb-bg4)', color: 'var(--eb-text3)' }}>
-                        Anuluj
+                        {t('settings.audio.pttCancel')}
                       </button>
                     </div>
                   ) : (
@@ -584,7 +587,7 @@ function TabAudio() {
                       }}
                       className="px-3 py-1.5 rounded-xl text-xs font-semibold font-mono transition-all hover:brightness-110"
                       style={{ background: 'var(--eb-bg3)', border: '0.5px solid var(--eb-border2)', color: 'var(--eb-accent)', minWidth: 120, textAlign: 'center' }}>
-                      {pttKeyLabel(pttKey)}
+                      {pttKeyLabel(pttKey, t)}
                     </button>
                   )}
                 </div>
@@ -598,20 +601,16 @@ function TabAudio() {
   )
 }
 
-function pttKeyLabel(code: string): string {
-
-  const mouseMap: Record<string, string> = {
-    'Mouse1': '🖱 Środkowy',
-    'Mouse2': '🖱 Prawy',
-    'Mouse3': '🖱 Boczny (wstecz)',
-    'Mouse4': '🖱 Boczny (dalej)',
-    'Mouse5': '🖱 Przycisk 5',
-    'Mouse6': '🖱 Przycisk 6',
+function pttKeyLabel(code: string, t: (k: string) => string): string {
+  if (code.startsWith('Mouse')) {
+    const mk = t(`key.${code}`)
+    if (mk !== `key.${code}`) return mk
   }
-  if (mouseMap[code]) return mouseMap[code]
+  const special = t(`key.${code}`)
+  if (special !== `key.${code}`) return special
 
   const map: Record<string, string> = {
-    Space: 'Spacja', Tab: 'Tab', CapsLock: 'Caps Lock', Escape: 'Esc',
+    Tab: 'Tab', CapsLock: 'Caps Lock', Escape: 'Esc',
     LeftShift: 'L.Shift', RightShift: 'R.Shift',
     LeftControl: 'L.Ctrl', RightControl: 'R.Ctrl',
     LeftAlt: 'L.Alt', RightAlt: 'R.Alt',
@@ -626,6 +625,7 @@ function pttKeyLabel(code: string): string {
 
 function TabAppearance() {
   const { token, userSettings, patchUserSettings } = useStore()
+  const t = useT()
   const [fontSize,    setFontSize]    = useState(userSettings.fontSize)
   const [compactMode, setCompactMode] = useState(userSettings.compactMode)
   const [colorTheme,  setColorTheme]  = useState(userSettings.colorTheme)
@@ -667,16 +667,16 @@ function TabAppearance() {
       {}
       <div>
         <label className="block text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--eb-text2)' }}>
-          Motyw kolorystyczny
+          {t('settings.appearance.colorTheme')}
         </label>
         <div className="grid grid-cols-2 gap-2">
-          {THEMES.map(t => (
-            <button key={t.id} onClick={() => setColorTheme(t.id)}
+          {THEMES.map(th => (
+            <button key={th.id} onClick={() => setColorTheme(th.id)}
               className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all"
-              style={{ background: colorTheme === t.id ? 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.03)', border: `0.5px solid ${colorTheme === t.id ? 'var(--eb-border2)' : 'var(--eb-border)'}` }}>
-              <div className="w-5 h-5 rounded-full flex-shrink-0" style={{ background: t.color }} />
-              <span className="text-sm" style={{ color: 'var(--eb-text1)' }}>{t.label}</span>
-              {colorTheme === t.id && <span className="ml-auto text-xs" style={{ color: 'var(--eb-online)' }}>✓</span>}
+              style={{ background: colorTheme === th.id ? 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.03)', border: `0.5px solid ${colorTheme === th.id ? 'var(--eb-border2)' : 'var(--eb-border)'}` }}>
+              <div className="w-5 h-5 rounded-full flex-shrink-0" style={{ background: th.color }} />
+              <span className="text-sm" style={{ color: 'var(--eb-text1)' }}>{th.label}</span>
+              {colorTheme === th.id && <span className="ml-auto text-xs" style={{ color: 'var(--eb-online)' }}>✓</span>}
             </button>
           ))}
         </div>
@@ -685,10 +685,14 @@ function TabAppearance() {
       {}
       <div>
         <label className="block text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--eb-text2)' }}>
-          Rozmiar tekstu
+          {t('settings.appearance.fontSize')}
         </label>
         <div className="flex gap-2">
-          {[{ id: 'small', label: 'Mały' }, { id: 'normal', label: 'Normalny' }, { id: 'large', label: 'Duży' }].map((s) => (
+          {[
+            { id: 'small',  label: t('settings.appearance.fontSmall') },
+            { id: 'normal', label: t('settings.appearance.fontNormal') },
+            { id: 'large',  label: t('settings.appearance.fontLarge') },
+          ].map((s) => (
             <button key={s.id} onClick={() => setFontSize(s.id)}
               className="flex-1 py-2 rounded-lg text-xs font-medium transition-all"
               style={{ background: fontSize === s.id ? 'var(--eb-gradient)' : 'rgba(255,255,255,0.04)', color: fontSize === s.id ? '#fff' : 'var(--eb-text2)' }}>
@@ -701,8 +705,8 @@ function TabAppearance() {
       {}
       <div className="flex items-center justify-between p-4 rounded-xl" style={{ background: 'rgba(255,255,255,0.02)', border: '0.5px solid var(--eb-border)' }}>
         <div>
-          <div className="text-sm font-medium" style={{ color: 'var(--eb-text1)' }}>Tryb kompaktowy</div>
-          <div className="text-xs mt-0.5" style={{ color: 'var(--eb-text3)' }}>Mniejsze odstępy między wiadomościami</div>
+          <div className="text-sm font-medium" style={{ color: 'var(--eb-text1)' }}>{t('settings.appearance.compactMode')}</div>
+          <div className="text-xs mt-0.5" style={{ color: 'var(--eb-text3)' }}>{t('settings.appearance.compactDesc')}</div>
         </div>
         <button onClick={() => { const next = !compactMode; setCompactMode(next); queueSave({ compactMode: next }) }}
           className="relative w-10 h-5 rounded-full transition-all"
@@ -719,7 +723,8 @@ function TabAppearance() {
 type UpdateCheckState = 'idle' | 'checking' | 'up-to-date' | 'available' | 'error'
 
 function TabAccount() {
-  const { token, currentUser, clearAuth } = useStore()
+  const { token, currentUser, clearAuth, patchUserSettings, userSettings } = useStore()
+  const t = useT()
   const router = useRouter()
   const [oldPass, setOldPass] = useState('')
   const [newPass, setNewPass] = useState('')
@@ -737,8 +742,8 @@ function TabAccount() {
   }, [])
 
   async function changePassword() {
-    if (newPass !== confirmPass) { setMsg('Hasła nie są takie same'); return }
-    if (newPass.length < 8) { setMsg('Hasło musi mieć min. 8 znaków'); return }
+    if (newPass !== confirmPass) { setMsg(t('settings.account.passwordMismatch')); return }
+    if (newPass.length < 8) { setMsg(t('settings.account.passwordTooShort')); return }
     if (!token) return
     setSaving(true)
     setMsg('')
@@ -747,7 +752,7 @@ function TabAccount() {
         method: 'PATCH',
         body: JSON.stringify({ oldPassword: oldPass, newPassword: newPass }),
       })
-      setMsg('✓ Hasło zmienione')
+      setMsg(t('settings.account.passwordChanged'))
       setOldPass(''); setNewPass(''); setConfirmPass('')
     } catch (e: any) {
       setMsg(e.message)
@@ -762,32 +767,42 @@ function TabAccount() {
     router.push('/auth/login')
   }
 
+  function changeLanguage(lang: 'pl' | 'en') {
+    patchUserSettings({ language: lang })
+    if (!token) return
+    fetch(`${BASE}/api/user/settings`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ language: lang }),
+    }).catch(console.warn)
+  }
+
   function checkForUpdates() {
-    if (!el) { setUpdateState('error'); setUpdateMsg('Funkcja dostępna tylko w aplikacji Electron'); return }
+    if (!el) { setUpdateState('error'); setUpdateMsg(t('settings.account.noElectron')); return }
     setUpdateState('checking')
     setUpdateMsg('')
 
     const timeout = setTimeout(() => {
       setUpdateState('error')
-      setUpdateMsg('Brak odpowiedzi — sprawdź połączenie lub logi DevTools (Ctrl+Shift+I)')
+      setUpdateMsg(t('settings.account.updateTimeout'))
     }, 15000)
 
     const onAvailable = (e: Event) => {
       clearTimeout(timeout)
       const v = (e as CustomEvent).detail?.version ?? '?'
       setUpdateState('available')
-      setUpdateMsg(`Dostępna wersja ${v} — zamknij ustawienia aby zobaczyć baner`)
+      setUpdateMsg(t('settings.account.updateAvailable', { v }))
       cleanup()
     }
     const onNotAvailable = () => {
       clearTimeout(timeout)
       setUpdateState('up-to-date')
-      setUpdateMsg('Masz najnowszą wersję')
+      setUpdateMsg(t('settings.account.upToDate'))
       cleanup()
     }
     const onError = (e: Event) => {
       clearTimeout(timeout)
-      const errMsg = (e as CustomEvent).detail?.message ?? 'Nieznany błąd'
+      const errMsg = (e as CustomEvent).detail?.message ?? 'Error'
       setUpdateState('error')
       setUpdateMsg(errMsg)
       cleanup()
@@ -808,21 +823,21 @@ function TabAccount() {
     <div className="flex flex-col gap-6">
       {}
       <div className="p-4 rounded-xl" style={{ background: 'rgba(255,255,255,0.02)', border: '0.5px solid var(--eb-border)' }}>
-        <p className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: 'var(--eb-text2)' }}>Informacje o koncie</p>
+        <p className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: 'var(--eb-text2)' }}>{t('settings.account.info')}</p>
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs" style={{ color: 'var(--eb-text3)' }}>Nazwa użytkownika</span>
+            <span className="text-xs" style={{ color: 'var(--eb-text3)' }}>{t('settings.account.username')}</span>
             <span className="text-sm font-medium" style={{ color: 'var(--eb-text1)' }}>@{currentUser?.username}</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-xs" style={{ color: 'var(--eb-text3)' }}>ID użytkownika</span>
+            <span className="text-xs" style={{ color: 'var(--eb-text3)' }}>{t('settings.account.userId')}</span>
             <span className="text-xs font-mono" style={{ color: 'var(--eb-text3)' }}>{currentUser?.id?.slice(0, 8)}...</span>
           </div>
           {el && (
             <div className="flex items-center justify-between pt-2 mt-1" style={{ borderTop: '0.5px solid var(--eb-border)' }}>
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs" style={{ color: 'var(--eb-text3)' }}>Wersja aplikacji</span>
+                  <span className="text-xs" style={{ color: 'var(--eb-text3)' }}>{t('settings.account.appVersion')}</span>
                   {appVersion && (
                     <span className="text-xs font-semibold font-mono" style={{ color: 'var(--eb-text1)' }}>
                       v{appVersion}
@@ -854,7 +869,7 @@ function TabAccount() {
                     <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.95"/>
                   </svg>
                 )}
-                {updateState === 'checking' ? 'Sprawdzam…' : 'Sprawdź aktualizacje'}
+                {updateState === 'checking' ? t('settings.account.checking') : t('settings.account.checkUpdates')}
               </button>
             </div>
           )}
@@ -863,19 +878,44 @@ function TabAccount() {
 
       {}
       <div>
-        <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--eb-text1)' }}>Zmiana hasła</h3>
+        <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--eb-text1)' }}>{t('settings.account.changePassword')}</h3>
         <div className="flex flex-col gap-2">
           <input type="password" value={oldPass} onChange={e => setOldPass(e.target.value)}
-            placeholder="Aktualne hasło" className="ember-input w-full px-4 py-2.5 text-sm" />
+            placeholder={t('settings.account.oldPassword')} className="ember-input w-full px-4 py-2.5 text-sm" />
           <input type="password" value={newPass} onChange={e => setNewPass(e.target.value)}
-            placeholder="Nowe hasło (min. 8 znaków)" className="ember-input w-full px-4 py-2.5 text-sm" />
+            placeholder={t('settings.account.newPassword')} className="ember-input w-full px-4 py-2.5 text-sm" />
           <input type="password" value={confirmPass} onChange={e => setConfirmPass(e.target.value)}
-            placeholder="Potwierdź nowe hasło" className="ember-input w-full px-4 py-2.5 text-sm"
+            placeholder={t('settings.account.confirmPassword')} className="ember-input w-full px-4 py-2.5 text-sm"
             style={confirmPass && newPass !== confirmPass ? { borderColor: 'rgba(220,38,38,0.5)' } : undefined} />
           {msg && <span className="text-xs" style={{ color: msg.startsWith('✓') ? 'var(--eb-online)' : 'var(--eb-accent2)' }}>{msg}</span>}
           <button onClick={changePassword} disabled={saving || !oldPass || !newPass} className="ember-btn py-2.5 text-sm mt-1">
-            {saving ? 'Zmienianie...' : 'Zmień hasło'}
+            {saving ? t('settings.account.changing') : t('settings.account.changeBtn')}
           </button>
+        </div>
+      </div>
+
+      {}
+      <div className="p-4 rounded-xl" style={{ background: 'rgba(255,255,255,0.02)', border: '0.5px solid var(--eb-border)' }}>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--eb-text2)' }}>{t('settings.account.language')}</p>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--eb-text3)' }}>{t('settings.account.languageDesc')}</p>
+          </div>
+          <div className="flex gap-1.5">
+            {(['pl', 'en'] as const).map(lang => (
+              <button
+                key={lang}
+                onClick={() => changeLanguage(lang)}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                style={{
+                  background: userSettings.language === lang ? 'var(--eb-gradient)' : 'rgba(255,255,255,0.06)',
+                  color: userSettings.language === lang ? '#fff' : 'var(--eb-text2)',
+                  border: `0.5px solid ${userSettings.language === lang ? 'transparent' : 'var(--eb-border)'}`,
+                }}>
+                {lang === 'pl' ? '🇵🇱 PL' : '🇬🇧 EN'}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -884,7 +924,7 @@ function TabAccount() {
         <button onClick={logout}
           className="w-full py-2.5 rounded-xl text-sm font-medium transition-all hover:opacity-80"
           style={{ background: 'rgba(220,38,38,0.12)', color: 'var(--eb-accent2)', border: '1px solid rgba(220,38,38,0.25)' }}>
-          Wyloguj się
+          {t('settings.account.logout')}
         </button>
       </div>
     </div>
@@ -895,12 +935,13 @@ interface Props { onClose: () => void }
 
 export function UserSettings({ onClose }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>('audio')
+  const t = useT()
 
   const TABS: { id: Tab; label: string; icon: string }[] = [
-    { id: 'profil',        label: 'Mój profil',  icon: '👤' },
-    { id: 'audio',         label: 'Audio',        icon: '🎤' },
-    { id: 'wygląd',        label: 'Wygląd',       icon: '🎨' },
-    { id: 'konto',         label: 'Konto',        icon: '🔐' },
+    { id: 'profil',  label: t('settings.tab.profile'),    icon: '👤' },
+    { id: 'audio',   label: t('settings.tab.audio'),      icon: '🎤' },
+    { id: 'wygląd',  label: t('settings.tab.appearance'), icon: '🎨' },
+    { id: 'konto',   label: t('settings.tab.account'),    icon: '🔐' },
   ]
 
   return (
@@ -913,7 +954,7 @@ export function UserSettings({ onClose }: Props) {
         <div className="flex flex-col border-r py-4 flex-shrink-0"
           style={{ width: 200, background: 'var(--eb-bg0)', borderColor: 'var(--eb-border)' }}>
           <div className="px-4 pb-3 mb-2 border-b" style={{ borderColor: 'var(--eb-border)' }}>
-            <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--eb-text3)' }}>Ustawienia użytkownika</p>
+            <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--eb-text3)' }}>{t('settings.title')}</p>
           </div>
 
           <div className="flex flex-col gap-0.5 px-2 flex-1">
@@ -934,7 +975,7 @@ export function UserSettings({ onClose }: Props) {
             <button onClick={onClose}
               className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm w-full transition-all hover:bg-white/[0.04]"
               style={{ color: 'var(--eb-text3)' }}>
-              <span>✕</span> Zamknij (Esc)
+              <span>✕</span> {t('settings.close')}
             </button>
           </div>
         </div>
@@ -942,7 +983,7 @@ export function UserSettings({ onClose }: Props) {
         {}
         <div className="flex-1 overflow-y-auto p-6">
           <h2 className="text-base font-semibold mb-5" style={{ color: 'var(--eb-text1)' }}>
-            {TABS.find(t => t.id === activeTab)?.icon} {TABS.find(t => t.id === activeTab)?.label}
+            {TABS.find(tab => tab.id === activeTab)?.icon} {TABS.find(tab => tab.id === activeTab)?.label}
           </h2>
           {activeTab === 'profil'  && <TabProfile />}
           {activeTab === 'audio'   && <TabAudio />}
