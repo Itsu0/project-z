@@ -100,7 +100,7 @@ export function WarningNotification() {
             style={{ background: 'rgba(245,158,11,0.2)' }}>⚠️</div>
           <div className="flex-1">
             <p className="text-sm font-bold" style={{ color: '#f59e0b' }}>Oficjalne ostrzeżenie</p>
-            <p className="text-[11px]" style={{ color: 'rgba(245,158,11,0.65)' }}>od twórcy platformy Nexus</p>
+            <p className="text-[11px]" style={{ color: 'rgba(245,158,11,0.65)' }}>od twórcy platformy Project-Z</p>
           </div>
           {remaining > 0 && (
             <span className="text-[10px] font-semibold px-2 py-1 rounded-full flex-shrink-0"
