@@ -27,9 +27,22 @@ interface Notification {
 
 const PATCH_NOTES = [
   {
+    version: '0.6.8',
+    date: '2026-05-22',
+    label: 'Najnowsza',
+    entries: [
+      { type: 'new', text: 'Rebrand — platforma działa teraz pod nazwą Project-Z' },
+      { type: 'new', text: 'Własna domena — projekt dostępny pod adresem project-z.cloud z certyfikatem SSL' },
+      { type: 'new', text: 'Stały tunel Cloudflare — backend i LiveKit mają teraz stałe adresy, które nie zmieniają się po restarcie serwera' },
+      { type: 'fix', text: 'Kanał głosowy — naprawiono błąd łączenia z localhost zamiast z serwerem produkcyjnym' },
+      { type: 'fix', text: 'Kanały — usunięcie kanału nie blokuje już możliwości tworzenia nowych; zmiana widoczna natychmiast u wszystkich' },
+      { type: 'imp', text: 'Serwer głosowy — zwiększono limit jednoczesnych uczestników do 250, zoptymalizowano bufory UDP' },
+    ],
+  },
+  {
     version: '0.6.6',
     date: '2026-05-19',
-    label: 'Najnowsza',
+    label: '',
     entries: [
       { type: 'fix', text: 'Usuwanie wiadomości — znika natychmiast u wszystkich bez potrzeby odświeżania' },
       { type: 'new', text: 'Wydajność — aplikacja szybciej ładuje wiadomości, szczególnie na dużych serwerach' },
