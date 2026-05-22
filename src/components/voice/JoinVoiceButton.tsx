@@ -2,6 +2,7 @@
 import { useVoice } from '@/hooks/useVoice'
 import { useStore } from '@/lib/store'
 import { useSocket } from '@/hooks/useSocket'
+import { useT } from '@/lib/i18n'
 import { ScreenShareBar } from '@/components/voice/ScreenShareView'
 import { DesktopSourcePicker } from '@/components/voice/VoiceDock'
 import type { RealChannel } from '@/lib/store'
@@ -10,9 +11,15 @@ import { createPortal } from 'react-dom'
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
-function keyLabel(code: string): string {
+function keyLabel(code: string, t: (k: string) => string): string {
+  if (code.startsWith('Mouse')) {
+    const mk = t(`key.${code}`)
+    if (mk !== `key.${code}`) return mk
+  }
+  const special = t(`key.${code}`)
+  if (special !== `key.${code}`) return special
   const map: Record<string, string> = {
-    Space: 'Spacja', Tab: 'Tab', CapsLock: 'Caps Lock', Escape: 'Esc',
+    Tab: 'Tab', CapsLock: 'Caps Lock', Escape: 'Esc',
     LeftShift: 'L.Shift', RightShift: 'R.Shift',
     LeftControl: 'L.Ctrl', RightControl: 'R.Ctrl',
     LeftAlt: 'L.Alt', RightAlt: 'R.Alt',
@@ -51,14 +58,15 @@ function VoiceOccupants({ channelId, serverId }: { channelId: string; serverId: 
     return () => { socket.off('VOICE_JOIN', onJoin); socket.off('VOICE_LEAVE', onLeave) }
   }, [socket, channelId])
 
+  const t = useT()
   if (occupants.length === 0) return (
-    <p className="text-xs" style={{ color: 'var(--eb-text3)' }}>Nikt jeszcze nie dołączył — bądź pierwszy!</p>
+    <p className="text-xs" style={{ color: 'var(--eb-text3)' }}>{t('voice.noOccupants')}</p>
   )
 
   return (
     <div className="flex flex-col items-center gap-2">
       <p className="text-xs font-semibold" style={{ color: 'var(--eb-text3)' }}>
-        Na kanale ({occupants.length})
+        {t('voice.onChannel', { n: occupants.length })}
       </p>
       <div className="flex flex-wrap justify-center gap-3">
         {occupants.map(p => (
@@ -98,6 +106,7 @@ export function JoinVoiceButton({ channel }: Props) {
     toggleMute, toggleDeafen, toggleScreenShare, startScreenShareFromSource,
     showStream, setShowStream,
   } = hook
+  const t = useT()
   const { pttEnabled, pttKey } = userSettings
   const isElectron = typeof window !== 'undefined' && !!(window as any).electronPZ
   const [showSourcePicker, setShowSourcePicker] = useState(false)
@@ -124,7 +133,7 @@ export function JoinVoiceButton({ channel }: Props) {
                   <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
                   <line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/>
                 </svg>
-                Kliknij, aby włączyć dźwięk
+                {t('voice.enableAudio')}
               </button>
             )}
 
@@ -144,14 +153,14 @@ export function JoinVoiceButton({ channel }: Props) {
                   <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
                   <line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>
                 </svg>
-                {pttActive ? 'Nadawanie...' : `Push to Talk — przytrzymaj [${keyLabel(pttKey)}]`}
+                {pttActive ? t('voice.ptt.active') : t('voice.ptt.inactive', { key: keyLabel(pttKey, t) })}
               </div>
             )}
 
             <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl"
               style={{ background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.3)' }}>🎙</div>
             <div className="text-center">
-              <p className="font-semibold mb-1" style={{ color: 'var(--eb-online)' }}>Połączono</p>
+              <p className="font-semibold mb-1" style={{ color: 'var(--eb-online)' }}>{t('voice.connected')}</p>
               <p style={{ fontSize: 12, color: 'var(--eb-text3)' }}>#{channel.name}</p>
             </div>
 
@@ -166,10 +175,10 @@ export function JoinVoiceButton({ channel }: Props) {
                     </div>
                     <div className="flex-1">
                       <div className="text-xs font-medium" style={{ color: 'var(--eb-text1)' }}>
-                        {p.name}{p.isLocal ? ' (Ty)' : ''}
+                        {p.name}{p.isLocal ? t('voice.you') : ''}
                       </div>
                       <div className="text-[10px]" style={{ color: p.isSpeaking ? 'var(--eb-online)' : 'var(--eb-text3)' }}>
-                        {p.isMuted ? '🔇 Wyciszony' : p.isSpeaking ? '🎙 Mówi...' : '🎙 Połączony'}
+                        {p.isMuted ? t('voice.silentMuted') : p.isSpeaking ? t('voice.speaking') : t('voice.silentConnected')}
                       </div>
                     </div>
                   </div>
@@ -178,16 +187,16 @@ export function JoinVoiceButton({ channel }: Props) {
             )}
 
             <div className="flex items-center gap-2">
-              <button onClick={toggleMute} title={muted ? 'Włącz mikrofon' : 'Wycisz mikrofon'}
+              <button onClick={toggleMute} title={muted ? t('voice.unmuteMic') : t('voice.muteMic')}
                 className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-medium transition-all"
                 style={{ background: muted ? 'rgba(220,38,38,0.15)' : 'rgba(255,255,255,0.06)', border: `1px solid ${muted ? 'rgba(220,38,38,0.35)' : 'var(--eb-border)'}`, color: muted ? 'var(--eb-accent2)' : 'var(--eb-text1)' }}>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   {muted ? <><line x1="2" y1="2" x2="22" y2="22"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12"/></> : <><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></>}
                 </svg>
-                {muted ? 'Wyciszony' : 'Mikrofon'}
+                {muted ? t('voice.muteBtn') : t('voice.muteLabel')}
               </button>
 
-              <button onClick={toggleDeafen} title={deafened ? 'Odgłuś' : 'Ogłuś'}
+              <button onClick={toggleDeafen} title={deafened ? t('voice.undeafen') : t('voice.deafen')}
                 className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-medium transition-all"
                 style={{ background: deafened ? 'rgba(220,38,38,0.15)' : 'rgba(255,255,255,0.06)', border: `1px solid ${deafened ? 'rgba(220,38,38,0.35)' : 'var(--eb-border)'}`, color: deafened ? 'var(--eb-accent2)' : 'var(--eb-text1)' }}>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -195,7 +204,7 @@ export function JoinVoiceButton({ channel }: Props) {
                   <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/>
                   {deafened && <line x1="2" y1="2" x2="22" y2="22"/>}
                 </svg>
-                {deafened ? 'Ogłuszony' : 'Słuchawki'}
+                {deafened ? t('voice.deafened') : t('voice.headphones')}
               </button>
 
               <button
@@ -220,7 +229,7 @@ export function JoinVoiceButton({ channel }: Props) {
                   {!screenSharing && <><polyline points="10 8 12 6 14 8"/><line x1="12" y1="6" x2="12" y2="13"/></>}
                   {screenSharing && <line x1="9" y1="10" x2="15" y2="10"/>}
                 </svg>
-                {screenSharing ? 'Zatrzymaj' : 'Udostępnij ekran'}
+                {screenSharing ? t('voice.stopSharing') : t('voice.shareScreen')}
               </button>
 
               {screenTracks.length > 0 && <ScreenShareBar />}
@@ -228,7 +237,7 @@ export function JoinVoiceButton({ channel }: Props) {
               <button onClick={disconnect}
                 className="px-4 py-2 rounded-xl text-xs font-medium transition-all hover:opacity-80"
                 style={{ background: 'rgba(220,38,38,0.15)', color: 'var(--eb-accent2)', border: '1px solid rgba(220,38,38,0.3)' }}>
-                Rozłącz
+                {t('voice.disconnect')}
               </button>
             </div>
           </>
@@ -237,7 +246,7 @@ export function JoinVoiceButton({ channel }: Props) {
             <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl"
               style={{ background: 'var(--eb-bg3)' }}>🔊</div>
             <div className="text-center">
-              <p className="font-semibold mb-1" style={{ color: 'var(--eb-text1)' }}>Kanał głosowy</p>
+              <p className="font-semibold mb-1" style={{ color: 'var(--eb-text1)' }}>{t('voice.voiceChannel')}</p>
               <p style={{ fontSize: 12, color: 'var(--eb-text3)' }}>
                 #{channel.name}
               </p>
@@ -260,9 +269,9 @@ export function JoinVoiceButton({ channel }: Props) {
               style={{ opacity: connecting ? 0.7 : 1 }}
             >
               {connecting ? (
-                <><svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>Łączenie...</>
+                <><svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>{t('voice.connecting')}</>
               ) : (
-                <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>Dołącz do kanału</>
+                <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>{t('voice.joinChannel')}</>
               )}
             </button>
           </>
