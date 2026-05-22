@@ -5,24 +5,24 @@
 const { contextBridge, ipcRenderer } = require('electron')
 
 ipcRenderer.on('ptt-toggle', (_, data) => {
-  window.dispatchEvent(new CustomEvent('nexus-ext-ptt', { detail: data }))
+  window.dispatchEvent(new CustomEvent('pz-ext-ptt', { detail: data }))
 })
 
 ipcRenderer.on('overlay-state', (_, data) => {
-  window.dispatchEvent(new CustomEvent('nexus-overlay-state', { detail: data }))
+  window.dispatchEvent(new CustomEvent('pz-overlay-state', { detail: data }))
 })
 
 ipcRenderer.on('overlay-request-sync', () => {
-  window.dispatchEvent(new CustomEvent('nexus-overlay-sync'))
+  window.dispatchEvent(new CustomEvent('pz-overlay-sync'))
 })
 
-ipcRenderer.on('update-available',     (_, data) => window.dispatchEvent(new CustomEvent('nexus-update-available',     { detail: data })))
-ipcRenderer.on('update-not-available', (_, data) => window.dispatchEvent(new CustomEvent('nexus-update-not-available', { detail: data })))
-ipcRenderer.on('update-progress',      (_, data) => window.dispatchEvent(new CustomEvent('nexus-update-progress',      { detail: data })))
-ipcRenderer.on('update-downloaded',    ()        => window.dispatchEvent(new CustomEvent('nexus-update-downloaded')))
-ipcRenderer.on('update-error',         (_, data) => { console.warn('[updater] błąd:', data?.message); window.dispatchEvent(new CustomEvent('nexus-update-error', { detail: data })) })
+ipcRenderer.on('update-available',     (_, data) => window.dispatchEvent(new CustomEvent('pz-update-available',     { detail: data })))
+ipcRenderer.on('update-not-available', (_, data) => window.dispatchEvent(new CustomEvent('pz-update-not-available', { detail: data })))
+ipcRenderer.on('update-progress',      (_, data) => window.dispatchEvent(new CustomEvent('pz-update-progress',      { detail: data })))
+ipcRenderer.on('update-downloaded',    ()        => window.dispatchEvent(new CustomEvent('pz-update-downloaded')))
+ipcRenderer.on('update-error',         (_, data) => { window.dispatchEvent(new CustomEvent('pz-update-error', { detail: data })) })
 
-contextBridge.exposeInMainWorld('electronNexus', {
+contextBridge.exposeInMainWorld('electronPZ', {
 
   getPTTState:    () => ipcRenderer.invoke('get-ptt-state'),
   setPTTActive:   (active)   => ipcRenderer.invoke('set-ptt-active',   active),
