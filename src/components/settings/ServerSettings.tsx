@@ -242,7 +242,7 @@ function TabGeneral({ server, onClose }: { server: any; onClose: () => void }) {
 }
 
 function TabChannels({ server }: { server: any }) {
-  const { token, channels, setChannels } = useStore()
+  const { token, channels, setChannels, currentChannelId, setCurrentChannel } = useStore()
   const serverChannels = channels[server.id] ?? []
   const [newName,   setNewName]   = useState('')
   const [newType,   setNewType]   = useState<'text' | 'voice' | 'forum'>('text')
@@ -272,7 +272,12 @@ function TabChannels({ server }: { server: any }) {
     if (!token || !confirm(`Usunąć kanał #${name}?`)) return
     try {
       await apiFetch(`/api/servers/${server.id}/channels/${channelId}`, token, { method: 'DELETE' })
-      setChannels(server.id, serverChannels.filter(c => c.id !== channelId))
+      const updated = serverChannels.filter(c => c.id !== channelId)
+      setChannels(server.id, updated)
+      if (currentChannelId === channelId) {
+        const next = updated.find(c => c.type === 'text' || c.type === 'announcement')
+        setCurrentChannel(next?.id ?? '')
+      }
     } catch (e: any) { alert(e.message) }
   }
 
