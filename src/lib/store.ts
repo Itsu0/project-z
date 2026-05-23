@@ -129,6 +129,12 @@ interface Store {
 
   membersPanelOpen: boolean
   toggleMembersPanel: () => void
+
+  automodBlock: string | null
+  setAutomodBlock: (reason: string | null) => void
+  raidLockdown: { serverId: string; message: string } | null
+  setRaidLockdown: (serverId: string, message: string) => void
+  clearRaidLockdown: () => void
 }
 
 export const useStore = create<Store>((set, get) => ({
@@ -260,4 +266,10 @@ export const useStore = create<Store>((set, get) => ({
 
   membersPanelOpen: true,
   toggleMembersPanel: () => set((s) => ({ membersPanelOpen: !s.membersPanelOpen })),
+
+  automodBlock: null,
+  setAutomodBlock: (reason) => set({ automodBlock: reason }),
+  raidLockdown: null,
+  setRaidLockdown: (serverId, message) => set({ raidLockdown: { serverId, message } }),
+  clearRaidLockdown: () => set({ raidLockdown: null }),
 }))

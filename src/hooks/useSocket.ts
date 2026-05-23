@@ -132,6 +132,19 @@ export function useSocket() {
       useStore.getState().deleteMessage(data.channelId, data.id)
     })
 
+    s.on('MESSAGES_BULK_DELETE', (data: { channelId: string; messageIds: string[] }) => {
+      const store = useStore.getState()
+      data.messageIds.forEach(id => store.deleteMessage(data.channelId, id))
+    })
+
+    s.on('AUTOMOD_BLOCK', (data: { reason: string }) => {
+      useStore.getState().setAutomodBlock(data.reason)
+    })
+
+    s.on('RAID_LOCKDOWN', (data: { serverId: string; message: string }) => {
+      useStore.getState().setRaidLockdown(data.serverId, data.message)
+    })
+
     s.on('MESSAGE_PIN', (data: { messageId: string; channelId: string; pinned: boolean }) => {
       useStore.getState().updateMessage(data.channelId, data.messageId, { pinned: data.pinned })
     })

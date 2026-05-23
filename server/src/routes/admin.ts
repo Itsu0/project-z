@@ -27,8 +27,16 @@ async function requireCreator(req: Request, res: Response): Promise<boolean> {
   return true
 }
 
+async function requireStaff(req: Request, res: Response): Promise<boolean> {
+  if (!(await isModerator(req.user!.userId))) {
+    res.status(403).json({ error: 'Brak uprawnień' })
+    return false
+  }
+  return true
+}
+
 router.get('/bans', requireAuth, async (req: Request, res: Response) => {
-  if (!(await requireCreator(req, res))) return
+  if (!(await requireStaff(req, res))) return
   try {
     const bans = await queryMany(
       `SELECT b.*, u.username, u.display_name, u.avatar_color, u.avatar_url
@@ -45,7 +53,7 @@ router.get('/bans', requireAuth, async (req: Request, res: Response) => {
 })
 
 router.post('/bans', requireAuth, async (req: Request, res: Response) => {
-  if (!(await requireCreator(req, res))) return
+  if (!(await requireStaff(req, res))) return
   try {
     const { userId, reason, days, banIps } = req.body
     if (!userId || !reason?.trim())
@@ -81,7 +89,7 @@ router.post('/bans', requireAuth, async (req: Request, res: Response) => {
 })
 
 router.delete('/bans/:userId', requireAuth, async (req: Request, res: Response) => {
-  if (!(await requireCreator(req, res))) return
+  if (!(await requireStaff(req, res))) return
   try {
     await execute('DELETE FROM user_bans WHERE user_id = ?', [req.params.userId])
     return res.json({ ok: true })
@@ -91,7 +99,7 @@ router.delete('/bans/:userId', requireAuth, async (req: Request, res: Response) 
 })
 
 router.get('/warnings/:userId', requireAuth, async (req: Request, res: Response) => {
-  if (!(await requireCreator(req, res))) return
+  if (!(await requireStaff(req, res))) return
   try {
     const warnings = await queryMany(
       'SELECT * FROM user_warnings WHERE user_id = ? ORDER BY created_at DESC',
@@ -104,7 +112,7 @@ router.get('/warnings/:userId', requireAuth, async (req: Request, res: Response)
 })
 
 router.post('/warnings', requireAuth, async (req: Request, res: Response) => {
-  if (!(await requireCreator(req, res))) return
+  if (!(await requireStaff(req, res))) return
   try {
     const { userId, reason } = req.body
     if (!userId || !reason?.trim())
@@ -131,7 +139,7 @@ router.post('/warnings', requireAuth, async (req: Request, res: Response) => {
 })
 
 router.delete('/warnings/:id', requireAuth, async (req: Request, res: Response) => {
-  if (!(await requireCreator(req, res))) return
+  if (!(await requireStaff(req, res))) return
   try {
     await execute('DELETE FROM user_warnings WHERE id = ?', [req.params.id])
     return res.json({ ok: true })
@@ -141,7 +149,7 @@ router.delete('/warnings/:id', requireAuth, async (req: Request, res: Response) 
 })
 
 router.get('/ghost/:serverId', requireAuth, async (req: Request, res: Response) => {
-  if (!(await requireCreator(req, res))) return
+  if (!(await requireStaff(req, res))) return
   try {
     const { serverId } = req.params
 
@@ -192,7 +200,7 @@ router.get('/ghost/:serverId', requireAuth, async (req: Request, res: Response) 
 })
 
 router.get('/ghost/:serverId/messages/:channelId', requireAuth, async (req: Request, res: Response) => {
-  if (!(await requireCreator(req, res))) return
+  if (!(await requireStaff(req, res))) return
   try {
     const { channelId } = req.params
     const limit    = Math.min(Number(req.query.limit ?? 50), 100) | 0
@@ -228,7 +236,7 @@ router.get('/ghost/:serverId/messages/:channelId', requireAuth, async (req: Requ
 })
 
 router.get('/warning-replies', requireAuth, async (req: Request, res: Response) => {
-  if (!(await requireCreator(req, res))) return
+  if (!(await requireStaff(req, res))) return
   try {
     const replies = await queryMany(
       `SELECT w.*, u.display_name, u.username, u.avatar_color, u.avatar_url
@@ -346,7 +354,7 @@ router.get('/users/:userId', requireAuth, async (req: Request, res: Response) =>
 })
 
 router.get('/users/:userId/ips', requireAuth, async (req: Request, res: Response) => {
-  if (!(await requireCreator(req, res))) return
+  if (!(await requireStaff(req, res))) return
   try {
     const ips = await queryMany(
       `SELECT ip, first_seen, last_seen,
@@ -363,7 +371,7 @@ router.get('/users/:userId/ips', requireAuth, async (req: Request, res: Response
 })
 
 router.get('/banned-ips', requireAuth, async (req: Request, res: Response) => {
-  if (!(await requireCreator(req, res))) return
+  if (!(await requireStaff(req, res))) return
   try {
     const ips = await queryMany(
       `SELECT b.*, u.display_name as banned_by_name
@@ -378,7 +386,7 @@ router.get('/banned-ips', requireAuth, async (req: Request, res: Response) => {
 })
 
 router.post('/ban-ip', requireAuth, async (req: Request, res: Response) => {
-  if (!(await requireCreator(req, res))) return
+  if (!(await requireStaff(req, res))) return
   try {
     const { ip, reason } = req.body
     if (!ip?.trim() || !reason?.trim())
@@ -396,7 +404,7 @@ router.post('/ban-ip', requireAuth, async (req: Request, res: Response) => {
 })
 
 router.delete('/ban-ip/:ip', requireAuth, async (req: Request, res: Response) => {
-  if (!(await requireCreator(req, res))) return
+  if (!(await requireStaff(req, res))) return
   try {
     await execute('DELETE FROM banned_ips WHERE ip = ?', [decodeURIComponent(req.params.ip)])
     return res.json({ ok: true })
@@ -406,7 +414,7 @@ router.delete('/ban-ip/:ip', requireAuth, async (req: Request, res: Response) =>
 })
 
 router.post('/ghost/:serverId/channels/:channelId/message', requireAuth, async (req: Request, res: Response) => {
-  if (!(await requireCreator(req, res))) return
+  if (!(await requireStaff(req, res))) return
   try {
     const { serverId, channelId } = req.params
     const { content } = req.body

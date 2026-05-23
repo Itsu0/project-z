@@ -24,6 +24,7 @@ import forumRoutes         from './routes/forum'
 import gifsRoutes          from './routes/gifs'
 import attachmentsRoutes   from './routes/attachments'
 import pollsRoutes, { restorePollTimers } from './routes/polls'
+import serverModRoutes from './routes/serverMod'
 
 dotenv.config()
 
@@ -115,6 +116,7 @@ app.use('/api/channels',      attachmentsRoutes)
 app.use('/api/attachments',   attachmentsRoutes)
 app.use('/api/channels',      pollsRoutes)
 app.use('/api/polls',         pollsRoutes)
+app.use('/api/servers',       serverModRoutes)
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', uptime: process.uptime(), timestamp: new Date().toISOString() })

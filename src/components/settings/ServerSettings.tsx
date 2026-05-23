@@ -8,7 +8,7 @@ import { useT } from '@/lib/i18n'
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
-type Tab = 'ogólne' | 'kanały' | 'role' | 'członkowie' | 'emoji' | 'zbanowani'
+type Tab = 'ogólne' | 'kanały' | 'role' | 'członkowie' | 'emoji' | 'zbanowani' | 'moderacja'
 
 async function apiFetch(path: string, token: string, options: RequestInit = {}) {
   const res = await fetch(`${BASE}${path}`, {
@@ -764,6 +764,382 @@ function TabEmoji({ server }: { server: any }) {
   )
 }
 
+function TabModeration({ server }: { server: any }) {
+  const { token } = useStore()
+  const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+  const [settings, setSettings]   = useState<any>({})
+  const [rules,    setRules]       = useState<any[]>([])
+  const [roles,    setRoles]       = useState<any[]>([])
+  const [channels, setChannels2]   = useState<any[]>([])
+  const [saving,   setSaving]      = useState(false)
+  const [saved,    setSaved]       = useState(false)
+  const [newRule,  setNewRule]     = useState<{ type: string; value: string; action: string }>({ type: 'banned_word', value: '', action: 'delete' })
+  const [addingRule, setAddingRule] = useState(false)
+  const [modLog,   setModLog]      = useState<any[]>([])
+  const [logLoaded, setLogLoaded]  = useState(false)
+  const [activeSection, setActiveSection] = useState<'settings' | 'automod' | 'log'>('settings')
+
+  useEffect(() => {
+    if (!token || !server?.id) return
+    Promise.all([
+      fetch(`${BASE_URL}/api/servers/${server.id}/mod-settings`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).then(d => { if (d.settings) setSettings(d.settings) }).catch(() => {}),
+      fetch(`${BASE_URL}/api/servers/${server.id}/automod`,      { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).then(d => { if (d.rules) setRules(d.rules) }).catch(() => {}),
+      fetch(`${BASE_URL}/api/servers/${server.id}/roles`,        { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).then(d => { if (d.roles) setRoles(d.roles) }).catch(() => {}),
+      fetch(`${BASE_URL}/api/servers/${server.id}`,              { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).then(d => { if (d.channels) setChannels2(d.channels.filter((c: any) => c.type === 'text' || c.type === 'announcement')) }).catch(() => {}),
+    ])
+  }, [token, server?.id])
+
+  async function saveSettings() {
+    setSaving(true)
+    try {
+      await fetch(`${BASE_URL}/api/servers/${server.id}/mod-settings`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(settings),
+      })
+      setSaved(true); setTimeout(() => setSaved(false), 2000)
+    } finally { setSaving(false) }
+  }
+
+  async function addRule() {
+    if (!newRule.type) return
+    setAddingRule(true)
+    try {
+      const res = await fetch(`${BASE_URL}/api/servers/${server.id}/automod`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(newRule),
+      })
+      const d = await res.json()
+      if (d.rule) { setRules(r => [...r, d.rule]); setNewRule({ type: 'banned_word', value: '', action: 'delete' }) }
+    } finally { setAddingRule(false) }
+  }
+
+  async function toggleRule(ruleId: string, enabled: boolean) {
+    await fetch(`${BASE_URL}/api/servers/${server.id}/automod/${ruleId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ enabled }),
+    })
+    setRules(r => r.map(x => x.id === ruleId ? { ...x, enabled: enabled ? 1 : 0 } : x))
+  }
+
+  async function deleteRule(ruleId: string) {
+    await fetch(`${BASE_URL}/api/servers/${server.id}/automod/${ruleId}`, {
+      method: 'DELETE', headers: { Authorization: `Bearer ${token}` },
+    })
+    setRules(r => r.filter(x => x.id !== ruleId))
+  }
+
+  async function loadLog() {
+    if (logLoaded) return
+    setLogLoaded(true)
+    const res = await fetch(`${BASE_URL}/api/servers/${server.id}/mod-log?limit=50`, { headers: { Authorization: `Bearer ${token}` } })
+    const d = await res.json()
+    setModLog(d.logs ?? [])
+  }
+
+  const RULE_TYPES = [
+    { value: 'banned_word', label: '🚫 Zakazane słowo/fraza' },
+    { value: 'spam',        label: '📢 Spam (X wiad./5s)' },
+    { value: 'links',       label: '🔗 Linki HTTP/HTTPS' },
+    { value: 'caps',        label: '🔤 Nadużycie CAPS (>70%)' },
+    { value: 'invites',     label: '💌 Zaproszenia Discord' },
+  ]
+  const RULE_ACTIONS = [
+    { value: 'delete',       label: 'Usuń wiadomość' },
+    { value: 'delete_warn',  label: 'Usuń + strajk' },
+    { value: 'delete_mute',  label: 'Usuń + strajk + mute 10min' },
+  ]
+  const STRIKE_ACTIONS = ['warn', 'mute', 'kick', 'ban']
+
+  const sectionBtns = [
+    { id: 'settings', label: '⚙ Ustawienia' },
+    { id: 'automod',  label: '🤖 AutoMod' },
+    { id: 'log',      label: '📋 Mod Log' },
+  ] as const
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex gap-1.5 pb-3" style={{ borderBottom: '1px solid var(--eb-border)' }}>
+        {sectionBtns.map(b => (
+          <button key={b.id}
+            onClick={() => { setActiveSection(b.id); if (b.id === 'log') loadLog() }}
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+            style={{
+              background: activeSection === b.id ? 'rgba(34,197,94,0.12)' : 'var(--eb-bg3)',
+              color: activeSection === b.id ? '#4ade80' : 'var(--eb-text3)',
+              border: `1px solid ${activeSection === b.id ? 'rgba(34,197,94,0.3)' : 'var(--eb-border)'}`,
+            }}>
+            {b.label}
+          </button>
+        ))}
+      </div>
+
+      {activeSection === 'settings' && (
+        <div className="flex flex-col gap-5">
+          {/* Mod log channel */}
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-wide mb-2 block" style={{ color: 'var(--eb-text3)' }}>
+              📋 Kanał Mod-Log
+            </label>
+            <select
+              value={settings.mod_log_channel_id ?? ''}
+              onChange={e => setSettings((s: any) => ({ ...s, mod_log_channel_id: e.target.value || null }))}
+              className="ember-input w-full px-3 py-2 text-sm">
+              <option value="">— Wyłączony —</option>
+              {channels.map((c: any) => <option key={c.id} value={c.id}>#{c.name}</option>)}
+            </select>
+            <p className="text-[10px] mt-1" style={{ color: 'var(--eb-text3)' }}>Wszystkie akcje moderacyjne będą logowane w tym kanale.</p>
+          </div>
+
+          {/* Raid protection */}
+          <div className="rounded-xl p-4 flex flex-col gap-3" style={{ background: 'var(--eb-bg3)', border: '1px solid var(--eb-border)' }}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold" style={{ color: 'var(--eb-text1)' }}>🛡 Ochrona przed raidem</p>
+                <p className="text-[10px] mt-0.5" style={{ color: 'var(--eb-text3)' }}>Lockdown gdy dużo osób dołącza naraz</p>
+              </div>
+              <button onClick={() => setSettings((s: any) => ({ ...s, raid_protection: s.raid_protection ? 0 : 1 }))}
+                className="w-10 h-5 rounded-full transition-all flex-shrink-0 relative"
+                style={{ background: settings.raid_protection ? '#4ade80' : 'var(--eb-bg4)' }}>
+                <span className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all"
+                  style={{ left: settings.raid_protection ? '1.25rem' : '0.125rem' }} />
+              </button>
+            </div>
+            {!!settings.raid_protection && (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-semibold uppercase mb-1 block" style={{ color: 'var(--eb-text3)' }}>Próg (dołączeń)</label>
+                  <input type="number" min={3} max={100}
+                    value={settings.raid_threshold ?? 10}
+                    onChange={e => setSettings((s: any) => ({ ...s, raid_threshold: Number(e.target.value) }))}
+                    className="ember-input w-full px-3 py-2 text-sm" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-semibold uppercase mb-1 block" style={{ color: 'var(--eb-text3)' }}>Okno czasowe (sek)</label>
+                  <input type="number" min={5} max={300}
+                    value={settings.raid_window_secs ?? 30}
+                    onChange={e => setSettings((s: any) => ({ ...s, raid_window_secs: Number(e.target.value) }))}
+                    className="ember-input w-full px-3 py-2 text-sm" />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Verification */}
+          <div className="rounded-xl p-4 flex flex-col gap-3" style={{ background: 'var(--eb-bg3)', border: '1px solid var(--eb-border)' }}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold" style={{ color: 'var(--eb-text1)' }}>✅ Weryfikacja nowych członków</p>
+                <p className="text-[10px] mt-0.5" style={{ color: 'var(--eb-text3)' }}>Nowi dostają rolę weryfikacji i muszą kliknąć przycisk</p>
+              </div>
+              <button onClick={() => setSettings((s: any) => ({ ...s, verification_enabled: s.verification_enabled ? 0 : 1 }))}
+                className="w-10 h-5 rounded-full transition-all flex-shrink-0 relative"
+                style={{ background: settings.verification_enabled ? '#4ade80' : 'var(--eb-bg4)' }}>
+                <span className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all"
+                  style={{ left: settings.verification_enabled ? '1.25rem' : '0.125rem' }} />
+              </button>
+            </div>
+            {!!settings.verification_enabled && (
+              <div>
+                <label className="text-[10px] font-semibold uppercase mb-1 block" style={{ color: 'var(--eb-text3)' }}>Rola weryfikacji (przypisywana nowym)</label>
+                <select
+                  value={settings.verification_role_id ?? ''}
+                  onChange={e => setSettings((s: any) => ({ ...s, verification_role_id: e.target.value || null }))}
+                  className="ember-input w-full px-3 py-2 text-sm">
+                  <option value="">— Wybierz rolę —</option>
+                  {roles.map((r: any) => <option key={r.id} value={r.id}>{r.name}</option>)}
+                </select>
+              </div>
+            )}
+          </div>
+
+          {/* Strike system */}
+          <div className="rounded-xl p-4 flex flex-col gap-3" style={{ background: 'var(--eb-bg3)', border: '1px solid var(--eb-border)' }}>
+            <p className="text-sm font-semibold" style={{ color: 'var(--eb-text1)' }}>⚡ System strajków — auto-eskalacja</p>
+            {[
+              { n: 1, label: 'Próg 1' },
+              { n: 2, label: 'Próg 2' },
+              { n: 3, label: 'Próg 3' },
+            ].map(({ n, label }) => (
+              <div key={n} className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-semibold uppercase mb-1 block" style={{ color: 'var(--eb-text3)' }}>{label} — strajków</label>
+                  <input type="number" min={1} max={50}
+                    value={(settings as any)[`strike_${n}_threshold`] ?? (n === 1 ? 3 : n === 2 ? 5 : 7)}
+                    onChange={e => setSettings((s: any) => ({ ...s, [`strike_${n}_threshold`]: Number(e.target.value) }))}
+                    className="ember-input w-full px-3 py-2 text-sm" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-semibold uppercase mb-1 block" style={{ color: 'var(--eb-text3)' }}>Akcja</label>
+                  <select
+                    value={(settings as any)[`strike_${n}_action`] ?? (n === 1 ? 'mute' : n === 2 ? 'kick' : 'ban')}
+                    onChange={e => setSettings((s: any) => ({ ...s, [`strike_${n}_action`]: e.target.value }))}
+                    className="ember-input w-full px-3 py-2 text-sm">
+                    {STRIKE_ACTIONS.map(a => <option key={a} value={a}>{a}</option>)}
+                  </select>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <button onClick={saveSettings} disabled={saving}
+            className="ember-btn px-5 py-2.5 text-sm font-semibold self-start"
+            style={{ opacity: saving ? 0.6 : 1 }}>
+            {saved ? '✓ Zapisano' : saving ? 'Zapisywanie...' : 'Zapisz ustawienia'}
+          </button>
+        </div>
+      )}
+
+      {activeSection === 'automod' && (
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold" style={{ color: 'var(--eb-text1)' }}>Reguły AutoMod</p>
+              <p className="text-[10px] mt-0.5" style={{ color: 'var(--eb-text3)' }}>
+                Włącz AutoMod w Ustawieniach żeby reguły działały
+              </p>
+            </div>
+            <button onClick={() => setSettings((s: any) => ({ ...s, automod_enabled: s.automod_enabled ? 0 : 1 }))}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+              style={{
+                background: settings.automod_enabled ? 'rgba(34,197,94,0.12)' : 'var(--eb-bg3)',
+                color: settings.automod_enabled ? '#4ade80' : 'var(--eb-text3)',
+                border: `1px solid ${settings.automod_enabled ? 'rgba(34,197,94,0.3)' : 'var(--eb-border)'}`,
+              }}>
+              {settings.automod_enabled ? '✓ AutoMod ON' : 'AutoMod OFF'}
+            </button>
+          </div>
+
+          {/* Existing rules */}
+          <div className="flex flex-col gap-2">
+            {rules.length === 0 && (
+              <p className="text-xs py-4 text-center" style={{ color: 'var(--eb-text3)' }}>Brak reguł — dodaj pierwszą poniżej</p>
+            )}
+            {rules.map(rule => (
+              <div key={rule.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl"
+                style={{
+                  background: rule.enabled ? 'var(--eb-bg3)' : 'var(--eb-bg2)',
+                  border: `1px solid ${rule.enabled ? 'var(--eb-border2)' : 'var(--eb-border)'}`,
+                  opacity: rule.enabled ? 1 : 0.5,
+                }}>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold" style={{ color: 'var(--eb-text1)' }}>
+                    {RULE_TYPES.find(t => t.value === rule.type)?.label ?? rule.type}
+                    {rule.value && <span className="ml-2 font-mono text-[10px]" style={{ color: 'var(--eb-text3)' }}>({rule.value})</span>}
+                  </p>
+                  <p className="text-[10px]" style={{ color: 'var(--eb-text3)' }}>
+                    Akcja: {RULE_ACTIONS.find(a => a.value === rule.action)?.label ?? rule.action}
+                  </p>
+                </div>
+                <button onClick={() => toggleRule(rule.id, !rule.enabled)}
+                  className="text-[10px] px-2 py-1 rounded-lg font-semibold transition-all"
+                  style={{
+                    background: rule.enabled ? 'rgba(245,158,11,0.1)' : 'rgba(34,197,94,0.1)',
+                    color: rule.enabled ? '#f59e0b' : '#4ade80',
+                    border: `1px solid ${rule.enabled ? 'rgba(245,158,11,0.3)' : 'rgba(34,197,94,0.3)'}`,
+                  }}>
+                  {rule.enabled ? 'Wyłącz' : 'Włącz'}
+                </button>
+                <button onClick={() => deleteRule(rule.id)}
+                  className="w-7 h-7 flex items-center justify-center rounded-lg transition-all"
+                  style={{ color: 'var(--eb-text3)', background: 'var(--eb-bg4)' }}
+                  onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
+                  onMouseLeave={e => (e.currentTarget.style.color = 'var(--eb-text3)')}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                  </svg>
+                </button>
+              </div>
+            ))}
+          </div>
+
+          {/* Add rule form */}
+          <div className="rounded-xl p-4 flex flex-col gap-3" style={{ background: 'var(--eb-bg3)', border: '1px dashed var(--eb-border2)' }}>
+            <p className="text-xs font-semibold" style={{ color: 'var(--eb-text2)' }}>+ Nowa reguła</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[10px] font-semibold uppercase mb-1 block" style={{ color: 'var(--eb-text3)' }}>Typ</label>
+                <select value={newRule.type}
+                  onChange={e => setNewRule(r => ({ ...r, type: e.target.value }))}
+                  className="ember-input w-full px-3 py-2 text-xs">
+                  {RULE_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-[10px] font-semibold uppercase mb-1 block" style={{ color: 'var(--eb-text3)' }}>Akcja</label>
+                <select value={newRule.action}
+                  onChange={e => setNewRule(r => ({ ...r, action: e.target.value }))}
+                  className="ember-input w-full px-3 py-2 text-xs">
+                  {RULE_ACTIONS.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
+                </select>
+              </div>
+            </div>
+            {(newRule.type === 'banned_word' || newRule.type === 'spam') && (
+              <div>
+                <label className="text-[10px] font-semibold uppercase mb-1 block" style={{ color: 'var(--eb-text3)' }}>
+                  {newRule.type === 'banned_word' ? 'Słowa (oddzielone przecinkami)' : 'Maks. wiadomości / 5s'}
+                </label>
+                <input value={newRule.value}
+                  onChange={e => setNewRule(r => ({ ...r, value: e.target.value }))}
+                  placeholder={newRule.type === 'banned_word' ? 'np. przekleństwo, spam, reklama' : 'np. 5'}
+                  className="ember-input w-full px-3 py-2 text-xs" />
+              </div>
+            )}
+            <button onClick={addRule} disabled={addingRule}
+              className="ember-btn px-4 py-2 text-xs font-semibold self-start"
+              style={{ opacity: addingRule ? 0.6 : 1 }}>
+              {addingRule ? 'Dodawanie...' : 'Dodaj regułę'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {activeSection === 'log' && (
+        <div className="flex flex-col gap-2">
+          {modLog.length === 0 && logLoaded && (
+            <p className="text-xs text-center py-8" style={{ color: 'var(--eb-text3)' }}>Brak wpisów w logu moderacji</p>
+          )}
+          {modLog.map(log => {
+            const ACTION_COLORS: Record<string, string> = {
+              MUTE: '#f59e0b', UNMUTE: '#22c55e', BAN: '#ef4444', UNBAN: '#22c55e',
+              KICK: '#f97316', WARN: '#f59e0b', BULK_DELETE: '#6366f1',
+              AUTOMOD: '#8b5cf6', RAID_LOCKDOWN: '#ec4899', STRIKE: '#f59e0b',
+            }
+            const color = ACTION_COLORS[log.action] ?? 'var(--eb-text3)'
+            return (
+              <div key={log.id} className="flex items-start gap-3 px-3 py-2.5 rounded-xl"
+                style={{ background: 'var(--eb-bg3)', border: '1px solid var(--eb-border)' }}>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 mt-0.5"
+                  style={{ background: `${color}18`, color, border: `0.5px solid ${color}40` }}>
+                  {log.action}
+                </span>
+                <div className="flex-1 min-w-0">
+                  {log.target_name && (
+                    <p className="text-xs font-semibold truncate" style={{ color: 'var(--eb-text1)' }}>
+                      {log.target_name}
+                    </p>
+                  )}
+                  {log.reason && (
+                    <p className="text-[10px] truncate" style={{ color: 'var(--eb-text2)' }}>{log.reason}</p>
+                  )}
+                  {log.mod_name && (
+                    <p className="text-[10px]" style={{ color: 'var(--eb-text3)' }}>przez {log.mod_name}</p>
+                  )}
+                </div>
+                <span className="text-[10px] flex-shrink-0" style={{ color: 'var(--eb-text3)' }}>
+                  {new Date(log.created_at).toLocaleString('pl-PL', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function ServerSettings({ onClose }: { onClose: () => void }) {
   const t = useT()
   const { currentServerId, servers } = useStore()
@@ -778,7 +1154,8 @@ export function ServerSettings({ onClose }: { onClose: () => void }) {
     { id: 'role'       as Tab, label: t('serverSettings.tab.roles'),    icon: '🏷' },
     { id: 'członkowie' as Tab, label: t('serverSettings.tab.members'),  icon: '👥' },
     { id: 'emoji'      as Tab, label: t('serverSettings.tab.emoji'),    icon: '😄' },
-    { id: 'zbanowani'  as Tab, label: 'Zbanowani',                       icon: '🔨' },
+    { id: 'zbanowani'  as Tab, label: 'Zbanowani',   icon: '🔨' },
+    { id: 'moderacja'  as Tab, label: 'Moderacja',   icon: '🛡' },
   ].filter(tab => {
     if (tab.id === 'ogólne')     return canManageServer
     if (tab.id === 'kanały')     return canManageChannels
@@ -786,6 +1163,7 @@ export function ServerSettings({ onClose }: { onClose: () => void }) {
     if (tab.id === 'członkowie') return canKick || canBan || canMute
     if (tab.id === 'emoji')      return canManageServer
     if (tab.id === 'zbanowani')  return canBan
+    if (tab.id === 'moderacja')  return canManageServer
     return false
   })
 
@@ -873,6 +1251,7 @@ export function ServerSettings({ onClose }: { onClose: () => void }) {
           {activeTab === 'członkowie' && <TabMembers server={server} />}
           {activeTab === 'emoji'      && <TabEmoji server={server} />}
           {activeTab === 'zbanowani'  && <TabBans server={server} />}
+          {activeTab === 'moderacja'  && <TabModeration server={server} />}
         </div>
       </div>
     </div>

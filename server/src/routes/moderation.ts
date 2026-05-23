@@ -3,6 +3,7 @@ import { requireAuth } from '../middleware/auth'
 import { canModerate, isOwner } from '../middleware/permissions'
 import { execute, queryOne, queryMany } from '../db/pool'
 import { memberQueries } from '../db/queries'
+import { logModAction } from './serverMod'
 
 const router = Router()
 
@@ -70,6 +71,7 @@ router.post('/:serverId/moderation/mute/:userId', requireAuth, async (req: Reque
       reason: reason ?? null,
     })
 
+    logModAction(serverId, 'MUTE', req.user!.userId, userId, reason ?? null, { mins })
     return res.json({ ok: true, mute })
   } catch (err) {
     console.error('[moderation/mute]', err)
@@ -84,6 +86,7 @@ router.delete('/:serverId/moderation/mute/:userId', requireAuth, async (req: Req
       return res.status(403).json({ error: 'Brak uprawnień' })
     }
     await execute('DELETE FROM server_mutes WHERE user_id = ? AND server_id = ?', [userId, serverId])
+    logModAction(serverId, 'UNMUTE', req.user!.userId, userId, null)
     return res.json({ ok: true })
   } catch (err) {
     return res.status(500).json({ error: 'Błąd serwera' })
@@ -146,6 +149,7 @@ router.post('/:serverId/moderation/ban/:userId', requireAuth, async (req: Reques
     const { kickUserFromServer } = await import('../socket')
     kickUserFromServer(userId, serverId, 'BANNED', reason ?? undefined)
 
+    logModAction(serverId, 'BAN', req.user!.userId, userId, reason ?? null)
     return res.json({ ok: true })
   } catch (err) {
     console.error('[moderation/ban]', err)
@@ -160,6 +164,7 @@ router.delete('/:serverId/moderation/ban/:userId', requireAuth, async (req: Requ
       return res.status(403).json({ error: 'Brak uprawnień' })
     }
     await execute('DELETE FROM server_bans WHERE user_id = ? AND server_id = ?', [userId, serverId])
+    logModAction(serverId, 'UNBAN', req.user!.userId, userId, null)
     return res.json({ ok: true })
   } catch (err) {
     return res.status(500).json({ error: 'Błąd serwera' })
@@ -212,6 +217,7 @@ router.delete('/:serverId/moderation/kick/:userId', requireAuth, async (req: Req
     const { kickUserFromServer } = await import('../socket')
     kickUserFromServer(userId, serverId, 'KICKED')
 
+    logModAction(serverId, 'KICK', req.user!.userId, userId, null)
     return res.json({ ok: true })
   } catch (err) {
     return res.status(500).json({ error: 'Błąd serwera' })
