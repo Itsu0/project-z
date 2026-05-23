@@ -973,6 +973,16 @@ export function UserSettings({ onClose }: Props) {
           </div>
 
           <div className="px-2 pt-2 border-t mt-2" style={{ borderColor: 'var(--eb-border)' }}>
+            <div className="px-3 pb-2 flex gap-3">
+              <a href="/terms" target="_blank" rel="noreferrer"
+                className="text-[10px] hover:underline" style={{ color: 'var(--eb-text3)' }}>
+                Regulamin
+              </a>
+              <a href="/privacy" target="_blank" rel="noreferrer"
+                className="text-[10px] hover:underline" style={{ color: 'var(--eb-text3)' }}>
+                Prywatność
+              </a>
+            </div>
             <button onClick={onClose}
               className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm w-full transition-all hover:bg-white/[0.04]"
               style={{ color: 'var(--eb-text3)' }}>

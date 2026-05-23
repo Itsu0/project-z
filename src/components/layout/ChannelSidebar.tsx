@@ -31,9 +31,20 @@ export function ChannelSidebar() {
 
         <div className="flex-1" />
 
+        <div className="flex gap-3 px-3 pb-1.5 pt-2" style={{ borderTop: '0.5px solid var(--eb-border)', background: 'var(--eb-bg0)' }}>
+          <a href="/terms" target="_blank" rel="noreferrer"
+            className="text-[10px] hover:underline" style={{ color: 'var(--eb-text3)' }}>
+            Regulamin
+          </a>
+          <a href="/privacy" target="_blank" rel="noreferrer"
+            className="text-[10px] hover:underline" style={{ color: 'var(--eb-text3)' }}>
+            Prywatność
+          </a>
+        </div>
+
         <div
-          className="flex items-center gap-2.5 px-3 py-2.5 border-t cursor-pointer transition-colors hover:bg-white/[0.04] group"
-          style={{ background: 'var(--eb-bg0)', borderColor: 'var(--eb-border)' }}
+          className="flex items-center gap-2.5 px-3 py-2.5 cursor-pointer transition-colors hover:bg-white/[0.04] group"
+          style={{ background: 'var(--eb-bg0)' }}
           onClick={() => setShowSettings(true)}
           title={t('settings.title')}
         >
