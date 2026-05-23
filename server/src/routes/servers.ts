@@ -5,6 +5,17 @@ import { serverQueries, memberQueries, channelQueries, roleQueries } from '../db
 import { execute, queryOne, queryMany } from '../db/pool'
 import { v4 as uuidv4 } from 'uuid'
 
+async function assignVerificationRole(userId: string, serverId: string): Promise<void> {
+  try {
+    const s = await queryOne<{ verification_enabled: number; verification_role_id: string }>(
+      'SELECT verification_enabled, verification_role_id FROM server_mod_settings WHERE server_id = ?', [serverId]
+    )
+    if (!s?.verification_enabled || !s.verification_role_id) return
+    await execute('INSERT IGNORE INTO member_roles (user_id, server_id, role_id) VALUES (?, ?, ?)',
+      [userId, serverId, s.verification_role_id])
+  } catch {}
+}
+
 function generateInviteCode(len = 8): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
   let code = ''
@@ -154,6 +165,7 @@ router.post('/join/:inviteCode', requireAuth, async (req: Request, res: Response
     }
 
     await memberQueries.add(req.user!.userId, server.id)
+    await assignVerificationRole(req.user!.userId, server.id)
 
     const { io } = await import('../index')
     const userInfo = await import('../db/queries').then(m =>
@@ -257,6 +269,7 @@ router.get('/invite/:code', requireAuth, async (req: Request, res: Response) => 
     if (inviteBan) return res.status(403).json({ error: 'Jesteś zbanowany na tym serwerze' })
 
     await memberQueries.add(req.user!.userId, invite.server_id)
+    await assignVerificationRole(req.user!.userId, invite.server_id)
 
     try {
       const { io } = await import('../index')

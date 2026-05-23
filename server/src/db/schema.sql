@@ -311,6 +311,67 @@ CREATE TABLE IF NOT EXISTS user_warnings (
   INDEX idx_user (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- ─── Ustawienia moderacji serwera ───────────────────────────
+CREATE TABLE IF NOT EXISTS server_mod_settings (
+  server_id              CHAR(36)     PRIMARY KEY,
+  mod_log_channel_id     CHAR(36)     DEFAULT NULL,
+  automod_enabled        TINYINT(1)   DEFAULT 0,
+  raid_protection        TINYINT(1)   DEFAULT 0,
+  raid_threshold         INT          DEFAULT 10,
+  raid_window_secs       INT          DEFAULT 30,
+  verification_enabled   TINYINT(1)   DEFAULT 0,
+  verification_role_id   CHAR(36)     DEFAULT NULL,
+  strike_1_action        ENUM('warn','mute','kick','ban') DEFAULT 'mute',
+  strike_1_threshold     INT          DEFAULT 3,
+  strike_2_action        ENUM('warn','mute','kick','ban') DEFAULT 'kick',
+  strike_2_threshold     INT          DEFAULT 5,
+  strike_3_action        ENUM('warn','mute','kick','ban') DEFAULT 'ban',
+  strike_3_threshold     INT          DEFAULT 7,
+  updated_at             DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (server_id) REFERENCES servers(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ─── Reguły AutoMod ──────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS automod_rules (
+  id         CHAR(36)     PRIMARY KEY,
+  server_id  CHAR(36)     NOT NULL,
+  type       ENUM('banned_word','spam','links','caps','invites') NOT NULL,
+  value      VARCHAR(500) DEFAULT NULL,
+  action     ENUM('delete','delete_warn','delete_mute') DEFAULT 'delete',
+  enabled    TINYINT(1)   DEFAULT 1,
+  created_at DATETIME     DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (server_id) REFERENCES servers(id) ON DELETE CASCADE,
+  INDEX idx_server (server_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ─── Strajki per serwer ──────────────────────────────────────
+CREATE TABLE IF NOT EXISTS server_strikes (
+  id         CHAR(36)     PRIMARY KEY,
+  user_id    CHAR(36)     NOT NULL,
+  server_id  CHAR(36)     NOT NULL,
+  reason     VARCHAR(500) NOT NULL,
+  struck_by  CHAR(36)     DEFAULT NULL,
+  auto       TINYINT(1)   DEFAULT 0,
+  created_at DATETIME     DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id)   REFERENCES users(id)   ON DELETE CASCADE,
+  FOREIGN KEY (server_id) REFERENCES servers(id) ON DELETE CASCADE,
+  INDEX idx_user_server (user_id, server_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ─── Log akcji moderacyjnych ─────────────────────────────────
+CREATE TABLE IF NOT EXISTS mod_action_log (
+  id         CHAR(36)     PRIMARY KEY,
+  server_id  CHAR(36)     NOT NULL,
+  action     VARCHAR(32)  NOT NULL,
+  mod_id     CHAR(36)     DEFAULT NULL,
+  target_id  CHAR(36)     DEFAULT NULL,
+  reason     VARCHAR(500) DEFAULT NULL,
+  extra      JSON         DEFAULT NULL,
+  created_at DATETIME     DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (server_id) REFERENCES servers(id) ON DELETE CASCADE,
+  INDEX idx_server (server_id, created_at DESC)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- ─── Zaproszenia ─────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS invites (
   code          VARCHAR(12)   PRIMARY KEY,

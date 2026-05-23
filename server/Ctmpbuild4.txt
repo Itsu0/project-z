@@ -1,0 +1,4 @@
+
+> nexus-server@1.0.0 build
+> tsc && cp src/db/schema.sql dist/db/schema.sql
+

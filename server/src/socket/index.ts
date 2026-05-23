@@ -5,6 +5,7 @@ import { execute, queryMany, queryOne } from '../db/pool'
 import { isMuted } from '../middleware/permissions'
 import { v4 as uuidv4 } from 'uuid'
 import { invalidateChannel } from '../cache/messages'
+import { checkAutoMod, addStrike, logModAction, checkRaid, isRaidLocked } from '../routes/serverMod'
 
 const onlineUsers = new Map<string, string>()
 const typingUsers = new Map<string, Set<string>>()
@@ -156,6 +157,9 @@ export function setupSocket(io: SocketIO) {
       const currentStatus = userRow?.status ?? 'online'
       socket.to(`server:${serverId}`).emit('PRESENCE_UPDATE', { userId, status: currentStatus })
 
+      // Raid protection — track join rate
+      checkRaid(serverId, io).catch(() => {})
+
       const muted = await isMuted(userId, serverId)
       if (muted) {
         const muteRow = await queryOne<{ expires_at: string; reason: string; muted_by: string }>(
@@ -200,6 +204,40 @@ export function setupSocket(io: SocketIO) {
           )
           const mins = mute ? Math.ceil((new Date(mute.expires_at).getTime() - Date.now()) / 60000) : 0
           socket.emit('ERROR', { message: `Jesteś wyciszony jeszcze przez ${mins} min` })
+          return
+        }
+
+        // AutoMod check
+        if (data.content?.trim()) {
+          const automod = await checkAutoMod(data.serverId, userId, data.channelId, data.content)
+          if (automod) {
+            socket.emit('AUTOMOD_BLOCK', { reason: automod.reason, channelId: data.channelId })
+            if (automod.action === 'delete_warn' || automod.action === 'delete_mute') {
+              await addStrike(data.serverId, userId, `AutoMod: ${automod.reason}`, null, true)
+            }
+            if (automod.action === 'delete_mute') {
+              const mins = 10
+              await execute(
+                `INSERT INTO server_mutes (user_id, server_id, muted_by, reason, expires_at)
+                 VALUES (?, ?, ?, ?, DATE_ADD(UTC_TIMESTAMP(), INTERVAL ? MINUTE))
+                 ON DUPLICATE KEY UPDATE reason = VALUES(reason), expires_at = DATE_ADD(UTC_TIMESTAMP(), INTERVAL ? MINUTE)`,
+                [userId, data.serverId, userId, `AutoMod: ${automod.reason}`, mins, mins]
+              )
+              const mute = await queryOne<any>('SELECT * FROM server_mutes WHERE user_id = ? AND server_id = ?', [userId, data.serverId])
+              io.to(`server:${data.serverId}`).emit('MEMBER_MUTED', {
+                userId, serverId: data.serverId,
+                expiresAt: mute?.expires_at ? mute.expires_at + 'Z' : null,
+                reason: `AutoMod: ${automod.reason}`,
+              })
+            }
+            await logModAction(data.serverId, 'AUTOMOD', null, userId, automod.reason, { action: automod.action })
+            return
+          }
+        }
+
+        // Raid lockdown check
+        if (isRaidLocked(data.serverId)) {
+          socket.emit('ERROR', { message: '🛡 Serwer jest w trybie lockdown. Pisanie tymczasowo zablokowane.' })
           return
         }
 
