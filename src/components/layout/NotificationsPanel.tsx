@@ -474,30 +474,13 @@ export function NotificationsPanelExpanded() {
     })
   }
 
-  async function sendReply(notif: Notification) {
-    if (!replyText.trim() || !token) return
-    try {
-      const res = await fetch(`${BASE}/api/channels/${notif.channel_id}/messages`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          content:   replyText.trim(),
-          serverId:  notif.server_id,
-          replyToId: notif.message_id,
-        }),
-      })
-      if (!res.ok) {
-        const err = await res.json()
-        alert(err.error ?? 'Błąd wysyłania')
-        return
-      }
-      await markRead(notif.id)
-      setReplyingTo(null)
-      setReplyText('')
-      setActiveTab('all')
-    } catch (e: any) {
-      alert(e.message)
-    }
+  function sendReply(notif: Notification) {
+    if (!replyText.trim()) return
+    socket.sendMessage(notif.channel_id, notif.server_id, replyText.trim(), undefined, notif.message_id)
+    markRead(notif.id)
+    setReplyingTo(null)
+    setReplyText('')
+    setActiveTab('all')
   }
 
   function formatTime(dateStr: string) {
@@ -636,7 +619,7 @@ export function NotificationsPanelExpanded() {
                       <button
                         onClick={e => { e.stopPropagation(); setReplyingTo(notif.id) }}
                         className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 flex-1 justify-center"
-                        style={{ background: 'rgba(74,158,255,0.1)', color: 'var(--eb-voice)', border: '0.5px solid rgba(74,158,255,0.2)' }}>
+                        style={{ background: 'var(--eb-surface)', color: 'var(--eb-accent)', border: '0.5px solid var(--eb-accent)' }}>
                         ↩ Szybka odpowiedź
                       </button>
                       {!notif.read_at && (
@@ -652,7 +635,7 @@ export function NotificationsPanelExpanded() {
                   ) : (
                     <div>
                       <div className="mb-1.5 px-2 py-1 rounded-md text-[10px]"
-                        style={{ background: 'rgba(255,255,255,0.04)', color: 'var(--eb-text3)', borderLeft: '2px solid var(--eb-voice)' }}>
+                        style={{ background: 'var(--eb-surface)', color: 'var(--eb-text2)', borderLeft: '2px solid var(--eb-accent)' }}>
                         Odpowiadasz w #{notif.channel_name}
                       </div>
                       <div className="flex gap-1.5">
