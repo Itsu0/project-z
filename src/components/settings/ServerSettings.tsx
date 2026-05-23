@@ -4,6 +4,7 @@ import { useStore } from '@/lib/store'
 import { RolesTab } from './RolesTab'
 import { usePermissions } from '@/hooks/usePermissions'
 import { ImageCropModal } from '@/components/ui/ImageCropModal'
+import { Select } from '@/components/ui/Select'
 import { useT } from '@/lib/i18n'
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
@@ -883,13 +884,12 @@ function TabModeration({ server }: { server: any }) {
             <label className="text-xs font-semibold uppercase tracking-wide mb-2 block" style={{ color: 'var(--eb-text3)' }}>
               📋 Kanał Mod-Log
             </label>
-            <select
+            <Select
               value={settings.mod_log_channel_id ?? ''}
-              onChange={e => setSettings((s: any) => ({ ...s, mod_log_channel_id: e.target.value || null }))}
-              className="ember-input w-full px-3 py-2 text-sm">
-              <option value="">— Wyłączony —</option>
-              {channels.map((c: any) => <option key={c.id} value={c.id}>#{c.name}</option>)}
-            </select>
+              onChange={v => setSettings((s: any) => ({ ...s, mod_log_channel_id: v || null }))}
+              placeholder="— Wyłączony —"
+              options={channels.map((c: any) => ({ value: c.id, label: `#${c.name}` }))}
+            />
             <p className="text-[10px] mt-1" style={{ color: 'var(--eb-text3)' }}>Wszystkie akcje moderacyjne będą logowane w tym kanale.</p>
           </div>
 
@@ -944,13 +944,12 @@ function TabModeration({ server }: { server: any }) {
             {!!settings.verification_enabled && (
               <div>
                 <label className="text-[10px] font-semibold uppercase mb-1 block" style={{ color: 'var(--eb-text3)' }}>Rola weryfikacji (przypisywana nowym)</label>
-                <select
+                <Select
                   value={settings.verification_role_id ?? ''}
-                  onChange={e => setSettings((s: any) => ({ ...s, verification_role_id: e.target.value || null }))}
-                  className="ember-input w-full px-3 py-2 text-sm">
-                  <option value="">— Wybierz rolę —</option>
-                  {roles.map((r: any) => <option key={r.id} value={r.id}>{r.name}</option>)}
-                </select>
+                  onChange={v => setSettings((s: any) => ({ ...s, verification_role_id: v || null }))}
+                  placeholder="— Wybierz rolę —"
+                  options={roles.map((r: any) => ({ value: r.id, label: r.name }))}
+                />
               </div>
             )}
           </div>
@@ -973,12 +972,11 @@ function TabModeration({ server }: { server: any }) {
                 </div>
                 <div>
                   <label className="text-[10px] font-semibold uppercase mb-1 block" style={{ color: 'var(--eb-text3)' }}>Akcja</label>
-                  <select
+                  <Select
                     value={(settings as any)[`strike_${n}_action`] ?? (n === 1 ? 'mute' : n === 2 ? 'kick' : 'ban')}
-                    onChange={e => setSettings((s: any) => ({ ...s, [`strike_${n}_action`]: e.target.value }))}
-                    className="ember-input w-full px-3 py-2 text-sm">
-                    {STRIKE_ACTIONS.map(a => <option key={a} value={a}>{a}</option>)}
-                  </select>
+                    onChange={v => setSettings((s: any) => ({ ...s, [`strike_${n}_action`]: v }))}
+                    options={STRIKE_ACTIONS.map(a => ({ value: a, label: a }))}
+                  />
                 </div>
               </div>
             ))}
@@ -1061,19 +1059,19 @@ function TabModeration({ server }: { server: any }) {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-[10px] font-semibold uppercase mb-1 block" style={{ color: 'var(--eb-text3)' }}>Typ</label>
-                <select value={newRule.type}
-                  onChange={e => setNewRule(r => ({ ...r, type: e.target.value }))}
-                  className="ember-input w-full px-3 py-2 text-xs">
-                  {RULE_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                </select>
+                <Select
+                  value={newRule.type}
+                  onChange={v => setNewRule(r => ({ ...r, type: v }))}
+                  options={RULE_TYPES}
+                />
               </div>
               <div>
                 <label className="text-[10px] font-semibold uppercase mb-1 block" style={{ color: 'var(--eb-text3)' }}>Akcja</label>
-                <select value={newRule.action}
-                  onChange={e => setNewRule(r => ({ ...r, action: e.target.value }))}
-                  className="ember-input w-full px-3 py-2 text-xs">
-                  {RULE_ACTIONS.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
-                </select>
+                <Select
+                  value={newRule.action}
+                  onChange={v => setNewRule(r => ({ ...r, action: v }))}
+                  options={RULE_ACTIONS}
+                />
               </div>
             </div>
             {(newRule.type === 'banned_word' || newRule.type === 'spam') && (
