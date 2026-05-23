@@ -218,6 +218,7 @@ export function useSocket() {
     })
 
     s.on('CHANNEL_CREATE', (data: { serverId: string; channel: any }) => {
+      if (data.channel?.mod_only) return  // filtered server-side on load
       const store = useStore.getState()
       const existing = store.channels[data.serverId] ?? []
       if (!existing.some(c => c.id === data.channel?.id)) {
