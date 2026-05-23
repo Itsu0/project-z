@@ -115,23 +115,6 @@ export async function runMigrations(): Promise<void> {
     if (e.errno !== 1061) console.warn('   ⚠ FULLTEXT messages.content:', e.message)
   }
 
-  const devUsernames = (process.env.DEV_USERNAMES ?? '').split(',').map(s => s.trim()).filter(Boolean)
-  if (devUsernames.length > 0) {
-    try {
-
-      await conn.query('UPDATE `users` SET is_dev = 0')
-      for (const uname of devUsernames) {
-        const [rows] = await conn.query(
-          'UPDATE `users` SET is_dev = 1 WHERE username = ?', [uname]
-        ) as any[]
-        if ((rows as any).affectedRows > 0) console.log(`   🔑 Dev: ${uname}`)
-        else console.warn(`   ⚠ DEV_USERNAMES: użytkownik "${uname}" nie istnieje w bazie`)
-      }
-    } catch (e: any) {
-      console.warn(`   ⚠ DEV_USERNAMES: ${e.message}`)
-    }
-  }
-
   try {
     const [res] = await conn.query(
       `UPDATE messages m
