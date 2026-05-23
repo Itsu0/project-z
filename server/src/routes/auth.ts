@@ -4,7 +4,7 @@ import crypto from 'crypto'
 import { userQueries, serverQueries } from '../db/queries'
 import { signToken, requireAuth, getClientIp, recordIp } from '../middleware/auth'
 import { execute, queryOne } from '../db/pool'
-import { sendVerificationEmail } from '../lib/mailer'
+import { sendVerificationEmail, sendPasswordResetEmail } from '../lib/mailer'
 
 const router = Router()
 
@@ -185,6 +185,20 @@ router.post('/login', async (req: Request, res: Response) => {
       return res.status(403).json({ error: 'EMAIL_NOT_VERIFIED', email: user.email })
     }
 
+    const twoFaRow = await queryOne<{ totp_enabled: number }>(
+      'SELECT totp_enabled FROM users WHERE id = ?', [user.id]
+    )
+    if (twoFaRow?.totp_enabled) {
+      const jwt = await import('jsonwebtoken')
+      const tempToken = jwt.sign(
+        { userId: user.id, twoFaPending: true },
+        process.env.JWT_SECRET ?? 'nexus_jwt_super_secret_2026_vps',
+        { expiresIn: '5m' }
+      )
+      recordIp(user.id, getClientIp(req)).catch(() => {})
+      return res.json({ twoFaRequired: true, tempToken })
+    }
+
     await userQueries.updateStatus(user.id, 'online')
 
     const token = signToken({ userId: user.id, username: user.username })
@@ -270,6 +284,166 @@ router.patch('/password', requireAuth, async (req: Request, res: Response) => {
     return res.json({ ok: true })
   } catch (err) {
     console.error('[auth/password]', err)
+    return res.status(500).json({ error: 'Błąd serwera' })
+  }
+})
+
+// ── Reset hasła ──────────────────────────────────────────────────────────────
+router.post('/forgot-password', async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body
+    if (!email) return res.status(400).json({ error: 'Wymagany email' })
+    const user = await userQueries.findByEmail(email)
+    if (!user) return res.json({ ok: true }) // nie ujawniamy czy email istnieje
+
+    await execute('DELETE FROM password_reset_tokens WHERE user_id = ?', [user.id])
+    const token = crypto.randomBytes(32).toString('hex')
+    const { v4: uuidv4 } = await import('uuid')
+    await execute(
+      'INSERT INTO password_reset_tokens (id, user_id, token, expires_at) VALUES (?, ?, ?, DATE_ADD(UTC_TIMESTAMP(), INTERVAL 30 MINUTE))',
+      [uuidv4(), user.id, token]
+    )
+    sendPasswordResetEmail(email, user.display_name ?? user.username, token).catch(() => {})
+    return res.json({ ok: true })
+  } catch (err) {
+    console.error('[auth/forgot-password]', err)
+    return res.status(500).json({ error: 'Błąd serwera' })
+  }
+})
+
+router.post('/reset-password', async (req: Request, res: Response) => {
+  try {
+    const { token, password } = req.body
+    if (!token || !password) return res.status(400).json({ error: 'Wymagane: token, password' })
+    if (password.length < 8) return res.status(400).json({ error: 'Hasło musi mieć min. 8 znaków' })
+    if (/^\d+$/.test(password)) return res.status(400).json({ error: 'Hasło nie może składać się wyłącznie z cyfr' })
+
+    const row = await queryOne<{ id: string; user_id: string; expires_at: string }>(
+      'SELECT id, user_id, expires_at FROM password_reset_tokens WHERE token = ? LIMIT 1', [token]
+    )
+    if (!row) return res.status(400).json({ error: 'Nieprawidłowy lub wygasły link' })
+    if (new Date(row.expires_at + 'Z') < new Date()) {
+      return res.status(400).json({ error: 'Link wygasł. Poproś o nowy.' })
+    }
+
+    const hash = await bcrypt.hash(password, 12)
+    await execute('UPDATE users SET password_hash = ? WHERE id = ?', [hash, row.user_id])
+    await execute('DELETE FROM password_reset_tokens WHERE user_id = ?', [row.user_id])
+    return res.json({ ok: true })
+  } catch (err) {
+    console.error('[auth/reset-password]', err)
+    return res.status(500).json({ error: 'Błąd serwera' })
+  }
+})
+
+// ── Usuwanie konta ───────────────────────────────────────────────────────────
+router.delete('/account', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { password } = req.body
+    if (!password) return res.status(400).json({ error: 'Wymagane hasło' })
+    const user = await userQueries.findById(req.user!.userId)
+    if (!user) return res.status(404).json({ error: 'Użytkownik nie znaleziony' })
+    const valid = await bcrypt.compare(password, user.password_hash)
+    if (!valid) return res.status(401).json({ error: 'Nieprawidłowe hasło' })
+    await execute('DELETE FROM users WHERE id = ?', [req.user!.userId])
+    return res.json({ ok: true })
+  } catch (err) {
+    console.error('[auth/delete-account]', err)
+    return res.status(500).json({ error: 'Błąd serwera' })
+  }
+})
+
+// ── 2FA TOTP ─────────────────────────────────────────────────────────────────
+router.post('/2fa/setup', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { authenticator } = await import('otplib')
+    const QRCode = await import('qrcode')
+    const user = await userQueries.publicProfile(req.user!.userId)
+    if (!user) return res.status(404).json({ error: 'Nie znaleziono użytkownika' })
+
+    const secret = authenticator.generateSecret()
+    const otpauth = authenticator.keyuri(user.username, 'Project-Z', secret)
+    const qrDataUrl = await QRCode.toDataURL(otpauth)
+
+    await execute(
+      `UPDATE users SET totp_secret = ?, totp_enabled = 0 WHERE id = ?`,
+      [secret, req.user!.userId]
+    )
+    return res.json({ secret, qrDataUrl })
+  } catch (err) {
+    console.error('[auth/2fa/setup]', err)
+    return res.status(500).json({ error: 'Błąd serwera' })
+  }
+})
+
+router.post('/2fa/enable', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { code } = req.body
+    if (!code) return res.status(400).json({ error: 'Wymagany kod' })
+    const row = await queryOne<{ totp_secret: string | null }>(
+      'SELECT totp_secret FROM users WHERE id = ?', [req.user!.userId]
+    )
+    if (!row?.totp_secret) return res.status(400).json({ error: 'Najpierw skonfiguruj 2FA' })
+    const { authenticator } = await import('otplib')
+    const valid = authenticator.verify({ token: code, secret: row.totp_secret })
+    if (!valid) return res.status(400).json({ error: 'Nieprawidłowy kod' })
+    await execute('UPDATE users SET totp_enabled = 1 WHERE id = ?', [req.user!.userId])
+    return res.json({ ok: true })
+  } catch (err) {
+    console.error('[auth/2fa/enable]', err)
+    return res.status(500).json({ error: 'Błąd serwera' })
+  }
+})
+
+router.post('/2fa/disable', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { code } = req.body
+    if (!code) return res.status(400).json({ error: 'Wymagany kod' })
+    const row = await queryOne<{ totp_secret: string | null; totp_enabled: number }>(
+      'SELECT totp_secret, totp_enabled FROM users WHERE id = ?', [req.user!.userId]
+    )
+    if (!row?.totp_enabled) return res.status(400).json({ error: '2FA nie jest włączone' })
+    const { authenticator } = await import('otplib')
+    const valid = authenticator.verify({ token: code, secret: row.totp_secret! })
+    if (!valid) return res.status(400).json({ error: 'Nieprawidłowy kod' })
+    await execute('UPDATE users SET totp_enabled = 0, totp_secret = NULL WHERE id = ?', [req.user!.userId])
+    return res.json({ ok: true })
+  } catch (err) {
+    console.error('[auth/2fa/disable]', err)
+    return res.status(500).json({ error: 'Błąd serwera' })
+  }
+})
+
+// ── Weryfikacja 2FA przy logowaniu ────────────────────────────────────────────
+router.post('/2fa/verify-login', async (req: Request, res: Response) => {
+  try {
+    const { tempToken, code } = req.body
+    if (!tempToken || !code) return res.status(400).json({ error: 'Wymagane: tempToken, code' })
+
+    let payload: { userId: string; twoFaPending: boolean }
+    try {
+      const jwt = await import('jsonwebtoken')
+      payload = jwt.verify(tempToken, process.env.JWT_SECRET ?? 'nexus_jwt_super_secret_2026_vps') as any
+    } catch {
+      return res.status(401).json({ error: 'Nieprawidłowy token' })
+    }
+    if (!payload.twoFaPending) return res.status(400).json({ error: 'Nieprawidłowy token' })
+
+    const row = await queryOne<{ totp_secret: string }>(
+      'SELECT totp_secret FROM users WHERE id = ?', [payload.userId]
+    )
+    if (!row?.totp_secret) return res.status(400).json({ error: 'Błąd konfiguracji 2FA' })
+    const { authenticator } = await import('otplib')
+    const valid = authenticator.verify({ token: code, secret: row.totp_secret })
+    if (!valid) return res.status(400).json({ error: 'Nieprawidłowy kod 2FA' })
+
+    const user = await userQueries.publicProfile(payload.userId)
+    if (!user) return res.status(404).json({ error: 'Nie znaleziono użytkownika' })
+    const token = signToken({ userId: payload.userId, username: user.username })
+    await userQueries.updateStatus(payload.userId, 'online')
+    return res.json({ token, user })
+  } catch (err) {
+    console.error('[auth/2fa/verify-login]', err)
     return res.status(500).json({ error: 'Błąd serwera' })
   }
 })

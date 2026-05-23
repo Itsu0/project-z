@@ -10,7 +10,7 @@ import { applyColorTheme, THEME_META } from '@/lib/themes'
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
-type Tab = 'profil' | 'audio' | 'wygląd' | 'powiadomienia' | 'prywatność' | 'konto'
+type Tab = 'profil' | 'audio' | 'wygląd' | 'powiadomienia' | 'prywatność' | 'konto' | 'znajomi'
 
 const AVATAR_COLORS = [
   'linear-gradient(135deg,#dc2626,#991b1b)',
@@ -920,14 +920,413 @@ function TabAccount() {
         </div>
       </div>
 
-      {}
-      <div className="pt-4" style={{ borderTop: '0.5px solid var(--eb-border)' }}>
+      {/* ── 2FA ── */}
+      <TwoFASection token={token ?? ''} />
+
+      {/* ── Wyloguj / Usuń konto ── */}
+      <div className="pt-4 flex flex-col gap-2" style={{ borderTop: '0.5px solid var(--eb-border)' }}>
         <button onClick={logout}
           className="w-full py-2.5 rounded-xl text-sm font-medium transition-all hover:opacity-80"
           style={{ background: 'rgba(220,38,38,0.12)', color: 'var(--eb-accent2)', border: '1px solid rgba(220,38,38,0.25)' }}>
           {t('settings.account.logout')}
         </button>
+        <DeleteAccountSection token={token ?? ''} onDeleted={() => { clearAuth(); tokenStore.clear(); window.location.href = '/auth/login' }} />
       </div>
+    </div>
+  )
+}
+
+function TwoFASection({ token }: { token: string }) {
+  const [status,    setStatus]    = useState<'idle'|'loading'|'setup'|'enabled'|'disabling'>('idle')
+  const [qrDataUrl, setQrDataUrl] = useState('')
+  const [secret,    setSecret]    = useState('')
+  const [code,      setCode]      = useState('')
+  const [msg,       setMsg]       = useState('')
+
+  useEffect(() => {
+    fetch(`${BASE}/api/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json())
+      .then(d => setStatus(d.user?.totp_enabled ? 'enabled' : 'idle'))
+      .catch(() => {})
+  }, [token])
+
+  async function startSetup() {
+    setMsg('')
+    setStatus('loading')
+    try {
+      const res = await fetch(`${BASE}/api/auth/2fa/setup`, {
+        method: 'POST', headers: { Authorization: `Bearer ${token}` }
+      })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error)
+      setQrDataUrl(d.qrDataUrl)
+      setSecret(d.secret)
+      setStatus('setup')
+    } catch (e: any) { setMsg(e.message); setStatus('idle') }
+  }
+
+  async function confirmEnable() {
+    setMsg('')
+    try {
+      const res = await fetch(`${BASE}/api/auth/2fa/enable`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ code }),
+      })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error)
+      setStatus('enabled'); setCode(''); setMsg('✓ 2FA włączone')
+    } catch (e: any) { setMsg(e.message) }
+  }
+
+  async function disable() {
+    setMsg('')
+    try {
+      const res = await fetch(`${BASE}/api/auth/2fa/disable`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ code }),
+      })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error)
+      setStatus('idle'); setCode(''); setMsg('2FA wyłączone')
+    } catch (e: any) { setMsg(e.message) }
+  }
+
+  return (
+    <div className="p-4 rounded-xl" style={{ background: 'rgba(255,255,255,0.02)', border: '0.5px solid var(--eb-border)' }}>
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--eb-text2)' }}>
+            Weryfikacja dwuskładnikowa (2FA)
+          </p>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--eb-text3)' }}>
+            {status === 'enabled' ? 'Aktywne — Twoje konto jest chronione' : 'Dodaj dodatkową warstwę ochrony'}
+          </p>
+        </div>
+        {status === 'enabled' && (
+          <span className="text-xs font-semibold px-2 py-0.5 rounded-full"
+            style={{ background: 'rgba(34,197,94,0.15)', color: 'var(--eb-online)' }}>Aktywne</span>
+        )}
+      </div>
+
+      {status === 'idle' && (
+        <button onClick={startSetup} className="ember-btn py-2 text-xs font-semibold">
+          Włącz 2FA
+        </button>
+      )}
+
+      {status === 'loading' && (
+        <p className="text-xs" style={{ color: 'var(--eb-text3)' }}>Generowanie kodu...</p>
+      )}
+
+      {status === 'setup' && (
+        <div className="flex flex-col gap-3">
+          <p className="text-xs" style={{ color: 'var(--eb-text2)' }}>
+            Zeskanuj kod QR aplikacją (Google Authenticator, Authy itp.), a następnie wpisz 6-cyfrowy kod.
+          </p>
+          {qrDataUrl && (
+            <div className="flex flex-col items-center gap-2">
+              <img src={qrDataUrl} alt="QR 2FA" style={{ width: 160, height: 160, borderRadius: 8, background: '#fff', padding: 6 }} />
+              <p className="text-[10px] font-mono text-center px-2 py-1 rounded" style={{ background: 'rgba(0,0,0,0.3)', color: 'var(--eb-text3)', wordBreak: 'break-all' }}>
+                {secret}
+              </p>
+            </div>
+          )}
+          <div className="flex gap-2">
+            <input type="text" inputMode="numeric" maxLength={7} value={code} onChange={e => setCode(e.target.value)}
+              placeholder="123 456" className="ember-input flex-1 px-3 py-2 text-sm text-center tracking-widest font-mono" />
+            <button onClick={confirmEnable} disabled={code.replace(/\s/g,'').length !== 6}
+              className="ember-btn px-4 py-2 text-xs font-semibold">Potwierdź</button>
+          </div>
+        </div>
+      )}
+
+      {status === 'enabled' && (
+        <div className="flex flex-col gap-2">
+          <p className="text-xs" style={{ color: 'var(--eb-text3)' }}>Podaj kod z aplikacji aby wyłączyć 2FA:</p>
+          <div className="flex gap-2">
+            <input type="text" inputMode="numeric" maxLength={7} value={code} onChange={e => setCode(e.target.value)}
+              placeholder="123 456" className="ember-input flex-1 px-3 py-2 text-sm text-center tracking-widest font-mono" />
+            <button onClick={disable} disabled={code.replace(/\s/g,'').length !== 6}
+              className="px-4 py-2 text-xs font-semibold rounded-lg"
+              style={{ background: 'rgba(220,38,38,0.12)', color: 'var(--eb-accent2)', border: '0.5px solid rgba(220,38,38,0.3)' }}>
+              Wyłącz
+            </button>
+          </div>
+        </div>
+      )}
+
+      {msg && (
+        <p className="text-xs mt-2" style={{ color: msg.startsWith('✓') ? 'var(--eb-online)' : 'var(--eb-accent2)' }}>{msg}</p>
+      )}
+    </div>
+  )
+}
+
+function DeleteAccountSection({ token, onDeleted }: { token: string; onDeleted: () => void }) {
+  const [open,     setOpen]     = useState(false)
+  const [password, setPassword] = useState('')
+  const [loading,  setLoading]  = useState(false)
+  const [error,    setError]    = useState('')
+
+  async function deleteAccount() {
+    setError('')
+    setLoading(true)
+    try {
+      const res = await fetch(`${BASE}/api/auth/account`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ password }),
+      })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error)
+      onDeleted()
+    } catch (e: any) { setError(e.message) }
+    finally { setLoading(false) }
+  }
+
+  if (!open) {
+    return (
+      <button onClick={() => setOpen(true)}
+        className="w-full py-2 text-xs font-medium transition-all hover:opacity-80"
+        style={{ color: 'rgba(220,38,38,0.6)', background: 'none', border: 'none', cursor: 'pointer' }}>
+        Usuń konto
+      </button>
+    )
+  }
+
+  return (
+    <div className="p-4 rounded-xl flex flex-col gap-3"
+      style={{ background: 'rgba(220,38,38,0.08)', border: '0.5px solid rgba(220,38,38,0.3)' }}>
+      <p className="text-xs font-semibold" style={{ color: 'var(--eb-accent2)' }}>Usuń konto</p>
+      <p className="text-xs" style={{ color: 'var(--eb-text2)' }}>
+        Ta akcja jest <strong>nieodwracalna</strong>. Wszystkie Twoje dane zostaną trwale usunięte.
+        Potwierdź hasłem.
+      </p>
+      <input type="password" value={password} onChange={e => setPassword(e.target.value)}
+        placeholder="Twoje hasło" className="ember-input w-full px-3 py-2 text-sm" />
+      {error && <p className="text-xs" style={{ color: 'var(--eb-accent2)' }}>{error}</p>}
+      <div className="flex gap-2">
+        <button onClick={() => { setOpen(false); setPassword(''); setError('') }}
+          className="flex-1 py-2 rounded-lg text-xs"
+          style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--eb-text2)', border: 'none', cursor: 'pointer' }}>
+          Anuluj
+        </button>
+        <button onClick={deleteAccount} disabled={loading || !password}
+          className="flex-1 py-2 rounded-lg text-xs font-semibold"
+          style={{ background: 'rgba(220,38,38,0.25)', color: '#f87171', border: '0.5px solid rgba(220,38,38,0.4)', cursor: 'pointer', opacity: loading || !password ? 0.5 : 1 }}>
+          {loading ? 'Usuwanie...' : 'Usuń konto'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function TabFriends() {
+  const { token } = useStore()
+  const [friends,  setFriends]  = useState<any[]>([])
+  const [incoming, setIncoming] = useState<any[]>([])
+  const [outgoing, setOutgoing] = useState<any[]>([])
+  const [search,   setSearch]   = useState('')
+  const [searchRes,setSearchRes]= useState<any[]>([])
+  const [searching,setSearching]= useState(false)
+  const [tab,      setTab]      = useState<'friends'|'requests'|'add'>('friends')
+  const [msg,      setMsg]      = useState('')
+
+  const load = useCallback(async () => {
+    if (!token) return
+    try {
+      const [fRes, rRes] = await Promise.all([
+        fetch(`${BASE}/api/friends`,         { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${BASE}/api/friends/requests`, { headers: { Authorization: `Bearer ${token}` } }),
+      ])
+      const fData = await fRes.json()
+      const rData = await rRes.json()
+      setFriends(fData.friends ?? [])
+      setIncoming(rData.incoming ?? [])
+      setOutgoing(rData.outgoing ?? [])
+    } catch {}
+  }, [token])
+
+  useEffect(() => { load() }, [load])
+
+  async function searchUsers(q: string) {
+    setSearch(q)
+    if (q.trim().length < 2 || !token) { setSearchRes([]); return }
+    setSearching(true)
+    try {
+      const res = await fetch(`${BASE}/api/friends/search?q=${encodeURIComponent(q.trim())}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      const d = await res.json()
+      setSearchRes(d.users ?? [])
+    } catch {} finally { setSearching(false) }
+  }
+
+  async function sendRequest(userId: string) {
+    if (!token) return
+    setMsg('')
+    try {
+      const res = await fetch(`${BASE}/api/friends/request/${userId}`, {
+        method: 'POST', headers: { Authorization: `Bearer ${token}` }
+      })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error)
+      setMsg(d.accepted ? 'Znajomy dodany!' : 'Zaproszenie wysłane!')
+      load()
+    } catch (e: any) { setMsg(e.message) }
+  }
+
+  async function accept(requestId: string) {
+    if (!token) return
+    await fetch(`${BASE}/api/friends/accept/${requestId}`, {
+      method: 'POST', headers: { Authorization: `Bearer ${token}` }
+    })
+    load()
+  }
+
+  async function decline(requestId: string) {
+    if (!token) return
+    await fetch(`${BASE}/api/friends/decline/${requestId}`, {
+      method: 'DELETE', headers: { Authorization: `Bearer ${token}` }
+    })
+    load()
+  }
+
+  async function removeFriend(userId: string) {
+    if (!token) return
+    await fetch(`${BASE}/api/friends/${userId}`, {
+      method: 'DELETE', headers: { Authorization: `Bearer ${token}` }
+    })
+    load()
+  }
+
+  const TABS = [
+    { id: 'friends',  label: `Znajomi (${friends.length})` },
+    { id: 'requests', label: `Zaproszenia${incoming.length > 0 ? ` (${incoming.length})` : ''}` },
+    { id: 'add',      label: 'Dodaj znajomego' },
+  ] as const
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex gap-1">
+        {TABS.map(t => (
+          <button key={t.id} onClick={() => { setTab(t.id as any); setMsg('') }}
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+            style={{
+              background: tab === t.id ? 'var(--eb-gradient)' : 'rgba(255,255,255,0.06)',
+              color: tab === t.id ? '#fff' : 'var(--eb-text2)',
+            }}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {msg && <p className="text-xs" style={{ color: msg.includes('!') ? 'var(--eb-online)' : 'var(--eb-accent2)' }}>{msg}</p>}
+
+      {tab === 'friends' && (
+        <div className="flex flex-col gap-2">
+          {friends.length === 0 ? (
+            <p className="text-sm text-center py-6" style={{ color: 'var(--eb-text3)' }}>Brak znajomych. Dodaj kogoś!</p>
+          ) : friends.map(f => (
+            <div key={f.id} className="flex items-center gap-3 p-3 rounded-xl"
+              style={{ background: 'rgba(255,255,255,0.03)', border: '0.5px solid var(--eb-border)' }}>
+              <div className="w-9 h-9 rounded-full flex items-center justify-center text-white font-semibold text-sm flex-shrink-0 overflow-hidden"
+                style={{ background: f.avatar_url ? 'transparent' : f.avatar_color }}>
+                {f.avatar_url ? <img src={f.avatar_url} alt="" className="w-full h-full object-cover" /> : f.display_name.slice(0,1).toUpperCase()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate" style={{ color: 'var(--eb-text1)' }}>{f.display_name}</p>
+                <p className="text-xs truncate" style={{ color: 'var(--eb-text3)' }}>@{f.username}</p>
+              </div>
+              <button onClick={() => removeFriend(f.id)}
+                className="text-xs px-2.5 py-1 rounded-lg"
+                style={{ background: 'rgba(220,38,38,0.1)', color: 'var(--eb-accent2)', border: '0.5px solid rgba(220,38,38,0.2)' }}>
+                Usuń
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {tab === 'requests' && (
+        <div className="flex flex-col gap-3">
+          {incoming.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--eb-text3)' }}>Przychodzące</p>
+              {incoming.map(r => (
+                <div key={r.id} className="flex items-center gap-3 p-3 rounded-xl mb-2"
+                  style={{ background: 'rgba(255,255,255,0.03)', border: '0.5px solid var(--eb-border)' }}>
+                  <div className="w-9 h-9 rounded-full flex items-center justify-center text-white font-semibold text-sm flex-shrink-0"
+                    style={{ background: r.avatar_color }}>
+                    {r.display_name.slice(0,1).toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium" style={{ color: 'var(--eb-text1)' }}>{r.display_name}</p>
+                    <p className="text-xs" style={{ color: 'var(--eb-text3)' }}>@{r.username}</p>
+                  </div>
+                  <div className="flex gap-1.5">
+                    <button onClick={() => accept(r.id)} className="ember-btn px-3 py-1 text-xs">Akceptuj</button>
+                    <button onClick={() => decline(r.id)} className="px-3 py-1 text-xs rounded-lg"
+                      style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--eb-text2)', border: '0.5px solid var(--eb-border)' }}>
+                      Odrzuć
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {outgoing.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--eb-text3)' }}>Wysłane</p>
+              {outgoing.map(r => (
+                <div key={r.id} className="flex items-center gap-3 p-3 rounded-xl mb-2"
+                  style={{ background: 'rgba(255,255,255,0.03)', border: '0.5px solid var(--eb-border)' }}>
+                  <div className="flex-1">
+                    <p className="text-sm" style={{ color: 'var(--eb-text1)' }}>{r.display_name}</p>
+                    <p className="text-xs" style={{ color: 'var(--eb-text3)' }}>@{r.username} · oczekuje</p>
+                  </div>
+                  <button onClick={() => decline(r.id)} className="px-3 py-1 text-xs rounded-lg"
+                    style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--eb-text2)', border: '0.5px solid var(--eb-border)' }}>
+                    Cofnij
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          {incoming.length === 0 && outgoing.length === 0 && (
+            <p className="text-sm text-center py-6" style={{ color: 'var(--eb-text3)' }}>Brak zaproszeń</p>
+          )}
+        </div>
+      )}
+
+      {tab === 'add' && (
+        <div className="flex flex-col gap-3">
+          <input type="text" value={search} onChange={e => searchUsers(e.target.value)}
+            placeholder="Szukaj po nazwie użytkownika..."
+            className="ember-input w-full px-4 py-2.5 text-sm" />
+          {searching && <p className="text-xs" style={{ color: 'var(--eb-text3)' }}>Szukam...</p>}
+          <div className="flex flex-col gap-2">
+            {searchRes.map(u => (
+              <div key={u.id} className="flex items-center gap-3 p-3 rounded-xl"
+                style={{ background: 'rgba(255,255,255,0.03)', border: '0.5px solid var(--eb-border)' }}>
+                <div className="w-9 h-9 rounded-full flex items-center justify-center text-white font-semibold text-sm flex-shrink-0"
+                  style={{ background: u.avatar_color }}>
+                  {u.display_name.slice(0,1).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium" style={{ color: 'var(--eb-text1)' }}>{u.display_name}</p>
+                  <p className="text-xs" style={{ color: 'var(--eb-text3)' }}>@{u.username}</p>
+                </div>
+                <button onClick={() => sendRequest(u.id)} className="ember-btn px-3 py-1 text-xs">
+                  Dodaj
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -939,9 +1338,10 @@ export function UserSettings({ onClose }: Props) {
   const t = useT()
 
   const TABS: { id: Tab; label: string; icon: string }[] = [
-    { id: 'profil',  label: t('settings.tab.profile'),    icon: '👤' },
+    { id: 'profil',   label: t('settings.tab.profile'),    icon: '👤' },
     { id: 'audio',   label: t('settings.tab.audio'),      icon: '🎤' },
     { id: 'wygląd',  label: t('settings.tab.appearance'), icon: '🎨' },
+    { id: 'znajomi', label: 'Znajomi',                    icon: '👥' },
     { id: 'konto',   label: t('settings.tab.account'),    icon: '🔐' },
   ]
 
@@ -996,9 +1396,10 @@ export function UserSettings({ onClose }: Props) {
           <h2 className="text-base font-semibold mb-5" style={{ color: 'var(--eb-text1)' }}>
             {TABS.find(tab => tab.id === activeTab)?.icon} {TABS.find(tab => tab.id === activeTab)?.label}
           </h2>
-          {activeTab === 'profil'  && <TabProfile />}
+          {activeTab === 'profil'   && <TabProfile />}
           {activeTab === 'audio'   && <TabAudio />}
           {activeTab === 'wygląd'  && <TabAppearance />}
+          {activeTab === 'znajomi' && <TabFriends />}
           {activeTab === 'konto'   && <TabAccount />}
         </div>
       </div>

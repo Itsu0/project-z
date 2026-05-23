@@ -420,6 +420,42 @@ CREATE TABLE IF NOT EXISTS forum_replies (
   INDEX idx_reply_post (post_id, created_at ASC)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- ─── Tokeny resetu hasła ─────────────────────────────────────
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+  id         CHAR(36)   PRIMARY KEY,
+  user_id    CHAR(36)   NOT NULL,
+  token      CHAR(64)   UNIQUE NOT NULL,
+  expires_at DATETIME   NOT NULL,
+  created_at DATETIME   DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  INDEX idx_token (token)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ─── 2FA TOTP ────────────────────────────────────────────────
+-- totp_secret i totp_enabled dodawane przez ALTER w runtime
+
+-- ─── Znajomi ─────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS friends (
+  user_id    CHAR(36)  NOT NULL,
+  friend_id  CHAR(36)  NOT NULL,
+  created_at DATETIME  DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (user_id, friend_id),
+  FOREIGN KEY (user_id)   REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (friend_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ─── Zaproszenia do znajomych ────────────────────────────────
+CREATE TABLE IF NOT EXISTS friend_requests (
+  id         CHAR(36)   PRIMARY KEY,
+  from_id    CHAR(36)   NOT NULL,
+  to_id      CHAR(36)   NOT NULL,
+  created_at DATETIME   DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_req (from_id, to_id),
+  FOREIGN KEY (from_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (to_id)   REFERENCES users(id) ON DELETE CASCADE,
+  INDEX idx_to (to_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- ─── Tokeny weryfikacji email ─────────────────────────────────
 CREATE TABLE IF NOT EXISTS email_verification_tokens (
   id         CHAR(36)   PRIMARY KEY,
