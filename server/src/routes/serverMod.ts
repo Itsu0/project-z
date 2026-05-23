@@ -498,6 +498,13 @@ router.post('/:serverId/verify', requireAuth, async (req: Request, res: Response
     const { serverId } = req.params
     const userId = req.user!.userId
 
+    const emailCheck = await queryOne<{ email_verified: number }>(
+      'SELECT email_verified FROM users WHERE id = ?', [userId]
+    )
+    if (!emailCheck?.email_verified) {
+      return res.status(403).json({ error: 'EMAIL_NOT_VERIFIED' })
+    }
+
     const settings = await queryOne<{ verification_enabled: number; verification_role_id: string }>(
       'SELECT verification_enabled, verification_role_id FROM server_mod_settings WHERE server_id = ?', [serverId]
     )

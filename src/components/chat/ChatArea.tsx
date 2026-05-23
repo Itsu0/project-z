@@ -400,6 +400,9 @@ export function ChatArea({ onOpenSettings }: { onOpenSettings?: () => void }) {
   const currentChannel  = serverChannels.find(c => c.id === channelId)
   const { canManageMessages } = usePermissions(serverId)
   const [verifying, setVerifying] = useState(false)
+  const [verifyEmailRequired, setVerifyEmailRequired] = useState(false)
+  const [resendingVerify, setResendingVerify] = useState(false)
+  const [resentVerify, setResentVerify] = useState(false)
 
   const currentMember = currentUser ? serverMembers.find(m => m.user_id === currentUser.id) : null
   const hasVerificationRole = currentMember?.roles?.some((r: any) => r.name === 'Do Weryfikacji') ?? false
@@ -407,13 +410,32 @@ export function ChatArea({ onOpenSettings }: { onOpenSettings?: () => void }) {
   async function handleVerify() {
     if (!token || !serverId) return
     setVerifying(true)
+    setVerifyEmailRequired(false)
     try {
-      await fetch(`${BASE}/api/servers/${serverId}/verify`, {
+      const res = await fetch(`${BASE}/api/servers/${serverId}/verify`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
       })
+      if (!res.ok) {
+        const data = await res.json()
+        if (data.error === 'EMAIL_NOT_VERIFIED') setVerifyEmailRequired(true)
+      }
     } catch {}
     finally { setVerifying(false) }
+  }
+
+  async function handleResendVerifyEmail() {
+    if (!currentUser?.email && !(currentUser as any)?.email) return
+    setResendingVerify(true)
+    try {
+      await fetch(`${BASE}/api/auth/resend-verification`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: (currentUser as any).email }),
+      })
+      setResentVerify(true)
+      setTimeout(() => setResentVerify(false), 5000)
+    } finally { setResendingVerify(false) }
   }
 
   useEffect(() => { setPinsOpen(false); setReplyTo(null); setBulkMode(false); setSelected(new Set()) }, [channelId])
@@ -504,7 +526,7 @@ export function ChatArea({ onOpenSettings }: { onOpenSettings?: () => void }) {
       )}
 
       {/* Verification banner */}
-      {hasVerificationRole && (
+      {hasVerificationRole && !verifyEmailRequired && (
         <div className="flex items-center justify-between gap-3 px-4 py-2.5"
           style={{ background: 'rgba(148,163,184,0.12)', borderBottom: '0.5px solid rgba(148,163,184,0.25)', fontSize: 13 }}>
           <div className="flex items-center gap-2">
@@ -517,6 +539,28 @@ export function ChatArea({ onOpenSettings }: { onOpenSettings?: () => void }) {
             style={{ background: 'rgba(148,163,184,0.2)', color: '#94a3b8', border: '0.5px solid rgba(148,163,184,0.4)' }}>
             {verifying ? '...' : '✅ Weryfikuj'}
           </button>
+        </div>
+      )}
+
+      {/* Email not verified banner */}
+      {hasVerificationRole && verifyEmailRequired && (
+        <div className="flex items-center justify-between gap-3 px-4 py-2.5"
+          style={{ background: 'rgba(245,158,11,0.1)', borderBottom: '0.5px solid rgba(245,158,11,0.3)', fontSize: 13 }}>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span>✉️</span>
+            <span style={{ color: '#fbbf24', fontWeight: 500 }}>Zweryfikuj swój adres email, aby dołączyć do serwera.</span>
+            {resentVerify
+              ? <span style={{ color: '#4ade80', fontSize: 11 }}>✓ Email wysłany!</span>
+              : <button onClick={handleResendVerifyEmail} disabled={resendingVerify}
+                  className="text-xs underline disabled:opacity-50"
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#f59e0b', padding: 0 }}>
+                  {resendingVerify ? 'Wysyłanie...' : 'Wyślij ponownie'}
+                </button>
+            }
+          </div>
+          <button onClick={() => setVerifyEmailRequired(false)}
+            className="text-xs opacity-50 hover:opacity-100 flex-shrink-0"
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}>✕</button>
         </div>
       )}
 
