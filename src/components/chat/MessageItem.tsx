@@ -369,8 +369,9 @@ export function MessageItem({ message, compact = false, canManageMessages = fals
   const [editing,    setEditing]    = useState(false)
   const [reporting,  setReporting]  = useState(false)
 
-  const isOwn = message.author.id === currentUser?.id
-  const canEdit = isOwn && message.type === 'DEFAULT' && !isGiphyUrl(message.content)
+  const isOwn      = message.author.id === currentUser?.id
+  const isAdminMsg = !!message.isAdminMsg
+  const canEdit = isOwn && message.type === 'DEFAULT' && !isGiphyUrl(message.content) && !isAdminMsg
   const canPin  = isOwn || canManageMessages
 
   useEffect(() => {
@@ -450,14 +451,14 @@ export function MessageItem({ message, compact = false, canManageMessages = fals
             </svg>
           </MsgBtn>
         )}
-        {canPin && (
+        {canPin && !isAdminMsg && (
           <MsgBtn title={message.pinned ? 'Odepnij' : 'Przypnij'} onClick={handlePin}>
             <svg width="12" height="12" viewBox="0 0 24 24" fill={message.pinned ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
               <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
             </svg>
           </MsgBtn>
         )}
-        {!isOwn && (
+        {!isOwn && !isAdminMsg && (
           <MsgBtn title="Zgłoś" onClick={() => setReporting(true)}>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/>
@@ -538,22 +539,36 @@ export function MessageItem({ message, compact = false, canManageMessages = fals
   )
 
   return (
-    <div className={`message-row flex gap-3 rounded-md px-2 group relative ${compactMode ? 'py-0.5' : 'py-1.5'}`}>
-      <UserAvatar user={message.author} size={36} showStatus={false} className="mt-0.5" />
+    <div className={`message-row flex gap-3 rounded-md px-2 group relative ${compactMode ? 'py-0.5' : 'py-1.5'}${isAdminMsg ? ' admin-msg' : ''}`}
+      style={isAdminMsg ? { background: 'rgba(124,58,237,0.07)', borderLeft: '2px solid #7c3aed' } : {}}>
+      {isAdminMsg ? (
+        <div className="mt-0.5 flex-shrink-0 rounded-full flex items-center justify-center text-white font-bold"
+          style={{ width: 36, height: 36, background: 'linear-gradient(135deg,#7c3aed,#4f46e5)', fontSize: 14 }}>
+          ⚡
+        </div>
+      ) : (
+        <UserAvatar user={message.author} size={36} showStatus={false} className="mt-0.5" />
+      )}
       <div className="flex-1 min-w-0">
         <ReplyBar />
         <div className="flex items-baseline gap-2 mb-0.5">
-          <span className="text-sm font-semibold" style={{ color: topRole?.color ?? 'var(--eb-text1)' }}>
-            {message.author.displayName}
+          <span className="text-sm font-semibold" style={{ color: isAdminMsg ? '#a78bfa' : (topRole?.color ?? 'var(--eb-text1)') }}>
+            {isAdminMsg ? 'Administrator Aplikacji' : message.author.displayName}
           </span>
-          {topRole && topRole.name !== 'CZŁONEK' && (
+          {isAdminMsg && (
+            <span className="role-badge" style={{
+              background: 'rgba(124,58,237,0.18)', color: '#a78bfa',
+              border: '0.5px solid rgba(124,58,237,0.5)', fontSize: 9,
+            }}>⚡ ADMIN</span>
+          )}
+          {!isAdminMsg && topRole && topRole.name !== 'CZŁONEK' && (
             <span className="role-badge" style={{
               background: `${topRole.color}22`,
               color: topRole.color,
               border: `0.5px solid ${topRole.color}44`,
             }}>{topRole.name}</span>
           )}
-          {isBot && (
+          {isBot && !isAdminMsg && (
             <span className="role-badge" style={{
               background: 'rgba(34,197,94,0.12)', color: 'var(--eb-online)',
               border: '0.5px solid rgba(34,197,94,0.3)'
