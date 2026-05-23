@@ -8,7 +8,7 @@ import { useT } from '@/lib/i18n'
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
-type Tab = 'ogólne' | 'kanały' | 'role' | 'członkowie' | 'emoji'
+type Tab = 'ogólne' | 'kanały' | 'role' | 'członkowie' | 'emoji' | 'zbanowani'
 
 async function apiFetch(path: string, token: string, options: RequestInit = {}) {
   const res = await fetch(`${BASE}${path}`, {
@@ -489,6 +489,122 @@ function TabMembers({ server }: { server: any }) {
   )
 }
 
+function TabBans({ server }: { server: any }) {
+  const { token } = useStore()
+  const [bans, setBans] = useState<any[]>([])
+  const [loaded, setLoaded] = useState(false)
+  const [unbanTarget, setUnbanTarget] = useState<{ userId: string; name: string } | null>(null)
+  const [unbanLoading, setUnbanLoading] = useState(false)
+  const [unbanError, setUnbanError] = useState('')
+
+  useEffect(() => {
+    if (!token || loaded) return
+    apiFetch(`/api/servers/${server.id}/moderation/bans`, token)
+      .then(d => { setBans(d.bans ?? []); setLoaded(true) })
+      .catch(() => setLoaded(true))
+  }, [token, server.id, loaded])
+
+  async function confirmUnban() {
+    if (!token || !unbanTarget) return
+    setUnbanLoading(true); setUnbanError('')
+    try {
+      await apiFetch(`/api/servers/${server.id}/moderation/ban/${unbanTarget.userId}`, token, { method: 'DELETE' })
+      setBans(prev => prev.filter(b => b.user_id !== unbanTarget.userId))
+      setUnbanTarget(null)
+    } catch (e: any) { setUnbanError(e.message) }
+    finally { setUnbanLoading(false) }
+  }
+
+  return (
+    <>
+      {unbanTarget && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)' }}
+          onClick={e => { if (e.target === e.currentTarget) setUnbanTarget(null) }}>
+          <div className="rounded-2xl p-5 w-full max-w-sm"
+            style={{ background: 'var(--eb-bg2)', border: '0.5px solid var(--eb-border2)' }}>
+            <div className="flex items-center gap-2.5 mb-4">
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center text-xl"
+                style={{ background: 'rgba(34,197,94,0.1)' }}>🔓</div>
+              <div>
+                <h3 className="font-semibold text-sm" style={{ color: 'var(--eb-text1)' }}>
+                  Cofnij bana — {unbanTarget.name}
+                </h3>
+                <p className="text-xs" style={{ color: 'var(--eb-text3)' }}>
+                  Użytkownik będzie mógł ponownie dołączyć do serwera.
+                </p>
+              </div>
+            </div>
+            {unbanError && <p className="text-xs mb-3" style={{ color: 'var(--eb-accent2)' }}>{unbanError}</p>}
+            <div className="flex gap-2">
+              <button onClick={() => setUnbanTarget(null)} className="ember-btn-ghost flex-1 py-2.5 text-sm">Anuluj</button>
+              <button onClick={confirmUnban} disabled={unbanLoading}
+                className="flex-1 py-2.5 text-sm font-semibold rounded-xl transition-all"
+                style={{ background: 'rgba(34,197,94,0.15)', color: 'var(--eb-online)', border: '1px solid rgba(34,197,94,0.35)' }}>
+                {unbanLoading ? '...' : '🔓 Odbanuj'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold" style={{ color: 'var(--eb-text1)' }}>
+            Zbanowani ({bans.length})
+          </h3>
+        </div>
+
+        {!loaded ? (
+          <div className="flex items-center justify-center py-10">
+            <svg className="animate-spin" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--eb-text3)" strokeWidth="2">
+              <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+            </svg>
+          </div>
+        ) : bans.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-10 gap-2 rounded-2xl"
+            style={{ border: '0.5px dashed var(--eb-border)' }}>
+            <span className="text-4xl">🔓</span>
+            <p className="text-xs" style={{ color: 'var(--eb-text3)' }}>Brak zbanowanych użytkowników</p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-1.5">
+            {bans.map(b => (
+              <div key={b.user_id}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl group transition-colors hover:bg-white/[0.03]"
+                style={{ border: '0.5px solid var(--eb-border)' }}>
+                <div className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
+                  style={{ background: b.avatar_color ?? '#64748b' }}>
+                  {(b.display_name ?? b.username ?? '?').slice(0,1).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium truncate" style={{ color: 'var(--eb-text1)' }}>{b.display_name ?? b.username}</div>
+                  <div className="text-xs" style={{ color: 'var(--eb-text3)' }}>@{b.username}</div>
+                  {b.reason && (
+                    <div className="text-xs mt-0.5 truncate" style={{ color: 'var(--eb-text3)' }}>
+                      Powód: {b.reason}
+                    </div>
+                  )}
+                </div>
+                {b.created_at && (
+                  <span className="text-[10px] flex-shrink-0" style={{ color: 'var(--eb-text3)' }}>
+                    {new Date(b.created_at).toLocaleDateString('pl-PL')}
+                  </span>
+                )}
+                <button onClick={() => setUnbanTarget({ userId: b.user_id, name: b.display_name ?? b.username })}
+                  className="opacity-0 group-hover:opacity-100 text-xs px-2 py-1 rounded-lg transition-all flex-shrink-0"
+                  style={{ background: 'rgba(34,197,94,0.12)', color: 'var(--eb-online)', border: '0.5px solid rgba(34,197,94,0.25)' }}>
+                  Odbanuj
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </>
+  )
+}
+
 function TabEmoji({ server }: { server: any }) {
   const t = useT()
   const { token } = useStore()
@@ -662,12 +778,14 @@ export function ServerSettings({ onClose }: { onClose: () => void }) {
     { id: 'role'       as Tab, label: t('serverSettings.tab.roles'),    icon: '🏷' },
     { id: 'członkowie' as Tab, label: t('serverSettings.tab.members'),  icon: '👥' },
     { id: 'emoji'      as Tab, label: t('serverSettings.tab.emoji'),    icon: '😄' },
+    { id: 'zbanowani'  as Tab, label: 'Zbanowani',                       icon: '🔨' },
   ].filter(tab => {
     if (tab.id === 'ogólne')     return canManageServer
     if (tab.id === 'kanały')     return canManageChannels
     if (tab.id === 'role')       return canManageRoles || canKick || canBan || canMute
     if (tab.id === 'członkowie') return canKick || canBan || canMute
     if (tab.id === 'emoji')      return canManageServer
+    if (tab.id === 'zbanowani')  return canBan
     return false
   })
 
@@ -754,6 +872,7 @@ export function ServerSettings({ onClose }: { onClose: () => void }) {
           {activeTab === 'role'       && <RolesTab server={server} />}
           {activeTab === 'członkowie' && <TabMembers server={server} />}
           {activeTab === 'emoji'      && <TabEmoji server={server} />}
+          {activeTab === 'zbanowani'  && <TabBans server={server} />}
         </div>
       </div>
     </div>
