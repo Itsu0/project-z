@@ -3,9 +3,11 @@ import { useState, FormEvent } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { tokenStore } from '@/lib/api'
+import { useStore } from '@/lib/store'
 
 export default function LoginPage() {
   const router = useRouter()
+  const { setAuth } = useStore()
   const [email,         setEmail]         = useState('')
   const [password,      setPassword]      = useState('')
   const [error,         setError]         = useState('')
@@ -38,7 +40,12 @@ export default function LoginPage() {
         }
         return
       }
+      if (data.twoFaRequired) {
+        router.push(`/auth/2fa?t=${encodeURIComponent(data.tempToken)}`)
+        return
+      }
       tokenStore.set(data.token)
+      setAuth(data.token, data.user)
       router.push('/')
     } catch {
       setError('Błąd połączenia z serwerem')
