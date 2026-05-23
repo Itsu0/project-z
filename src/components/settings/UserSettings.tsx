@@ -5,6 +5,7 @@ import { useT } from '@/lib/i18n'
 import { useRouter } from 'next/navigation'
 import { tokenStore } from '@/lib/api'
 import { ImageCropModal } from '@/components/ui/ImageCropModal'
+import { Select } from '@/components/ui/Select'
 import { applyColorTheme, THEME_META } from '@/lib/themes'
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
@@ -413,11 +414,11 @@ function TabAudio() {
               <label className="block text-xs font-semibold uppercase tracking-wide mb-1.5" style={{ color: 'var(--eb-text2)' }}>
                 {t('settings.audio.micInput')}
               </label>
-              <select value={inputDevice} onChange={e => setInputDevice(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
-                style={{ background: 'var(--eb-bg3)', border: '0.5px solid var(--eb-border2)', color: 'var(--eb-text1)', fontFamily: 'DM Sans, sans-serif' }}>
-                {inputs.map(d => <option key={d.deviceId} value={d.deviceId}>{d.label || `Mikrofon ${d.deviceId.slice(0,6)}`}</option>)}
-              </select>
+              <Select
+                value={inputDevice}
+                onChange={setInputDevice}
+                options={inputs.map(d => ({ value: d.deviceId, label: d.label || `Mikrofon ${d.deviceId.slice(0,6)}` }))}
+              />
 
               {}
               <div className="mt-2 flex items-center gap-3">
@@ -445,11 +446,11 @@ function TabAudio() {
               <label className="block text-xs font-semibold uppercase tracking-wide mb-1.5" style={{ color: 'var(--eb-text2)' }}>
                 {t('settings.audio.speakerOutput')}
               </label>
-              <select value={outputDevice} onChange={e => setOutputDevice(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
-                style={{ background: 'var(--eb-bg3)', border: '0.5px solid var(--eb-border2)', color: 'var(--eb-text1)', fontFamily: 'DM Sans, sans-serif' }}>
-                {outputs.map(d => <option key={d.deviceId} value={d.deviceId}>{d.label || `Głośniki ${d.deviceId.slice(0,6)}`}</option>)}
-              </select>
+              <Select
+                value={outputDevice}
+                onChange={setOutputDevice}
+                options={outputs.map(d => ({ value: d.deviceId, label: d.label || `Głośniki ${d.deviceId.slice(0,6)}` }))}
+              />
               <div className="mt-2 flex items-center gap-3">
                 <span className="text-xs flex-shrink-0" style={{ color: 'var(--eb-text3)' }}>{t('settings.audio.volume', { n: outputVolume })}</span>
                 <input type="range" min={0} max={200} value={outputVolume} onChange={e => setOutputVolume(Number(e.target.value))}
