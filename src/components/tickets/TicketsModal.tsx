@@ -1280,7 +1280,39 @@ function TicketsAdmin({ token }: { token: string }) {
                     style={{ background: 'var(--eb-bg4)', border: '1px solid var(--eb-border2)', borderTop: 'none' }}>
 
                     {}
-                    {t.server_id && (
+                    {t.message_id && t.message_content && (
+                      <div className="px-3 py-2.5 rounded-xl flex flex-col gap-1"
+                        style={{ background: 'rgba(220,38,38,0.06)', border: '1px solid rgba(220,38,38,0.2)' }}>
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-[10px] font-semibold" style={{ color: '#ef4444' }}>
+                            🚩 Zgłoszona wiadomość
+                            {t.message_author_name && (
+                              <span className="ml-1 font-normal" style={{ color: 'var(--eb-text3)' }}>od {t.message_author_name}</span>
+                            )}
+                          </p>
+                          {t.server_id && (
+                            <button
+                              onClick={() => setGhost(t.server_id)}
+                              className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-semibold flex-shrink-0 transition-all"
+                              style={{ background: 'rgba(168,85,247,0.12)', color: '#a855f7', border: '1px solid rgba(168,85,247,0.3)' }}>
+                              👻 Ghost
+                            </button>
+                          )}
+                        </div>
+                        <p className="text-xs leading-relaxed whitespace-pre-wrap break-words"
+                          style={{ color: 'var(--eb-text1)', maxHeight: 80, overflow: 'hidden' }}>
+                          {t.message_content}
+                        </p>
+                        {t.channel_id && (
+                          <p className="text-[10px]" style={{ color: 'var(--eb-text3)' }}>
+                            Kanał: {t.channel_id}
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {}
+                    {t.server_id && !t.message_id && (
                       <div className="flex items-center gap-2 px-3 py-2 rounded-xl"
                         style={{ background: 'rgba(99,102,241,0.07)', border: '1px solid rgba(99,102,241,0.2)' }}>
                         <div className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-[10px] font-bold text-white"

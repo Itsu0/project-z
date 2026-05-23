@@ -6,6 +6,7 @@ import type { Message, Poll } from '@/types'
 import { UserAvatar } from '@/components/ui/UserAvatar'
 import { WarEmbed } from './WarEmbed'
 import { MessageActions } from '@/components/moderation/ModerationMenu'
+import { ReportModal } from '@/components/chat/ReportModal'
 import { useStore } from '@/lib/store'
 import { useSocket } from '@/hooks/useSocket'
 
@@ -365,7 +366,8 @@ export function MessageItem({ message, compact = false, canManageMessages = fals
   const [reacted, setReacted] = useState<Record<string, boolean>>(
     Object.fromEntries((message.reactions ?? []).map(r => [String(r.emoji), r.userReacted]))
   )
-  const [editing, setEditing] = useState(false)
+  const [editing,    setEditing]    = useState(false)
+  const [reporting,  setReporting]  = useState(false)
 
   const isOwn = message.author.id === currentUser?.id
   const canEdit = isOwn && message.type === 'DEFAULT' && !isGiphyUrl(message.content)
@@ -422,30 +424,50 @@ export function MessageItem({ message, compact = false, canManageMessages = fals
   }
 
   const ActionBar = () => (
-    <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 absolute right-2 -top-3 z-10 rounded-lg px-1 py-0.5 shadow-md"
-      style={{ background: 'var(--eb-bg2)', border: '0.5px solid var(--eb-border2)' }}>
-      <MsgBtn title="Odpowiedz" onClick={() => onReply?.({ id: message.id, content: message.content, authorName: message.author.displayName })}>
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/>
-        </svg>
-      </MsgBtn>
-      {canEdit && (
-        <MsgBtn title="Edytuj" onClick={() => setEditing(true)}>
+    <>
+      {reporting && (
+        <ReportModal
+          messageId={message.id}
+          channelId={message.channelId ?? ''}
+          serverId={message.serverId ?? ''}
+          messageContent={message.content}
+          authorName={message.author.displayName}
+          onClose={() => setReporting(false)}
+        />
+      )}
+      <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 absolute right-2 -top-3 z-10 rounded-lg px-1 py-0.5 shadow-md"
+        style={{ background: 'var(--eb-bg2)', border: '0.5px solid var(--eb-border2)' }}>
+        <MsgBtn title="Odpowiedz" onClick={() => onReply?.({ id: message.id, content: message.content, authorName: message.author.displayName })}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            <polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/>
           </svg>
         </MsgBtn>
-      )}
-      {canPin && (
-        <MsgBtn title={message.pinned ? 'Odepnij' : 'Przypnij'} onClick={handlePin}>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill={message.pinned ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
-            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
-          </svg>
-        </MsgBtn>
-      )}
-      <MessageActions {...actionProps} />
-    </div>
+        {canEdit && (
+          <MsgBtn title="Edytuj" onClick={() => setEditing(true)}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+          </MsgBtn>
+        )}
+        {canPin && (
+          <MsgBtn title={message.pinned ? 'Odepnij' : 'Przypnij'} onClick={handlePin}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill={message.pinned ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+            </svg>
+          </MsgBtn>
+        )}
+        {!isOwn && (
+          <MsgBtn title="Zgłoś" onClick={() => setReporting(true)}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/>
+              <line x1="4" y1="22" x2="4" y2="15"/>
+            </svg>
+          </MsgBtn>
+        )}
+        <MessageActions {...actionProps} />
+      </div>
+    </>
   )
 
   const ReplyBar = () => message.replyTo ? (

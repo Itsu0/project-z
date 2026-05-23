@@ -22,7 +22,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 router.post('/', requireAuth, async (req: Request, res: Response) => {
   try {
-    const { category, subject, description, screenshot, server_id } = req.body
+    const { category, subject, description, screenshot, server_id, channel_id, message_id } = req.body
     if (!subject?.trim() || !description?.trim())
       return res.status(400).json({ error: 'Wymagany temat i opis' })
     if (!CATEGORY_LABELS[category])
@@ -42,8 +42,8 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
 
     const id = uuid()
     await execute(
-      `INSERT INTO tickets (id, user_id, category, subject, description, screenshot, server_id) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [id, req.user!.userId, category, subject.trim(), description.trim(), screenshot ?? null, resolvedServerId]
+      `INSERT INTO tickets (id, user_id, category, subject, description, screenshot, server_id, channel_id, message_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, req.user!.userId, category, subject.trim(), description.trim(), screenshot ?? null, resolvedServerId, channel_id ?? null, message_id ?? null]
     )
     const ticket = await queryOne(
       `SELECT t.*, u.display_name, u.avatar_color, u.avatar_url,
@@ -90,10 +90,13 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
 
     const tickets = await queryMany(
       `SELECT t.*, u.display_name, u.avatar_color, u.avatar_url,
-              s.name as server_name, s.icon_color as server_icon_color, s.icon_url as server_icon_url
+              s.name as server_name, s.icon_color as server_icon_color, s.icon_url as server_icon_url,
+              m.content as message_content, mu.display_name as message_author_name
        FROM tickets t
        JOIN users u ON u.id = t.user_id
        LEFT JOIN servers s ON s.id = t.server_id
+       LEFT JOIN messages m ON m.id = t.message_id
+       LEFT JOIN users mu ON mu.id = m.author_id
        ${where}
        ORDER BY
          FIELD(t.status,'open','in_progress','resolved','closed'),

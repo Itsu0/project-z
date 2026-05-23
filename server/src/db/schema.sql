@@ -245,6 +245,8 @@ CREATE TABLE IF NOT EXISTS tickets (
   status       ENUM('open','in_progress','resolved','closed') NOT NULL DEFAULT 'open',
   admin_reply  TEXT         DEFAULT NULL,
   server_id    CHAR(36)     DEFAULT NULL,
+  channel_id   CHAR(36)     DEFAULT NULL,
+  message_id   CHAR(36)     DEFAULT NULL,
   screenshot   MEDIUMTEXT   DEFAULT NULL,
   created_at   DATETIME     DEFAULT CURRENT_TIMESTAMP,
   updated_at   DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
