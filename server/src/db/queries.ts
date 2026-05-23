@@ -245,9 +245,9 @@ export const channelQueries = {
   findById: (id: string) =>
     queryOne<DbChannel>('SELECT * FROM channels WHERE id = ?', [id]),
 
-  forServer: (serverId: string) =>
+  forServer: (serverId: string, includeModOnly = true) =>
     queryMany<DbChannel>(
-      `SELECT * FROM channels WHERE server_id = ?
+      `SELECT * FROM channels WHERE server_id = ? ${includeModOnly ? '' : 'AND (mod_only = 0 OR mod_only IS NULL)'}
        ORDER BY
          CASE type WHEN 'voice' THEN 1 ELSE 0 END ASC,
          position ASC,

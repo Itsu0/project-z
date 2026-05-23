@@ -4,6 +4,7 @@ import { requireAuth } from '../middleware/auth'
 import { serverQueries, memberQueries, channelQueries, roleQueries } from '../db/queries'
 import { execute, queryOne, queryMany } from '../db/pool'
 import { v4 as uuidv4 } from 'uuid'
+import { checkRaid } from './serverMod'
 
 async function assignVerificationRole(userId: string, serverId: string): Promise<void> {
   try {
@@ -134,8 +135,13 @@ router.get('/:serverId', requireAuth, async (req: Request, res: Response) => {
     if (!server) return res.status(404).json({ error: 'Serwer nie znaleziony' })
 
     const { hasPermission: hasPerm } = await import('../middleware/permissions')
-    const canView = await hasPerm(userId, serverId, 'VIEW_CHANNELS')
-    const channels = canView ? allChannels : []
+    const canView    = await hasPerm(userId, serverId, 'VIEW_CHANNELS')
+    const canModView = await hasPerm(userId, serverId, 'MANAGE_MESSAGES')
+    const isOwner    = server.owner_id === userId
+    const allVisible = canView ? allChannels : []
+    const channels   = (isOwner || canModView)
+      ? allVisible
+      : allVisible.filter((c: any) => !c.mod_only)
 
     return res.json({ server, channels, members, roles, memberCount, onlineCount })
   } catch (err: any) {
@@ -168,6 +174,7 @@ router.post('/join/:inviteCode', requireAuth, async (req: Request, res: Response
     await assignVerificationRole(req.user!.userId, server.id)
 
     const { io } = await import('../index')
+    checkRaid(server.id, io).catch(() => {})
     const userInfo = await import('../db/queries').then(m =>
       m.userQueries.publicProfile(req.user!.userId)
     )
@@ -273,6 +280,7 @@ router.get('/invite/:code', requireAuth, async (req: Request, res: Response) => 
 
     try {
       const { io } = await import('../index')
+      checkRaid(invite.server_id, io).catch(() => {})
       const userInfo = await import('../db/queries').then(m =>
         m.userQueries.publicProfile(req.user!.userId)
       )

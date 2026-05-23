@@ -790,14 +790,24 @@ function TabModeration({ server }: { server: any }) {
     ])
   }, [token, server?.id])
 
-  async function saveSettings() {
+  async function saveSettings(patch?: any) {
     setSaving(true)
+    const body = patch ? { ...settings, ...patch } : settings
+    if (patch) setSettings((s: any) => ({ ...s, ...patch }))
     try {
-      await fetch(`${BASE_URL}/api/servers/${server.id}/mod-settings`, {
+      const res = await fetch(`${BASE_URL}/api/servers/${server.id}/mod-settings`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(settings),
+        body: JSON.stringify(body),
       })
+      const d = await res.json()
+      if (d.settings) setSettings(d.settings)
+      if (d.newChannel) {
+        setChannels2((prev: any[]) => {
+          if (prev.some((c: any) => c.id === d.newChannel.id)) return prev
+          return [...prev, d.newChannel]
+        })
+      }
       setSaved(true); setTimeout(() => setSaved(false), 2000)
     } finally { setSaving(false) }
   }
@@ -900,7 +910,7 @@ function TabModeration({ server }: { server: any }) {
                 <p className="text-sm font-semibold" style={{ color: 'var(--eb-text1)' }}>🛡 Ochrona przed raidem</p>
                 <p className="text-[10px] mt-0.5" style={{ color: 'var(--eb-text3)' }}>Lockdown gdy dużo osób dołącza naraz</p>
               </div>
-              <button onClick={() => setSettings((s: any) => ({ ...s, raid_protection: s.raid_protection ? 0 : 1 }))}
+              <button onClick={() => saveSettings({ raid_protection: settings.raid_protection ? 0 : 1 })}
                 className="w-10 h-5 rounded-full transition-all flex-shrink-0 relative"
                 style={{ background: settings.raid_protection ? '#4ade80' : 'var(--eb-bg4)' }}>
                 <span className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all"
@@ -934,7 +944,7 @@ function TabModeration({ server }: { server: any }) {
                 <p className="text-sm font-semibold" style={{ color: 'var(--eb-text1)' }}>✅ Weryfikacja nowych członków</p>
                 <p className="text-[10px] mt-0.5" style={{ color: 'var(--eb-text3)' }}>Nowi dostają rolę weryfikacji i muszą kliknąć przycisk</p>
               </div>
-              <button onClick={() => setSettings((s: any) => ({ ...s, verification_enabled: s.verification_enabled ? 0 : 1 }))}
+              <button onClick={() => saveSettings({ verification_enabled: settings.verification_enabled ? 0 : 1 })}
                 className="w-10 h-5 rounded-full transition-all flex-shrink-0 relative"
                 style={{ background: settings.verification_enabled ? '#4ade80' : 'var(--eb-bg4)' }}>
                 <span className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all"
@@ -999,7 +1009,7 @@ function TabModeration({ server }: { server: any }) {
                 Włącz AutoMod w Ustawieniach żeby reguły działały
               </p>
             </div>
-            <button onClick={() => setSettings((s: any) => ({ ...s, automod_enabled: s.automod_enabled ? 0 : 1 }))}
+            <button onClick={() => saveSettings({ automod_enabled: settings.automod_enabled ? 0 : 1 })}
               className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
               style={{
                 background: settings.automod_enabled ? 'rgba(34,197,94,0.12)' : 'var(--eb-bg3)',
