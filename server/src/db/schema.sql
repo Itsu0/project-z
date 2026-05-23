@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS users (
   is_dev        TINYINT(1)    DEFAULT 0,
   is_mod        TINYINT(1)    DEFAULT 0,
   email_verified TINYINT(1)  DEFAULT 0,
+  birth_date    DATE          DEFAULT NULL,
   last_ip       VARCHAR(45)   DEFAULT NULL,
   created_at    DATETIME      DEFAULT CURRENT_TIMESTAMP,
   updated_at    DATETIME      DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
