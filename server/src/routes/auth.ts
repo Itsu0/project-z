@@ -1,14 +1,16 @@
 import { Router, Request, Response } from 'express'
 import bcrypt from 'bcryptjs'
+import crypto from 'crypto'
 import { userQueries, serverQueries } from '../db/queries'
 import { signToken, requireAuth, getClientIp, recordIp } from '../middleware/auth'
-import { execute } from '../db/pool'
+import { execute, queryOne } from '../db/pool'
+import { sendVerificationEmail } from '../lib/mailer'
 
 const router = Router()
 
 router.post('/register', async (req: Request, res: Response) => {
   try {
-    const { username, displayName, email, password } = req.body
+    const { username, displayName, email, password, avatarColor } = req.body
 
     if (!username || !email || !password) {
       return res.status(400).json({ error: 'Wymagane pola: username, email, password' })
@@ -36,13 +38,83 @@ router.post('/register', async (req: Request, res: Response) => {
       passwordHash,
     })
 
-    const token = signToken({ userId, username })
-    const user  = await userQueries.publicProfile(userId)
+    if (avatarColor) {
+      await execute('UPDATE users SET avatar_color = ? WHERE id = ?', [avatarColor, userId])
+    }
+
+    const verToken = crypto.randomBytes(32).toString('hex')
+    const { v4: uuidv4 } = await import('uuid')
+    await execute(
+      'INSERT INTO email_verification_tokens (id, user_id, token, expires_at) VALUES (?, ?, ?, DATE_ADD(UTC_TIMESTAMP(), INTERVAL 24 HOUR))',
+      [uuidv4(), userId, verToken]
+    )
+
+    const user = await userQueries.publicProfile(userId)
+    sendVerificationEmail(email, user?.display_name ?? username, verToken).catch(() => {})
 
     recordIp(userId, getClientIp(req)).catch(() => {})
-    return res.status(201).json({ token, user })
+    return res.status(201).json({ pendingVerification: true, email })
   } catch (err) {
     console.error('[auth/register]', err)
+    return res.status(500).json({ error: 'Błąd serwera' })
+  }
+})
+
+router.get('/verify-email/:token', async (req: Request, res: Response) => {
+  try {
+    const { token } = req.params
+    const row = await queryOne<{ id: string; user_id: string; expires_at: string }>(
+      'SELECT id, user_id, expires_at FROM email_verification_tokens WHERE token = ? LIMIT 1',
+      [token]
+    )
+
+    if (!row) return res.status(400).json({ error: 'Nieprawidłowy lub wygasły link weryfikacyjny' })
+    if (new Date(row.expires_at + 'Z') < new Date()) {
+      return res.status(400).json({ error: 'Link weryfikacyjny wygasł. Poproś o nowy.' })
+    }
+
+    await execute('UPDATE users SET email_verified = 1 WHERE id = ?', [row.user_id])
+    await execute('DELETE FROM email_verification_tokens WHERE user_id = ?', [row.user_id])
+
+    const user = await userQueries.publicProfile(row.user_id)
+    if (!user) return res.status(404).json({ error: 'Użytkownik nie znaleziony' })
+
+    const jwtToken = signToken({ userId: row.user_id, username: user.username })
+    return res.json({ token: jwtToken, user })
+  } catch (err) {
+    console.error('[auth/verify-email]', err)
+    return res.status(500).json({ error: 'Błąd serwera' })
+  }
+})
+
+router.post('/resend-verification', async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body
+    if (!email) return res.status(400).json({ error: 'Wymagany email' })
+
+    const user = await userQueries.findByEmail(email)
+    if (!user) return res.status(200).json({ ok: true })
+
+    const alreadyVerified = await queryOne<{ email_verified: number }>(
+      'SELECT email_verified FROM users WHERE id = ?', [user.id]
+    )
+    if (alreadyVerified?.email_verified) return res.status(200).json({ ok: true })
+
+    await execute('DELETE FROM email_verification_tokens WHERE user_id = ?', [user.id])
+
+    const verToken = crypto.randomBytes(32).toString('hex')
+    const { v4: uuidv4 } = await import('uuid')
+    await execute(
+      'INSERT INTO email_verification_tokens (id, user_id, token, expires_at) VALUES (?, ?, ?, DATE_ADD(UTC_TIMESTAMP(), INTERVAL 24 HOUR))',
+      [uuidv4(), user.id, verToken]
+    )
+
+    const profile = await userQueries.publicProfile(user.id)
+    sendVerificationEmail(email, profile?.display_name ?? user.username, verToken).catch(() => {})
+
+    return res.json({ ok: true })
+  } catch (err) {
+    console.error('[auth/resend-verification]', err)
     return res.status(500).json({ error: 'Błąd serwera' })
   }
 })
@@ -60,6 +132,13 @@ router.post('/login', async (req: Request, res: Response) => {
 
     const valid = await bcrypt.compare(password, user.password_hash)
     if (!valid) return res.status(401).json({ error: 'Nieprawidłowy email lub hasło' })
+
+    const verCheck = await queryOne<{ email_verified: number }>(
+      'SELECT email_verified FROM users WHERE id = ?', [user.id]
+    )
+    if (!verCheck?.email_verified) {
+      return res.status(403).json({ error: 'EMAIL_NOT_VERIFIED', email: user.email })
+    }
 
     await userQueries.updateStatus(user.id, 'online')
 
@@ -103,7 +182,6 @@ router.patch('/profile', requireAuth, async (req: Request, res: Response) => {
     invalidateUserProfile(req.user!.userId)
     const user = await userQueries.publicProfile(req.user!.userId)
 
-    const { emitToUser } = await import('../socket')
     const { queryMany } = await import('../db/pool')
     const servers = await queryMany<{ server_id: string }>(
       'SELECT server_id FROM server_members WHERE user_id = ?',
@@ -165,6 +243,7 @@ router.patch('/status', requireAuth, async (req: Request, res: Response) => {
     return res.json({ ok: true, status })
   } catch (err) { return res.status(500).json({ error: 'Błąd serwera' }) }
 })
+
 router.post('/avatar', requireAuth, async (req: Request, res: Response) => {
   try {
     const { avatar } = req.body

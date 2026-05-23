@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS users (
   custom_status VARCHAR(128)  DEFAULT NULL,
   is_dev        TINYINT(1)    DEFAULT 0,
   is_mod        TINYINT(1)    DEFAULT 0,
+  email_verified TINYINT(1)  DEFAULT 0,
   last_ip       VARCHAR(45)   DEFAULT NULL,
   created_at    DATETIME      DEFAULT CURRENT_TIMESTAMP,
   updated_at    DATETIME      DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -416,4 +417,15 @@ CREATE TABLE IF NOT EXISTS forum_replies (
   FOREIGN KEY (post_id)   REFERENCES forum_posts(id) ON DELETE CASCADE,
   FOREIGN KEY (author_id) REFERENCES users(id)       ON DELETE CASCADE,
   INDEX idx_reply_post (post_id, created_at ASC)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ─── Tokeny weryfikacji email ─────────────────────────────────
+CREATE TABLE IF NOT EXISTS email_verification_tokens (
+  id         CHAR(36)   PRIMARY KEY,
+  user_id    CHAR(36)   NOT NULL,
+  token      CHAR(64)   UNIQUE NOT NULL,
+  expires_at DATETIME   NOT NULL,
+  created_at DATETIME   DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  INDEX idx_token (token)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

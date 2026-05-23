@@ -2,28 +2,64 @@
 import { useState, FormEvent } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { api, tokenStore } from '@/lib/api'
+import { tokenStore } from '@/lib/api'
 
 export default function LoginPage() {
   const router = useRouter()
-  const [email,    setEmail]    = useState('')
-  const [password, setPassword] = useState('')
-  const [error,    setError]    = useState('')
-  const [loading,  setLoading]  = useState(false)
-  const [showPass, setShowPass] = useState(false)
+  const [email,         setEmail]         = useState('')
+  const [password,      setPassword]      = useState('')
+  const [error,         setError]         = useState('')
+  const [loading,       setLoading]       = useState(false)
+  const [showPass,      setShowPass]      = useState(false)
+  const [unverified,    setUnverified]    = useState(false)
+  const [unverifiedEmail, setUnverifiedEmail] = useState('')
+  const [resending,     setResending]     = useState(false)
+  const [resent,        setResent]        = useState(false)
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
     setError('')
+    setUnverified(false)
     setLoading(true)
     try {
-      const { token } = await api.auth.login({ email, password })
-      tokenStore.set(token)
+      const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+      const res = await fetch(`${BASE}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        if (data.error === 'EMAIL_NOT_VERIFIED') {
+          setUnverifiedEmail(data.email ?? email)
+          setUnverified(true)
+        } else {
+          setError(data.error ?? 'Błąd logowania')
+        }
+        return
+      }
+      tokenStore.set(data.token)
       router.push('/')
-    } catch (err: any) {
-      setError(err.message ?? 'Błąd logowania')
+    } catch {
+      setError('Błąd połączenia z serwerem')
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function resendVerification() {
+    setResending(true)
+    try {
+      const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+      await fetch(`${BASE}/api/auth/resend-verification`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: unverifiedEmail }),
+      })
+      setResent(true)
+      setTimeout(() => setResent(false), 5000)
+    } finally {
+      setResending(false)
     }
   }
 
@@ -135,6 +171,33 @@ export default function LoginPage() {
               </button>
             </div>
           </div>
+
+          {unverified && (
+            <div className="flex flex-col gap-3 px-4 py-3 rounded-xl text-sm"
+              style={{ background: 'rgba(245,158,11,0.1)', border: '0.5px solid rgba(245,158,11,0.35)' }}>
+              <div className="flex items-start gap-2.5" style={{ color: '#fbbf24' }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flexShrink: 0, marginTop: 1 }}>
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                  <polyline points="22,6 12,13 2,6"/>
+                </svg>
+                <span>Adres e-mail nie został potwierdzony. Sprawdź skrzynkę pocztową.</span>
+              </div>
+              {resent ? (
+                <div className="flex items-center gap-2 text-xs" style={{ color: '#4ade80' }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                  Email weryfikacyjny wysłany ponownie!
+                </div>
+              ) : (
+                <button onClick={resendVerification} disabled={resending}
+                  className="text-xs font-semibold text-left hover:underline"
+                  style={{ color: '#f59e0b', opacity: resending ? 0.6 : 1, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                  {resending ? 'Wysyłanie...' : 'Wyślij email weryfikacyjny ponownie →'}
+                </button>
+              )}
+            </div>
+          )}
 
           {error && (
             <div
