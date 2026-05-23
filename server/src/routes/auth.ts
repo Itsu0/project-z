@@ -53,7 +53,25 @@ router.post('/register', async (req: Request, res: Response) => {
     const existingEmail    = await userQueries.findByEmail(email)
     const existingUsername = await userQueries.findByUsername(username)
 
-    if (existingEmail)    return res.status(409).json({ error: 'Email już zajęty' })
+    if (existingEmail) {
+      const verCheck = await queryOne<{ email_verified: number }>(
+        'SELECT email_verified FROM users WHERE id = ?', [existingEmail.id]
+      )
+      if (verCheck?.email_verified) {
+        return res.status(409).json({ error: 'Email już zajęty' })
+      }
+      // Niezweryfikowane konto — wyślij ponownie link weryfikacyjny
+      await execute('DELETE FROM email_verification_tokens WHERE user_id = ?', [existingEmail.id])
+      const verToken = crypto.randomBytes(32).toString('hex')
+      const { v4: uuidv4 } = await import('uuid')
+      await execute(
+        'INSERT INTO email_verification_tokens (id, user_id, token, expires_at) VALUES (?, ?, ?, DATE_ADD(UTC_TIMESTAMP(), INTERVAL 24 HOUR))',
+        [uuidv4(), existingEmail.id, verToken]
+      )
+      sendVerificationEmail(email, existingEmail.display_name ?? existingEmail.username, verToken).catch(() => {})
+      return res.status(201).json({ pendingVerification: true, email })
+    }
+
     if (existingUsername) return res.status(409).json({ error: 'Nazwa użytkownika już zajęta' })
 
     const passwordHash = await bcrypt.hash(password, 12)
