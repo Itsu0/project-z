@@ -20,6 +20,7 @@ interface Notification {
   message_content: string
   author_name: string
   author_avatar_color: string
+  author_avatar_url: string | null
   author_username: string
   server_name: string
   channel_name: string
@@ -580,9 +581,12 @@ export function NotificationsPanelExpanded() {
               {}
               <div className="flex items-start gap-2.5 mb-2">
                 <div className="relative flex-shrink-0">
-                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-white font-semibold text-xs"
-                    style={{ background: notif.author_avatar_color }}>
-                    {notif.author_name.slice(0, 1)}
+                  <div className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center text-white font-semibold text-xs"
+                    style={{ background: notif.author_avatar_url ? 'transparent' : notif.author_avatar_color }}>
+                    {notif.author_avatar_url
+                      ? <img src={notif.author_avatar_url} alt="" className="w-full h-full object-cover" />
+                      : notif.author_name.slice(0, 1)
+                    }
                   </div>
                   <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold"
                     style={{ background: meta.color, border: '1.5px solid var(--eb-bg1)', color: '#fff' }}>
