@@ -475,6 +475,22 @@ export function NotificationsPanelExpanded() {
     })
   }
 
+  function deleteNotif(id: string) {
+    setNotifs(p => p.filter(n => n.id !== id))
+    fetch(`${BASE}/api/notifications/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    }).catch(() => {})
+  }
+
+  function deleteAllNotifs() {
+    setNotifs([])
+    fetch(`${BASE}/api/notifications`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    }).catch(() => {})
+  }
+
   function sendReply(notif: Notification) {
     if (!replyText.trim()) return
     socket.sendMessage(notif.channel_id, notif.server_id, replyText.trim(), undefined, notif.message_id)
@@ -517,12 +533,20 @@ export function NotificationsPanelExpanded() {
                 style={{ background: 'var(--eb-accent2)' }}>{unreadCount}</span>
             )}
           </div>
-          {unreadCount > 0 && (
-            <button onClick={markAllRead} className="text-[10px] transition-opacity hover:opacity-70"
-              style={{ color: 'var(--eb-voice)' }}>
-              {t('notif.markAllRead')}
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {unreadCount > 0 && (
+              <button onClick={markAllRead} className="text-[10px] transition-opacity hover:opacity-70"
+                style={{ color: 'var(--eb-accent)' }}>
+                {t('notif.markAllRead')}
+              </button>
+            )}
+            {activeTab === 'all' && notifs.length > 0 && (
+              <button onClick={deleteAllNotifs} className="text-[10px] transition-opacity hover:opacity-70"
+                style={{ color: 'var(--eb-accent2)' }}>
+                Usuń wszystkie
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="flex gap-1 p-1 rounded-lg" style={{ background: 'rgba(255,255,255,0.03)' }}>
@@ -639,6 +663,15 @@ export function NotificationsPanelExpanded() {
                           ✓
                         </button>
                       )}
+                      {activeTab === 'all' && (
+                        <button
+                          onClick={e => { e.stopPropagation(); deleteNotif(notif.id) }}
+                          className="px-2.5 py-1.5 rounded-lg text-xs transition-all"
+                          style={{ background: 'rgba(220,38,38,0.08)', color: 'var(--eb-accent2)', border: '0.5px solid rgba(220,38,38,0.2)' }}
+                          title="Usuń powiadomienie">
+                          ✕
+                        </button>
+                      )}
                     </div>
                   ) : (
                     <div>
@@ -676,6 +709,17 @@ export function NotificationsPanelExpanded() {
                       </div>
                     </div>
                   )}
+                </div>
+              )}
+              {!canReply && activeTab === 'all' && (
+                <div className="flex justify-end" onClick={e => e.stopPropagation()}>
+                  <button
+                    onClick={e => { e.stopPropagation(); deleteNotif(notif.id) }}
+                    className="px-2.5 py-1.5 rounded-lg text-xs transition-all"
+                    style={{ background: 'rgba(220,38,38,0.08)', color: 'var(--eb-accent2)', border: '0.5px solid rgba(220,38,38,0.2)' }}
+                    title="Usuń powiadomienie">
+                    ✕
+                  </button>
                 </div>
               )}
             </div>
