@@ -12,6 +12,7 @@ interface GifItem { id: string; url: string; preview: string; title: string }
 
 function GifPicker({ onSelect, onClose }: { onSelect: (url: string) => void; onClose: () => void }) {
   const t = useT()
+  const { token } = useStore()
   const [query, setQuery]   = useState('')
   const [gifs,  setGifs]    = useState<GifItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -23,12 +24,12 @@ function GifPicker({ onSelect, onClose }: { onSelect: (url: string) => void; onC
       const endpoint = q.trim()
         ? `${BASE}/api/gifs/search?q=${encodeURIComponent(q)}`
         : `${BASE}/api/gifs/trending`
-      const r = await fetch(endpoint)
+      const r = await fetch(endpoint, { headers: { Authorization: `Bearer ${token}` } })
       const d = await r.json()
       setGifs((d.gifs ?? []) as GifItem[])
     } catch { setGifs([]) }
     finally { setLoading(false) }
-  }, [])
+  }, [token])
 
   useEffect(() => { fetchGifs('') }, [fetchGifs])
 
