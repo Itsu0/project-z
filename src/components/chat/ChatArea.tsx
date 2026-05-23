@@ -77,7 +77,7 @@ function PinnedPanel({ channelId, onClose }: { channelId: string; onClose: () =>
   )
 }
 
-function ChannelTabBar({ channels, activeId, serverId, serverName, serverColor, serverLogo, memberCount, onSelect, onOpenSettings, onSearch, onPins }: {
+function ChannelTabBar({ channels, activeId, serverId, serverName, serverColor, serverLogo, memberCount, onSelect, onOpenSettings, onSearch, onPins, onBulkDelete }: {
   channels: RealChannel[]
   activeId: string
   serverId: string
@@ -89,6 +89,7 @@ function ChannelTabBar({ channels, activeId, serverId, serverName, serverColor, 
   onOpenSettings?: () => void
   onSearch?: () => void
   onPins?: () => void
+  onBulkDelete?: () => void
 }) {
   const { participants, connected } = useVoice()
   const { voice: voiceState, token, channels: allChannels, setChannels } = useStore()
@@ -345,6 +346,13 @@ function ChannelTabBar({ channels, activeId, serverId, serverName, serverColor, 
             <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
           </svg>
         </button>
+        {onBulkDelete && (
+          <button className="icon-btn" title="Zaznacz wiadomości do usunięcia" onClick={onBulkDelete}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+            </svg>
+          </button>
+        )}
       </div>
     </div>
   )
@@ -366,13 +374,17 @@ function EmptyServers() {
 
 export function ChatArea({ onOpenSettings }: { onOpenSettings?: () => void }) {
   const t = useT()
-  const { currentChannelId, currentServerId, setCurrentChannel, typing, servers, channels, members } = useStore()
+  const { currentChannelId, currentServerId, setCurrentChannel, typing, servers, channels, members,
+          automodBlock, setAutomodBlock, raidLockdown, clearRaidLockdown, token, currentUser } = useStore()
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesTopRef = useRef<HTMLDivElement>(null)
   const [searchOpen, setSearchOpen] = useState(false)
   const [pinsOpen, setPinsOpen] = useState(false)
   const [replyTo, setReplyTo] = useState<{ id: string; content: string; authorName: string } | null>(null)
   const pinsBtnRef = useRef<HTMLDivElement>(null)
+  const [bulkMode, setBulkMode] = useState(false)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [bulkDeleting, setBulkDeleting] = useState(false)
 
   useSocket()
 
@@ -386,8 +398,46 @@ export function ChatArea({ onOpenSettings }: { onOpenSettings?: () => void }) {
   const serverChannels  = channels[serverId] ?? []
   const serverMembers   = members[serverId]  ?? []
   const currentChannel  = serverChannels.find(c => c.id === channelId)
+  const { canManageMessages } = usePermissions(serverId)
+  const [verifying, setVerifying] = useState(false)
 
-  useEffect(() => { setPinsOpen(false); setReplyTo(null) }, [channelId])
+  const currentMember = currentUser ? serverMembers.find(m => m.user_id === currentUser.id) : null
+  const hasVerificationRole = currentMember?.roles?.some((r: any) => r.name === 'Do Weryfikacji') ?? false
+
+  async function handleVerify() {
+    if (!token || !serverId) return
+    setVerifying(true)
+    try {
+      await fetch(`${BASE}/api/servers/${serverId}/verify`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+    } catch {}
+    finally { setVerifying(false) }
+  }
+
+  useEffect(() => { setPinsOpen(false); setReplyTo(null); setBulkMode(false); setSelected(new Set()) }, [channelId])
+
+  useEffect(() => {
+    if (!automodBlock) return
+    const t = setTimeout(() => setAutomodBlock(null), 4000)
+    return () => clearTimeout(t)
+  }, [automodBlock, setAutomodBlock])
+
+  async function handleBulkDelete() {
+    if (!token || selected.size === 0) return
+    setBulkDeleting(true)
+    try {
+      await fetch(`${BASE}/api/servers/${serverId}/channels/${channelId}/messages/bulk`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ messageIds: Array.from(selected) }),
+      })
+      setBulkMode(false)
+      setSelected(new Set())
+    } catch {}
+    finally { setBulkDeleting(false) }
+  }
 
   useEffect(() => {
     const fn = (e: KeyboardEvent) => {
@@ -429,6 +479,68 @@ export function ChatArea({ onOpenSettings }: { onOpenSettings?: () => void }) {
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden" style={{ background: 'var(--eb-bg2)' }}>
+
+      {/* AutoMod block toast */}
+      {automodBlock && (
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-2.5 px-4 py-2.5 rounded-xl shadow-2xl"
+          style={{ background: '#ef4444', color: '#fff', fontSize: 13, fontWeight: 500, pointerEvents: 'none' }}>
+          <span>🛡</span>
+          <span>Wiadomość zablokowana przez AutoMod: {automodBlock}</span>
+        </div>
+      )}
+
+      {/* Raid lockdown banner */}
+      {raidLockdown && raidLockdown.serverId === serverId && (
+        <div className="flex items-center justify-between gap-3 px-4 py-2.5"
+          style={{ background: '#dc2626', color: '#fff', fontSize: 13, fontWeight: 500 }}>
+          <div className="flex items-center gap-2">
+            <span>🚨</span>
+            <span>{raidLockdown.message}</span>
+          </div>
+          <button onClick={clearRaidLockdown} className="opacity-70 hover:opacity-100 transition-opacity text-xs underline">
+            Zamknij
+          </button>
+        </div>
+      )}
+
+      {/* Verification banner */}
+      {hasVerificationRole && (
+        <div className="flex items-center justify-between gap-3 px-4 py-2.5"
+          style={{ background: 'rgba(148,163,184,0.12)', borderBottom: '0.5px solid rgba(148,163,184,0.25)', fontSize: 13 }}>
+          <div className="flex items-center gap-2">
+            <span>⏳</span>
+            <span style={{ color: 'var(--eb-text1)', fontWeight: 500 }}>Twoje konto wymaga weryfikacji na tym serwerze.</span>
+            <span style={{ color: 'var(--eb-text3)', fontSize: 11 }}>Kliknij Weryfikuj, aby uzyskać pełny dostęp.</span>
+          </div>
+          <button onClick={handleVerify} disabled={verifying}
+            className="px-3 py-1 rounded-lg text-xs font-semibold transition-all disabled:opacity-50"
+            style={{ background: 'rgba(148,163,184,0.2)', color: '#94a3b8', border: '0.5px solid rgba(148,163,184,0.4)' }}>
+            {verifying ? '...' : '✅ Weryfikuj'}
+          </button>
+        </div>
+      )}
+
+      {/* Bulk delete bar */}
+      {bulkMode && (
+        <div className="flex items-center gap-3 px-4 py-2 border-b"
+          style={{ background: 'var(--eb-bg3)', borderColor: 'var(--eb-border)', fontSize: 13 }}>
+          <span style={{ color: 'var(--eb-text2)' }}>Zaznaczono: <strong style={{ color: 'var(--eb-text1)' }}>{selected.size}</strong></span>
+          <div className="flex-1" />
+          <button
+            disabled={selected.size === 0 || bulkDeleting}
+            onClick={handleBulkDelete}
+            className="px-3 py-1 rounded-lg text-white text-xs font-medium transition-opacity disabled:opacity-40"
+            style={{ background: '#ef4444' }}>
+            {bulkDeleting ? 'Usuwanie…' : `Usuń zaznaczone (${selected.size})`}
+          </button>
+          <button onClick={() => { setBulkMode(false); setSelected(new Set()) }}
+            className="px-3 py-1 rounded-lg text-xs font-medium"
+            style={{ background: 'var(--eb-bg4)', color: 'var(--eb-text2)' }}>
+            Anuluj
+          </button>
+        </div>
+      )}
+
       <div className="relative">
         <ChannelTabBar
           channels={serverChannels}
@@ -442,6 +554,7 @@ export function ChatArea({ onOpenSettings }: { onOpenSettings?: () => void }) {
           onOpenSettings={onOpenSettings}
           onSearch={() => setSearchOpen(true)}
           onPins={currentChannel?.type === 'text' || currentChannel?.type === 'announcement' ? () => setPinsOpen(p => !p) : undefined}
+          onBulkDelete={canManageMessages && (currentChannel?.type === 'text' || currentChannel?.type === 'announcement') ? () => { setBulkMode(m => !m); setSelected(new Set()) } : undefined}
         />
         {pinsOpen && channelId && (
           <div className="absolute right-2 top-full mt-0.5 z-50">
@@ -520,13 +633,37 @@ export function ChatArea({ onOpenSettings }: { onOpenSettings?: () => void }) {
                   <div className="flex-1 h-px" style={{ background: 'var(--eb-border)' }} />
                 </div>
                 {grouped.map(({ msg, compact }) => (
-                  <MessageItem
-                    key={msg.id}
-                    message={msg}
-                    compact={compact}
-                    onReply={info => { setReplyTo(info); setTimeout(() => document.querySelector<HTMLTextAreaElement>('textarea')?.focus(), 50) }}
-                    onPin={() => {}}
-                  />
+                  <div key={msg.id} className={`flex items-start gap-2 group/sel ${bulkMode ? 'cursor-pointer select-none' : ''}`}
+                    onClick={bulkMode ? () => setSelected(prev => {
+                      const next = new Set(prev)
+                      if (next.has(msg.id)) next.delete(msg.id); else next.add(msg.id)
+                      return next
+                    }) : undefined}
+                    style={bulkMode && selected.has(msg.id) ? { background: 'rgba(239,68,68,0.08)', borderRadius: 8 } : undefined}>
+                    {bulkMode && (
+                      <div className="flex-shrink-0 mt-3 ml-2">
+                        <div className="w-4 h-4 rounded flex items-center justify-center border transition-all"
+                          style={{
+                            borderColor: selected.has(msg.id) ? '#ef4444' : 'var(--eb-border2)',
+                            background: selected.has(msg.id) ? '#ef4444' : 'transparent',
+                          }}>
+                          {selected.has(msg.id) && (
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3">
+                              <polyline points="20 6 9 17 4 12"/>
+                            </svg>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0" onClick={e => bulkMode && e.stopPropagation()}>
+                      <MessageItem
+                        message={msg}
+                        compact={compact}
+                        onReply={bulkMode ? undefined : info => { setReplyTo(info); setTimeout(() => document.querySelector<HTMLTextAreaElement>('textarea')?.focus(), 50) }}
+                        onPin={() => {}}
+                      />
+                    </div>
+                  </div>
                 ))}
               </>
             )}
