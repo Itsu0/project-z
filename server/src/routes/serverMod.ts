@@ -215,7 +215,8 @@ export async function checkAutoMod(
 const raidTracker = new Map<string, number[]>()
 const raidLocked  = new Set<string>()
 
-export async function checkRaid(serverId: string, io: any): Promise<void> {
+export async function checkRaid(serverId: string | null | undefined, io: any): Promise<void> {
+  if (!serverId) return
   try {
     const settings = await queryOne<{
       raid_protection: number; raid_threshold: number; raid_window_secs: number
@@ -235,8 +236,9 @@ export async function checkRaid(serverId: string, io: any): Promise<void> {
       io.to(`server:${serverId}`).emit('RAID_LOCKDOWN', {
         serverId, message: '🛡 Wykryto atak raid — serwer tymczasowo w trybie lockdown (10 min)',
       })
+      const windowSecs = settings.raid_window_secs ?? 30
       await logModAction(serverId, 'RAID_LOCKDOWN', null, null,
-        `Wykryto ${times.length} dołączeń w ${settings.raid_window_secs}s`)
+        `Wykryto ${times.length} dołączeń w ${windowSecs}s`)
     }
   } catch {}
 }
@@ -300,8 +302,49 @@ router.patch('/:serverId/mod-settings', requireAuth, async (req: Request, res: R
         f.strike_3_threshold   ?? null,
       ]
     )
-    const updated = await queryOne('SELECT * FROM server_mod_settings WHERE server_id = ?', [serverId])
-    return res.json({ settings: updated })
+    const updated = await queryOne<any>('SELECT * FROM server_mod_settings WHERE server_id = ?', [serverId])
+
+    // Auto-create mod-log channel when automod enabled and no channel set yet
+    let newChannel: any = null
+    if (updated?.automod_enabled && !updated?.mod_log_channel_id) {
+      try {
+        const { v4: newId } = await import('uuid')
+        const channelId = newId()
+
+        // Find or create 'Moderacja' category
+        let catRow = await queryOne<{ id: string }>(
+          "SELECT id FROM channel_categories WHERE server_id = ? AND name = 'Moderacja' LIMIT 1", [serverId]
+        )
+        if (!catRow) {
+          const catId = newId()
+          const maxPos = await queryOne<{ m: number }>('SELECT COALESCE(MAX(position),0) as m FROM channel_categories WHERE server_id = ?', [serverId])
+          await execute('INSERT INTO channel_categories (id, server_id, name, position) VALUES (?, ?, ?, ?)',
+            [catId, serverId, 'Moderacja', (maxPos?.m ?? 0) + 1])
+          catRow = { id: catId }
+        }
+
+        const maxPos = await queryOne<{ m: number }>('SELECT COALESCE(MAX(position),0) as m FROM channels WHERE server_id = ?', [serverId])
+        await execute(
+          'INSERT INTO channels (id, server_id, category_id, type, name, topic, position, mod_only) VALUES (?, ?, ?, ?, ?, ?, ?, 1)',
+          [channelId, serverId, catRow.id, 'text', 'mod-logi', 'Kanał tylko dla moderatorów i administratorów', (maxPos?.m ?? 0) + 1]
+        )
+
+        await execute('UPDATE server_mod_settings SET mod_log_channel_id = ? WHERE server_id = ?',
+          [channelId, serverId])
+
+        newChannel = { id: channelId, server_id: serverId, category_id: catRow.id, type: 'text', name: 'mod-logi', mod_only: 1 }
+
+        // Emit socket event so channel appears immediately
+        const { getSocketInstance } = await import('../socket')
+        const io2 = getSocketInstance()
+        if (io2) io2.to(`server:${serverId}`).emit('CHANNEL_CREATE', { serverId, channel: newChannel })
+      } catch (e) {
+        console.error('[serverMod/auto-modlog]', e)
+      }
+    }
+
+    const finalSettings = await queryOne('SELECT * FROM server_mod_settings WHERE server_id = ?', [serverId])
+    return res.json({ settings: finalSettings, newChannel })
   } catch (err) {
     console.error('[serverMod/settings]', err)
     return res.status(500).json({ error: 'Błąd serwera' })

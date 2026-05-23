@@ -5,7 +5,7 @@ import { execute, queryMany, queryOne } from '../db/pool'
 import { isMuted } from '../middleware/permissions'
 import { v4 as uuidv4 } from 'uuid'
 import { invalidateChannel } from '../cache/messages'
-import { checkAutoMod, addStrike, logModAction, checkRaid, isRaidLocked } from '../routes/serverMod'
+import { checkAutoMod, addStrike, logModAction, isRaidLocked } from '../routes/serverMod'
 
 const onlineUsers = new Map<string, string>()
 const typingUsers = new Map<string, Set<string>>()
@@ -156,9 +156,6 @@ export function setupSocket(io: SocketIO) {
       const userRow = await queryOne<{ status: string }>('SELECT status FROM users WHERE id = ?', [userId])
       const currentStatus = userRow?.status ?? 'online'
       socket.to(`server:${serverId}`).emit('PRESENCE_UPDATE', { userId, status: currentStatus })
-
-      // Raid protection — track join rate
-      checkRaid(serverId, io).catch(() => {})
 
       const muted = await isMuted(userId, serverId)
       if (muted) {

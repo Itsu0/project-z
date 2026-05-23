@@ -105,6 +105,7 @@ CREATE TABLE IF NOT EXISTS channels (
   topic         VARCHAR(1024) DEFAULT NULL,
   position      INT           DEFAULT 0,
   nsfw          TINYINT(1)    DEFAULT 0,
+  mod_only      TINYINT(1)    DEFAULT 0,
   slowmode      INT           DEFAULT 0,
   bitrate       INT           DEFAULT 64000,
   user_limit    INT           DEFAULT 0,
