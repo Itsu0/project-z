@@ -85,18 +85,20 @@ const STATUS_DOT: Record<string, string> = {
 }
 
 function GhostViewer({ token, serverId, onClose }: { token: string; serverId: string; onClose: () => void }) {
-  const [data,       setData]      = useState<any>(null)
-  const [loading,    setLoading]   = useState(true)
-  const [error,      setError]     = useState('')
-  const [channel,    setChannel]   = useState<any>(null)
-  const [messages,   setMessages]  = useState<any[]>([])
-  const [msgLoad,    setMsgLoad]   = useState(false)
-  const [hasMore,    setHasMore]   = useState(false)
-  const [loadingMore,setLoadMore]  = useState(false)
-  const [showMembers,setShowMem]   = useState(true)
-  const [collapsed,  setCollapsed] = useState<Record<string, boolean>>({})
-  const [memberMenu, setMemberMenu] = useState<string | null>(null)
-  const [action,     setAction]    = useState<{ type: 'ban' | 'warn' | 'unban'; user: any } | null>(null)
+  const [data,         setData]       = useState<any>(null)
+  const [loading,      setLoading]    = useState(true)
+  const [error,        setError]      = useState('')
+  const [channel,      setChannel]    = useState<any>(null)
+  const [messages,     setMessages]   = useState<any[]>([])
+  const [msgLoad,      setMsgLoad]    = useState(false)
+  const [hasMore,      setHasMore]    = useState(false)
+  const [loadingMore,  setLoadMore]   = useState(false)
+  const [showMembers,  setShowMem]    = useState(true)
+  const [collapsed,    setCollapsed]  = useState<Record<string, boolean>>({})
+  const [memberMenu,   setMemberMenu] = useState<string | null>(null)
+  const [action,       setAction]     = useState<{ type: 'ban' | 'warn' | 'unban' | 'platform_ban'; user: any } | null>(null)
+  const [adminMsg,     setAdminMsg]   = useState('')
+  const [adminSending, setAdminSend]  = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const msgContainerRef = useRef<HTMLDivElement>(null)
 
@@ -189,18 +191,37 @@ function GhostViewer({ token, serverId, onClose }: { token: string; serverId: st
     setCollapsed(prev => ({ ...prev, [key]: !prev[key] }))
   }
 
+  async function sendAdminMsg() {
+    if (!adminMsg.trim() || !channel) return
+    setAdminSend(true)
+    try {
+      await fetch(`${BASE}/api/admin/ghost/${serverId}/channels/${channel.id}/message`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ content: adminMsg.trim() }),
+      })
+      setAdminMsg('')
+    } catch {} finally { setAdminSend(false) }
+  }
+
   const srv = data?.server
 
   return (
     <>
-    {action && (
-      <ActionModal
-        type={action.type}
+    {action && action.type === 'platform_ban' ? (
+      <PlatformBanModal
         user={action.user}
         token={token}
         onDone={() => setAction(null)}
         onClose={() => setAction(null)} />
-    )}
+    ) : action ? (
+      <ActionModal
+        type={action.type as any}
+        user={action.user}
+        token={token}
+        onDone={() => setAction(null)}
+        onClose={() => setAction(null)} />
+    ) : null}
     <div className="fixed inset-0 z-[60] flex flex-col" style={{ background: 'var(--eb-bg1)' }}>
 
       {}
@@ -465,6 +486,42 @@ function GhostViewer({ token, serverId, onClose }: { token: string; serverId: st
                     <div ref={bottomRef} />
                   </div>
                 )}
+
+                {}
+                {channel && channel.type !== 'voice' && channel.type !== 'stage' && (
+                  <div className="flex-shrink-0 px-4 py-3 border-t flex gap-2 items-end"
+                    style={{ borderColor: 'var(--eb-border)', background: 'var(--eb-bg1)' }}>
+                    <div className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white"
+                      style={{ background: 'linear-gradient(135deg,#7c3aed,#4f46e5)' }}>⚡</div>
+                    <textarea
+                      value={adminMsg}
+                      onChange={e => setAdminMsg(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendAdminMsg() } }}
+                      rows={1}
+                      maxLength={2000}
+                      placeholder="Wyślij wiadomość jako Administrator Aplikacji..."
+                      className="flex-1 px-3 py-2 rounded-xl text-xs resize-none outline-none"
+                      style={{
+                        background: 'var(--eb-bg3)',
+                        border: '1px solid rgba(124,58,237,0.3)',
+                        color: 'var(--eb-text1)',
+                        maxHeight: 80,
+                      }}
+                    />
+                    <button
+                      onClick={sendAdminMsg}
+                      disabled={adminSending || !adminMsg.trim()}
+                      className="flex-shrink-0 px-3 py-2 rounded-xl text-xs font-semibold transition-all"
+                      style={{
+                        background: 'rgba(124,58,237,0.15)',
+                        color: '#a78bfa',
+                        border: '1px solid rgba(124,58,237,0.35)',
+                        opacity: adminSending || !adminMsg.trim() ? 0.5 : 1,
+                      }}>
+                      {adminSending ? '...' : 'Wyślij'}
+                    </button>
+                  </div>
+                )}
               </>
             )}
           </div>
@@ -547,7 +604,15 @@ function GhostViewer({ token, serverId, onClose }: { token: string; serverId: st
                               style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.25)' }}
                               onMouseEnter={e => (e.currentTarget.style.background = 'rgba(239,68,68,0.18)')}
                               onMouseLeave={e => (e.currentTarget.style.background = 'rgba(239,68,68,0.1)')}>
-                              <span>🔨</span> Zbanuj
+                              <span>🔨</span> Ban serwer
+                            </button>
+                            <button
+                              onClick={() => { setMemberMenu(null); setAction({ type: 'platform_ban', user: m }) }}
+                              className="flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-semibold w-full transition-all"
+                              style={{ background: 'rgba(124,58,237,0.1)', color: '#a78bfa', border: '1px solid rgba(124,58,237,0.3)' }}
+                              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(124,58,237,0.18)')}
+                              onMouseLeave={e => (e.currentTarget.style.background = 'rgba(124,58,237,0.1)')}>
+                              <span>🚫</span> Ban platforma
                             </button>
                           </div>
                         )}
@@ -562,6 +627,113 @@ function GhostViewer({ token, serverId, onClose }: { token: string; serverId: st
       )}
     </div>
     </>
+  )
+}
+
+function PlatformBanModal({ user, token, onDone, onClose }: { user: any; token: string; onDone: () => void; onClose: () => void }) {
+  const [reason,  setReason]  = useState('')
+  const [days,    setDays]    = useState('')
+  const [banIps,  setBanIps]  = useState(true)
+  const [ips,     setIps]     = useState<any[]>([])
+  const [saving,  setSaving]  = useState(false)
+  const [error,   setError]   = useState('')
+  const userId = user.user_id ?? user.id
+
+  useEffect(() => {
+    fetch(`${BASE}/api/admin/users/${userId}/ips`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json()).then(d => setIps(d.ips ?? [])).catch(() => {})
+  }, [userId, token])
+
+  async function submit() {
+    if (!reason.trim()) { setError('Podaj powód'); return }
+    setSaving(true); setError('')
+    try {
+      const res = await fetch(`${BASE}/api/admin/bans`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ userId, reason: reason.trim(), days: days ? Number(days) : undefined, banIps }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setError(data.error ?? 'Błąd'); return }
+      onDone()
+    } catch { setError('Błąd serwera') }
+    finally { setSaving(false) }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.7)' }}
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="rounded-2xl p-5 w-full flex flex-col gap-4" style={{
+        maxWidth: 400,
+        background: 'var(--eb-bg2)', border: '0.5px solid var(--eb-border2)',
+      }}>
+        <div className="flex items-center gap-3">
+          <span className="text-xl">🚫</span>
+          <div>
+            <p className="text-sm font-semibold" style={{ color: 'var(--eb-text1)' }}>Ban na całą platformę</p>
+            <p className="text-xs" style={{ color: 'var(--eb-text3)' }}>{user.display_name ?? user.username}</p>
+          </div>
+        </div>
+
+        <div>
+          <label className="text-[10px] font-semibold uppercase tracking-wide mb-1 block" style={{ color: 'var(--eb-text3)' }}>Powód *</label>
+          <textarea value={reason} onChange={e => setReason(e.target.value)}
+            rows={3} placeholder="Opisz powód..."
+            className="ember-input w-full px-3 py-2 text-xs resize-none" />
+        </div>
+
+        <div>
+          <label className="text-[10px] font-semibold uppercase tracking-wide mb-1 block" style={{ color: 'var(--eb-text3)' }}>Czas (dni) — puste = permanentny</label>
+          <input type="number" value={days} onChange={e => setDays(e.target.value)}
+            min={1} placeholder="np. 30, 365..."
+            className="ember-input w-full px-3 py-2 text-xs" />
+        </div>
+
+        <div className="rounded-xl p-3 flex flex-col gap-2"
+          style={{ background: 'rgba(124,58,237,0.07)', border: '1px solid rgba(124,58,237,0.2)' }}>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setBanIps(v => !v)}
+              className="w-4 h-4 rounded flex items-center justify-center flex-shrink-0 transition-all"
+              style={{
+                background: banIps ? '#7c3aed' : 'var(--eb-bg3)',
+                border: `1px solid ${banIps ? '#7c3aed' : 'var(--eb-border)'}`,
+              }}>
+              {banIps && <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>}
+            </button>
+            <span className="text-xs font-semibold" style={{ color: '#a78bfa' }}>Zbanuj też adresy IP ({ips.length})</span>
+          </div>
+          {ips.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-1">
+              {ips.map((ip: any) => (
+                <span key={ip.ip} className="text-[10px] px-2 py-0.5 rounded-full font-mono"
+                  style={{ background: 'rgba(124,58,237,0.12)', color: '#c4b5fd', border: '0.5px solid rgba(124,58,237,0.3)' }}>
+                  {ip.ip}
+                  {ip.is_banned > 0 && <span className="ml-1 opacity-60">✓</span>}
+                </span>
+              ))}
+            </div>
+          )}
+          {ips.length === 0 && <p className="text-[10px]" style={{ color: 'var(--eb-text3)' }}>Brak zebranych adresów IP dla tego użytkownika</p>}
+        </div>
+
+        {error && <p className="text-xs" style={{ color: 'var(--eb-accent2)' }}>{error}</p>}
+
+        <div className="flex gap-2">
+          <button onClick={onClose}
+            className="flex-1 px-4 py-2 rounded-xl text-xs font-semibold"
+            style={{ background: 'var(--eb-bg3)', color: 'var(--eb-text2)', border: '1px solid var(--eb-border)' }}>
+            Anuluj
+          </button>
+          <button onClick={submit} disabled={saving}
+            className="flex-1 px-4 py-2 rounded-xl text-xs font-semibold text-white"
+            style={{ background: 'linear-gradient(135deg,#7c3aed,#4f46e5)', opacity: saving ? 0.6 : 1 }}>
+            {saving ? 'Blokuję...' : 'Zablokuj platformę'}
+          </button>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -1191,7 +1363,7 @@ function TicketsAdmin({ token }: { token: string }) {
   const [reply,    setReply]    = useState('')
   const [status,   setStatus]   = useState('')
   const [saving,   setSaving]   = useState(false)
-  const [action,   setAction]   = useState<{ type: 'ban' | 'warn' | 'unban'; user: any } | null>(null)
+  const [action,   setAction]   = useState<{ type: 'ban' | 'warn' | 'unban' | 'platform_ban'; user: any } | null>(null)
   const [ghost,    setGhost]    = useState<string | null>(null)
 
   const load = useCallback(() => {
@@ -1222,14 +1394,13 @@ function TicketsAdmin({ token }: { token: string }) {
   return (
     <>
       {ghost && <GhostViewer token={token} serverId={ghost} onClose={() => setGhost(null)} />}
-      {action && (
-        <ActionModal
-          type={action.type}
-          user={action.user}
-          token={token}
-          onDone={() => { setAction(null); load() }}
-          onClose={() => setAction(null)} />
-      )}
+      {action && action.type === 'platform_ban' ? (
+        <PlatformBanModal user={action.user} token={token}
+          onDone={() => { setAction(null); load() }} onClose={() => setAction(null)} />
+      ) : action ? (
+        <ActionModal type={action.type as any} user={action.user} token={token}
+          onDone={() => { setAction(null); load() }} onClose={() => setAction(null)} />
+      ) : null}
 
       <div className="flex flex-col gap-3">
         <div className="flex gap-1.5 flex-wrap">
@@ -1363,7 +1534,13 @@ function TicketsAdmin({ token }: { token: string }) {
                         onClick={() => setAction({ type: 'ban', user: { user_id: t.user_id, display_name: t.display_name, avatar_color: t.avatar_color, avatar_url: t.avatar_url } })}
                         className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all"
                         style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)' }}>
-                        🔨 Zbanuj
+                        🔨 Zbanuj serwer
+                      </button>
+                      <button
+                        onClick={() => setAction({ type: 'platform_ban', user: { user_id: t.user_id, display_name: t.display_name, avatar_color: t.avatar_color, avatar_url: t.avatar_url } })}
+                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all"
+                        style={{ background: 'rgba(124,58,237,0.1)', color: '#a78bfa', border: '1px solid rgba(124,58,237,0.3)' }}>
+                        🚫 Ban platforma
                       </button>
                     </div>
 

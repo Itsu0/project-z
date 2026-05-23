@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express'
 import bcrypt from 'bcryptjs'
 import { userQueries, serverQueries } from '../db/queries'
-import { signToken, requireAuth } from '../middleware/auth'
+import { signToken, requireAuth, getClientIp, recordIp } from '../middleware/auth'
 import { execute } from '../db/pool'
 
 const router = Router()
@@ -39,6 +39,7 @@ router.post('/register', async (req: Request, res: Response) => {
     const token = signToken({ userId, username })
     const user  = await userQueries.publicProfile(userId)
 
+    recordIp(userId, getClientIp(req)).catch(() => {})
     return res.status(201).json({ token, user })
   } catch (err) {
     console.error('[auth/register]', err)
@@ -65,6 +66,7 @@ router.post('/login', async (req: Request, res: Response) => {
     const token = signToken({ userId: user.id, username: user.username })
     const profile = await userQueries.publicProfile(user.id)
 
+    recordIp(user.id, getClientIp(req)).catch(() => {})
     return res.json({ token, user: profile })
   } catch (err) {
     console.error('[auth/login]', err)

@@ -41,7 +41,7 @@ router.get('/bans', requireAuth, async (req: Request, res: Response) => {
 router.post('/bans', requireAuth, async (req: Request, res: Response) => {
   if (!(await requireCreator(req, res))) return
   try {
-    const { userId, reason, days } = req.body
+    const { userId, reason, days, banIps } = req.body
     if (!userId || !reason?.trim())
       return res.status(400).json({ error: 'Wymagane: userId, reason' })
 
@@ -53,6 +53,19 @@ router.post('/bans', requireAuth, async (req: Request, res: Response) => {
       'INSERT INTO user_bans (id, user_id, banned_by, reason, expires_at) VALUES (?, ?, ?, ?, ?)',
       [id, userId, req.user!.userId, reason.trim(), expiresAt]
     )
+
+    if (banIps) {
+      const ips = await queryMany<{ ip: string }>('SELECT ip FROM user_ips WHERE user_id = ?', [userId])
+      for (const { ip } of ips) {
+        const ipId = uuid()
+        await execute(
+          `INSERT INTO banned_ips (id, ip, reason, banned_by) VALUES (?, ?, ?, ?)
+           ON DUPLICATE KEY UPDATE reason = VALUES(reason)`,
+          [ipId, ip, reason.trim(), req.user!.userId]
+        )
+      }
+    }
+
     const ban = await queryOne('SELECT * FROM user_bans WHERE id = ?', [id])
     return res.status(201).json({ ban })
   } catch (err) {
@@ -311,6 +324,116 @@ router.get('/users/:userId', requireAuth, async (req: Request, res: Response) =>
     if (!user) return res.status(404).json({ error: 'Użytkownik nie znaleziony' })
     return res.json({ user, bans, warnings })
   } catch (err) {
+    return res.status(500).json({ error: 'Błąd serwera' })
+  }
+})
+
+router.get('/users/:userId/ips', requireAuth, async (req: Request, res: Response) => {
+  if (!(await requireCreator(req, res))) return
+  try {
+    const ips = await queryMany(
+      `SELECT ip, first_seen, last_seen,
+              (SELECT COUNT(*) FROM banned_ips b WHERE b.ip = ui.ip) as is_banned
+       FROM user_ips ui
+       WHERE user_id = ?
+       ORDER BY last_seen DESC`,
+      [req.params.userId]
+    )
+    return res.json({ ips })
+  } catch (err) {
+    return res.status(500).json({ error: 'Błąd serwera' })
+  }
+})
+
+router.get('/banned-ips', requireAuth, async (req: Request, res: Response) => {
+  if (!(await requireCreator(req, res))) return
+  try {
+    const ips = await queryMany(
+      `SELECT b.*, u.display_name as banned_by_name
+       FROM banned_ips b
+       JOIN users u ON u.id = b.banned_by
+       ORDER BY b.created_at DESC`
+    )
+    return res.json({ ips })
+  } catch (err) {
+    return res.status(500).json({ error: 'Błąd serwera' })
+  }
+})
+
+router.post('/ban-ip', requireAuth, async (req: Request, res: Response) => {
+  if (!(await requireCreator(req, res))) return
+  try {
+    const { ip, reason } = req.body
+    if (!ip?.trim() || !reason?.trim())
+      return res.status(400).json({ error: 'Wymagane: ip, reason' })
+    const id = uuid()
+    await execute(
+      `INSERT INTO banned_ips (id, ip, reason, banned_by) VALUES (?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE reason = VALUES(reason), banned_by = VALUES(banned_by)`,
+      [id, ip.trim(), reason.trim(), req.user!.userId]
+    )
+    return res.json({ ok: true })
+  } catch (err) {
+    return res.status(500).json({ error: 'Błąd serwera' })
+  }
+})
+
+router.delete('/ban-ip/:ip', requireAuth, async (req: Request, res: Response) => {
+  if (!(await requireCreator(req, res))) return
+  try {
+    await execute('DELETE FROM banned_ips WHERE ip = ?', [decodeURIComponent(req.params.ip)])
+    return res.json({ ok: true })
+  } catch (err) {
+    return res.status(500).json({ error: 'Błąd serwera' })
+  }
+})
+
+router.post('/ghost/:serverId/channels/:channelId/message', requireAuth, async (req: Request, res: Response) => {
+  if (!(await requireCreator(req, res))) return
+  try {
+    const { serverId, channelId } = req.params
+    const { content } = req.body
+    if (!content?.trim() || content.length > 2000)
+      return res.status(400).json({ error: 'Wymagana treść (maks. 2000 znaków)' })
+
+    const channel = await queryOne<{ id: string }>('SELECT id FROM channels WHERE id = ? AND server_id = ?', [channelId, serverId])
+    if (!channel) return res.status(404).json({ error: 'Kanał nie znaleziony' })
+
+    const id = uuid()
+    const now = new Date()
+    await execute(
+      `INSERT INTO messages (id, channel_id, server_id, author_id, content, type, is_admin_msg)
+       VALUES (?, ?, ?, ?, ?, 'DEFAULT', 1)`,
+      [id, channelId, serverId, req.user!.userId, content.trim()]
+    )
+
+    const { getSocketInstance } = await import('../socket')
+    const io = getSocketInstance()
+    if (io) {
+      io.to(`channel:${channelId}`).emit('MESSAGE_CREATE', {
+        id,
+        channel_id: channelId,
+        server_id: serverId,
+        author_id: req.user!.userId,
+        author_display_name: 'Administrator Aplikacji',
+        author_username: 'admin',
+        author_avatar_color: 'linear-gradient(135deg,#7c3aed,#4f46e5)',
+        author_avatar_url: null,
+        content: content.trim(),
+        type: 'DEFAULT',
+        is_admin_msg: true,
+        pinned: false,
+        created_at: now.toISOString(),
+        edited_at: null,
+        reactions: [],
+        replyTo: null,
+        attachments: [],
+      })
+    }
+
+    return res.json({ ok: true, messageId: id })
+  } catch (err) {
+    console.error('[admin/ghost/message]', err)
     return res.status(500).json({ error: 'Błąd serwera' })
   }
 })

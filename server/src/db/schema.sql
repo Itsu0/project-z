@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS users (
   status        ENUM('online','idle','dnd','offline') DEFAULT 'offline',
   custom_status VARCHAR(128)  DEFAULT NULL,
   is_dev        TINYINT(1)    DEFAULT 0,
+  last_ip       VARCHAR(45)   DEFAULT NULL,
   created_at    DATETIME      DEFAULT CURRENT_TIMESTAMP,
   updated_at    DATETIME      DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_email    (email),
@@ -123,6 +124,7 @@ CREATE TABLE IF NOT EXISTS messages (
   reply_to_id   CHAR(36)      DEFAULT NULL,
   content       TEXT          NOT NULL,
   type          ENUM('DEFAULT','SYSTEM','BOT_EMBED') DEFAULT 'DEFAULT',
+  is_admin_msg  TINYINT(1)    DEFAULT 0,
   pinned        TINYINT(1)    DEFAULT 0,
   edited_at     DATETIME      DEFAULT NULL,
   created_at    DATETIME      DEFAULT CURRENT_TIMESTAMP,
@@ -268,6 +270,29 @@ CREATE TABLE IF NOT EXISTS user_bans (
   FOREIGN KEY (banned_by) REFERENCES users(id) ON DELETE CASCADE,
   INDEX idx_user    (user_id),
   INDEX idx_expires (expires_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ─── Historia IP użytkowników ────────────────────────────────
+CREATE TABLE IF NOT EXISTS user_ips (
+  id         CHAR(36)     PRIMARY KEY,
+  user_id    CHAR(36)     NOT NULL,
+  ip         VARCHAR(45)  NOT NULL,
+  first_seen DATETIME     DEFAULT CURRENT_TIMESTAMP,
+  last_seen  DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  UNIQUE KEY uq_user_ip (user_id, ip),
+  INDEX idx_ip (ip)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ─── Zablokowane adresy IP ───────────────────────────────────
+CREATE TABLE IF NOT EXISTS banned_ips (
+  id         CHAR(36)     PRIMARY KEY,
+  ip         VARCHAR(45)  NOT NULL UNIQUE,
+  reason     VARCHAR(500) NOT NULL,
+  banned_by  CHAR(36)     NOT NULL,
+  created_at DATETIME     DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (banned_by) REFERENCES users(id) ON DELETE CASCADE,
+  INDEX idx_ip (ip)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ─── Ostrzeżenia ─────────────────────────────────────────────

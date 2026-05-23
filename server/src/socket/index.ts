@@ -118,11 +118,18 @@ export function kickUserFromServer(userId: string, serverId: string, eventName: 
 export function setupSocket(io: SocketIO) {
   _io = io
 
-  io.use((socket, next) => {
+  io.use(async (socket, next) => {
     const token = socket.handshake.auth?.token as string
     if (!token) return next(new Error('Brak tokena'))
     const payload = verifySocketToken(token)
     if (!payload) return next(new Error('Nieprawidłowy token'))
+
+    const xff = socket.handshake.headers['x-forwarded-for']
+    const ip  = (Array.isArray(xff) ? xff[0] : (xff ?? '')).split(',')[0].trim()
+              || socket.handshake.address || '0.0.0.0'
+    const ipBan = await queryOne<{ reason: string }>('SELECT reason FROM banned_ips WHERE ip = ? LIMIT 1', [ip]).catch(() => null)
+    if (ipBan) return next(new Error('IP_BANNED'))
+
     socket.data.userId   = payload.userId
     socket.data.username = payload.username
     next()

@@ -133,6 +133,7 @@ export interface Message {
   createdAt: string
   poll?: Poll | null
 
+  isAdminMsg?: boolean
   pending?: boolean
   failed?: boolean
 }
