@@ -5,7 +5,7 @@ import { userQueries, serverQueries } from '../db/queries'
 import { signToken, requireAuth, getClientIp, recordIp } from '../middleware/auth'
 import { execute, queryOne } from '../db/pool'
 import { sendVerificationEmail, sendPasswordResetEmail } from '../lib/mailer'
-import { authenticator } from 'otplib'
+import { generateSecret, verify as totpVerify, generateURI } from 'otplib'
 
 const router = Router()
 
@@ -362,8 +362,8 @@ router.post('/2fa/setup', requireAuth, async (req: Request, res: Response) => {
     const user = await userQueries.publicProfile(req.user!.userId)
     if (!user) return res.status(404).json({ error: 'Nie znaleziono użytkownika' })
 
-    const secret = authenticator.generateSecret()
-    const otpauth = authenticator.keyuri(user.username, 'Project-Z', secret)
+    const secret = generateSecret()
+    const otpauth = generateURI({ issuer: 'Project-Z', label: user.username, secret })
     const qrDataUrl = await QRCode.toDataURL(otpauth)
 
     await execute(
@@ -386,7 +386,7 @@ router.post('/2fa/enable', requireAuth, async (req: Request, res: Response) => {
     )
     if (!row?.totp_secret) return res.status(400).json({ error: 'Najpierw skonfiguruj 2FA' })
 
-    const valid = authenticator.verify({ token: code, secret: row.totp_secret })
+    const valid = totpVerify({ token: code, secret: row.totp_secret! })
     if (!valid) return res.status(400).json({ error: 'Nieprawidłowy kod' })
     await execute('UPDATE users SET totp_enabled = 1 WHERE id = ?', [req.user!.userId])
     return res.json({ ok: true })
@@ -405,7 +405,7 @@ router.post('/2fa/disable', requireAuth, async (req: Request, res: Response) => 
     )
     if (!row?.totp_enabled) return res.status(400).json({ error: '2FA nie jest włączone' })
 
-    const valid = authenticator.verify({ token: code, secret: row.totp_secret! })
+    const valid = totpVerify({ token: code, secret: row.totp_secret! })
     if (!valid) return res.status(400).json({ error: 'Nieprawidłowy kod' })
     await execute('UPDATE users SET totp_enabled = 0, totp_secret = NULL WHERE id = ?', [req.user!.userId])
     return res.json({ ok: true })
@@ -435,7 +435,7 @@ router.post('/2fa/verify-login', async (req: Request, res: Response) => {
     )
     if (!row?.totp_secret) return res.status(400).json({ error: 'Błąd konfiguracji 2FA' })
 
-    const valid = authenticator.verify({ token: code, secret: row.totp_secret })
+    const valid = totpVerify({ token: code, secret: row.totp_secret! })
     if (!valid) return res.status(400).json({ error: 'Nieprawidłowy kod 2FA' })
 
     const user = await userQueries.publicProfile(payload.userId)
