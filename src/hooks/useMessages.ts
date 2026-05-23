@@ -74,10 +74,14 @@ export function useMessages(channelId: string) {
     fetch(`${BASE}/api/channels/${channelId}/messages?limit=50`, {
       headers: { Authorization: `Bearer ${token}` },
     })
-      .then(r => r.json())
+      .then(async r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`)
+        return r.json()
+      })
       .then(data => {
+        if (!Array.isArray(data.messages)) return
         const { setMessages: liveSet, touchChannelFetch: liveTouch } = useStore.getState()
-        liveSet(channelId, (data.messages ?? []).map(mapMessage))
+        liveSet(channelId, data.messages.map(mapMessage))
         setHasMore(data.hasMore ?? false)
         liveTouch(channelId)
       })

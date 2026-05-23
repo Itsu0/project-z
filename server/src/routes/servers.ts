@@ -127,8 +127,8 @@ router.get('/:serverId', requireAuth, async (req: Request, res: Response) => {
     const channels = canView ? allChannels : []
 
     return res.json({ server, channels, members, roles, memberCount, onlineCount })
-  } catch (err) {
-    console.error('[servers/get]', err)
+  } catch (err: any) {
+    console.error('[servers/get]', err?.message ?? err, { serverId: req.params.serverId, userId: req.user?.userId })
     return res.status(500).json({ error: 'Błąd serwera' })
   }
 })
