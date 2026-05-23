@@ -225,7 +225,7 @@ export default function RegisterPage() {
                 type="date" value={birthDate}
                 onChange={e => setBirthDate(e.target.value)}
                 required
-                max={new Date(new Date().setFullYear(new Date().getFullYear() - 16)).toISOString().split('T')[0]}
+                max={new Date().toISOString().split('T')[0]}
                 min="1900-01-01"
                 className="ember-input w-full px-4 py-3"
                 style={{ fontSize: 16, colorScheme: 'dark' }}
