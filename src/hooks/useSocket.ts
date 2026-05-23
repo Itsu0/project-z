@@ -207,6 +207,18 @@ export function useSocket() {
       }
     })
 
+    s.on('CHANNELS_REORDER', (data: { serverId: string; channels: { id: string; position: number }[] }) => {
+      const store = useStore.getState()
+      const existing = store.channels[data.serverId] ?? []
+      if (!existing.length) return
+      const posMap: Record<string, number> = {}
+      data.channels.forEach(c => { posMap[c.id] = c.position })
+      const updated = existing
+        .map(c => posMap[c.id] !== undefined ? { ...c, position: posMap[c.id] } : c)
+        .sort((a, b) => a.position - b.position)
+      store.setChannels(data.serverId, updated)
+    })
+
     s.on('PROFILE_UPDATE', (data: { userId: string; displayName?: string; customStatus?: string | null; avatarColor?: string; avatarUrl?: string | null }) => {
       const store = useStore.getState()
 

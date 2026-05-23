@@ -99,6 +99,8 @@ function ChannelTabBar({ channels, activeId, serverId, serverName, serverColor, 
   const [newType,    setNewType]    = useState<'text' | 'voice' | 'forum'>('text')
   const [creating,   setCreating]   = useState(false)
   const [expandedVoice, setExpandedVoice] = useState<string | null>(null)
+  const [dragSrcId,  setDragSrcId]  = useState<string | null>(null)
+  const [dragOverId, setDragOverId] = useState<string | null>(null)
 
   const socket = useSocket()
   const [voiceOccupants, setVoiceOccupants] = useState<Record<string, { userId: string; displayName: string; avatarColor: string; avatarUrl?: string | null }[]>>({})
@@ -133,9 +135,34 @@ function ChannelTabBar({ channels, activeId, serverId, serverName, serverColor, 
     return fromSocket
   }
 
-  const textChannels = channels.filter(c =>
-    c.type === 'text' || c.type === 'announcement' || c.type === 'voice' || c.type === 'forum'
-  )
+  const textChannels = channels
+    .filter(c => c.type === 'text' || c.type === 'announcement' || c.type === 'voice' || c.type === 'forum')
+    .sort((a, b) => a.position - b.position)
+
+  async function handleChannelDrop(targetId: string) {
+    if (!dragSrcId || dragSrcId === targetId || !token) return
+    const list = [...textChannels]
+    const srcIdx = list.findIndex(c => c.id === dragSrcId)
+    const tgtIdx = list.findIndex(c => c.id === targetId)
+    if (srcIdx === -1 || tgtIdx === -1) return
+    const [moved] = list.splice(srcIdx, 1)
+    list.splice(tgtIdx, 0, moved)
+    const reordered = list.map((c, i) => ({ id: c.id, position: i }))
+    const posMap: Record<string, number> = {}
+    reordered.forEach(c => { posMap[c.id] = c.position })
+    const existing = allChannels[serverId] ?? []
+    const updated = existing
+      .map(c => posMap[c.id] !== undefined ? { ...c, position: posMap[c.id] } : c)
+      .sort((a, b) => a.position - b.position)
+    setChannels(serverId, updated)
+    try {
+      await fetch(`${BASE_URL}/api/servers/${serverId}/channels/reorder`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ channels: reordered }),
+      })
+    } catch {}
+  }
 
   async function quickCreateChannel() {
     if (!token || !newName.trim()) return
@@ -231,9 +258,27 @@ function ChannelTabBar({ channels, activeId, serverId, serverName, serverColor, 
             const count = ch.type === 'voice' ? getCount(ch) : 0
             const occupants = voiceOccupants[ch.id] ?? []
             const isExpanded = expandedVoice === ch.id
+            const isDragging = dragSrcId === ch.id
+            const isDragOver = dragOverId === ch.id && dragSrcId !== ch.id
 
             return (
-              <div key={ch.id} className="relative">
+              <div
+                key={ch.id}
+                className="relative"
+                draggable={canManageChannels}
+                onDragStart={e => { e.dataTransfer.effectAllowed = 'move'; setDragSrcId(ch.id) }}
+                onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (ch.id !== dragSrcId) setDragOverId(ch.id) }}
+                onDragLeave={() => setDragOverId(prev => prev === ch.id ? null : prev)}
+                onDrop={e => { e.preventDefault(); handleChannelDrop(ch.id); setDragSrcId(null); setDragOverId(null) }}
+                onDragEnd={() => { setDragSrcId(null); setDragOverId(null) }}
+                style={{
+                  opacity: isDragging ? 0.35 : 1,
+                  cursor: canManageChannels ? (isDragging ? 'grabbing' : 'grab') : undefined,
+                  outline: isDragOver ? '1px solid var(--eb-accent)' : undefined,
+                  borderRadius: isDragOver ? 8 : undefined,
+                  transition: 'opacity 0.15s, outline 0.1s',
+                }}
+              >
                 <button onClick={() => {
                   onSelect(ch.id)
                   if (ch.type === 'voice') setExpandedVoice(isExpanded ? null : ch.id)

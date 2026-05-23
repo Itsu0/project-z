@@ -137,6 +137,31 @@ router.delete('/:serverId/channels/:channelId', requireAuth, async (req: Request
   }
 })
 
+router.patch('/:serverId/channels/reorder', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { serverId } = req.params
+    const { channels } = req.body
+    if (!Array.isArray(channels)) return res.status(400).json({ error: 'Wymagana lista kanałów' })
+
+    const canManage = await canModerate(req.user!.userId, serverId, 'MANAGE_CHANNELS')
+    if (!canManage) return res.status(403).json({ error: 'Wymagane uprawnienie: Zarządzaj kanałami' })
+
+    for (const ch of channels) {
+      if (ch.id && typeof ch.position === 'number') {
+        await execute('UPDATE channels SET position = ? WHERE id = ? AND server_id = ?', [ch.position, ch.id, serverId])
+      }
+    }
+
+    const { io } = await import('../index')
+    io.to(`server:${serverId}`).emit('CHANNELS_REORDER', { serverId, channels })
+
+    return res.json({ ok: true })
+  } catch (err) {
+    console.error('[settings/reorder-channels]', err)
+    return res.status(500).json({ error: 'Błąd serwera' })
+  }
+})
+
 router.patch('/:serverId/roles/:roleId', requireAuth, async (req: Request, res: Response) => {
   try {
     const { serverId, roleId } = req.params
