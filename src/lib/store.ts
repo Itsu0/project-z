@@ -74,6 +74,7 @@ export interface RealMember {
   status: string
   custom_status?: string | null
   is_dev?: number | boolean
+  is_mod?: number | boolean
   nickname: string | null
   roles?: any[]
 }
