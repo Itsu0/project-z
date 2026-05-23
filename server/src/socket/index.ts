@@ -227,7 +227,10 @@ export function setupSocket(io: SocketIO) {
                 reason: `AutoMod: ${automod.reason}`,
               })
             }
-            await logModAction(data.serverId, 'AUTOMOD', null, userId, automod.reason, { action: automod.action })
+            await logModAction(data.serverId, 'AUTOMOD', null, userId, automod.reason, {
+              action: automod.action,
+              blockedContent: data.content?.slice(0, 200),
+            })
             return
           }
         }

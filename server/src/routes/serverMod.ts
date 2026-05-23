@@ -51,10 +51,11 @@ async function _postToModLog(
       BULK_DELETE: '🗑 Bulk delete', AUTOMOD: '🤖 AutoMod',
       RAID_LOCKDOWN: '🛡 Raid lockdown', STRIKE: '⚡ Strajk',
     }
-    let content = `**${LABELS[action] ?? action}**`
-    if (target) content += ` · **${target.display_name}**`
+    let content = `${LABELS[action] ?? action}`
+    if (target) content += ` · ${target.display_name}`
     if (mod)    content += ` (przez ${mod.display_name})`
-    if (reason) content += `\n> ${reason}`
+    if (reason) content += ` — ${reason}`
+    if (extra?.blockedContent) content += `\nTreść: "${extra.blockedContent}"`
     if (extra?.count) content += ` · ${extra.count} wiad.`
 
     const msgId = uuid()
