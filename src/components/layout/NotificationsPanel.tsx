@@ -529,16 +529,12 @@ export function NotificationsPanelExpanded() {
                 style={{ background: 'var(--eb-accent2)' }}>{unreadCount}</span>
             )}
           </div>
-          <div className="flex items-center gap-2">
-            <button onClick={load} className="text-[10px] transition-opacity hover:opacity-70"
-              style={{ color: 'var(--eb-text3)' }}>↻</button>
-            {unreadCount > 0 && (
-              <button onClick={markAllRead} className="text-[10px] transition-opacity hover:opacity-70"
-                style={{ color: 'var(--eb-voice)' }}>
-                {t('notif.markAllRead')}
-              </button>
-            )}
-          </div>
+          {unreadCount > 0 && (
+            <button onClick={markAllRead} className="text-[10px] transition-opacity hover:opacity-70"
+              style={{ color: 'var(--eb-voice)' }}>
+              {t('notif.markAllRead')}
+            </button>
+          )}
         </div>
 
         <div className="flex gap-1 p-1 rounded-lg" style={{ background: 'rgba(255,255,255,0.03)' }}>
