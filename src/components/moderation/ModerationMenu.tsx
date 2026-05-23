@@ -278,6 +278,107 @@ export function MessageActions({ message, currentUserId, canManageMessages, onDe
   )
 }
 
+function StrikeModal({ member, serverId, onClose }: { member: { userId: string; displayName: string }; serverId: string; onClose: () => void }) {
+  const { token } = useStore()
+  const [strikes, setStrikes] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [reason, setReason] = useState('')
+  const [adding, setAdding] = useState(false)
+  const [err, setErr] = useState('')
+
+  async function load() {
+    if (!token) return
+    try {
+      const r = await fetch(`${BASE}/api/servers/${serverId}/strikes/${member.userId}`, { headers: { Authorization: `Bearer ${token}` } })
+      const d = await r.json()
+      setStrikes(d.strikes ?? [])
+    } catch {}
+    finally { setLoading(false) }
+  }
+
+  useEffect(() => { load() }, [])
+
+  async function addStrike() {
+    if (!token || !reason.trim()) return
+    setAdding(true); setErr('')
+    try {
+      const r = await fetch(`${BASE}/api/servers/${serverId}/strikes/${member.userId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ reason: reason.trim() }),
+      })
+      const d = await r.json()
+      if (!r.ok) throw new Error(d.error)
+      setReason('')
+      load()
+    } catch (e: any) { setErr(e.message) }
+    finally { setAdding(false) }
+  }
+
+  async function removeStrike(id: string) {
+    if (!token) return
+    try {
+      await fetch(`${BASE}/api/servers/${serverId}/strikes/${id}`, {
+        method: 'DELETE', headers: { Authorization: `Bearer ${token}` },
+      })
+      setStrikes(prev => prev.filter(s => s.id !== id))
+    } catch {}
+  }
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)' }}
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="rounded-2xl p-5 w-full max-w-sm"
+        style={{ background: 'var(--eb-bg2)', border: '0.5px solid var(--eb-border2)' }}>
+        <div className="flex items-center gap-2.5 mb-4">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center text-xl"
+            style={{ background: 'rgba(234,179,8,0.15)' }}>⚠️</div>
+          <div>
+            <h3 className="font-semibold text-sm" style={{ color: 'var(--eb-text1)' }}>Strike — {member.displayName}</h3>
+            <p className="text-xs" style={{ color: 'var(--eb-text3)' }}>Aktualne strike: {strikes.length}</p>
+          </div>
+        </div>
+
+        <div className="mb-3 max-h-36 overflow-y-auto space-y-1.5">
+          {loading ? <div className="text-xs text-center py-3" style={{ color: 'var(--eb-text3)' }}>Ładowanie...</div>
+          : strikes.length === 0 ? <div className="text-xs text-center py-3" style={{ color: 'var(--eb-text3)' }}>Brak strike</div>
+          : strikes.map((s, i) => (
+            <div key={s.id} className="flex items-start gap-2 p-2 rounded-lg" style={{ background: 'rgba(234,179,8,0.07)', border: '0.5px solid rgba(234,179,8,0.2)' }}>
+              <span className="text-xs font-bold mt-0.5" style={{ color: '#eab308' }}>#{i+1}</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs truncate" style={{ color: 'var(--eb-text1)' }}>{s.reason}</p>
+                <p className="text-[10px] mt-0.5" style={{ color: 'var(--eb-text3)' }}>
+                  {s.auto ? '🤖 Auto' : '👤 Mod'} · {new Date(s.created_at).toLocaleDateString('pl')}
+                </p>
+              </div>
+              <button onClick={() => removeStrike(s.id)} className="opacity-50 hover:opacity-100 transition-opacity flex-shrink-0" title="Usuń strike">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--eb-accent2)" strokeWidth="2.5">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex gap-2 mb-1">
+          <input value={reason} onChange={e => setReason(e.target.value)} placeholder="Powód strike..."
+            className="ember-input flex-1 px-3 py-2 text-sm" maxLength={500}
+            onKeyDown={e => e.key === 'Enter' && addStrike()} />
+          <button onClick={addStrike} disabled={adding || !reason.trim()}
+            className="px-3 py-2 rounded-xl text-xs font-semibold transition-all disabled:opacity-40"
+            style={{ background: 'rgba(234,179,8,0.2)', color: '#eab308', border: '0.5px solid rgba(234,179,8,0.4)' }}>
+            {adding ? '...' : '+Strike'}
+          </button>
+        </div>
+        {err && <p className="text-xs mt-1" style={{ color: 'var(--eb-accent2)' }}>{err}</p>}
+
+        <button onClick={onClose} className="ember-btn-ghost w-full py-2 text-sm mt-3">Zamknij</button>
+      </div>
+    </div>
+  )
+}
+
 const ROLE_META_MENU: Record<string, { color: string; icon: string }> = {
   'Administrator': { color: '#f87171', icon: '👑' },
   'Moderator':     { color: '#fb923c', icon: '🛡' },
@@ -314,6 +415,7 @@ export function MemberActions({
   const [showBan,     setShowBan]     = useState(false)
   const [showKick,    setShowKick]    = useState(false)
   const [showRoles,   setShowRoles]   = useState(false)
+  const [showStrikes, setShowStrikes] = useState(false)
   const [kickLoading, setKickLoading] = useState(false)
   const [kickError,   setKickError]   = useState('')
   const [isMuted,     setIsMuted]     = useState(false)
@@ -446,8 +548,9 @@ export function MemberActions({
 
   return (
     <>
-      {showMute && <MuteModal member={{ userId: member.userId, displayName: member.displayName }} serverId={serverId} onClose={() => setShowMute(false)} onDone={() => setShowMute(false)} />}
-      {showBan  && <BanModal  member={{ userId: member.userId, displayName: member.displayName }} serverId={serverId} onClose={() => setShowBan(false)}  onDone={() => setShowBan(false)}  />}
+      {showMute    && <MuteModal   member={{ userId: member.userId, displayName: member.displayName }} serverId={serverId} onClose={() => setShowMute(false)}    onDone={() => setShowMute(false)} />}
+      {showBan     && <BanModal    member={{ userId: member.userId, displayName: member.displayName }} serverId={serverId} onClose={() => setShowBan(false)}     onDone={() => setShowBan(false)} />}
+      {showStrikes && <StrikeModal member={{ userId: member.userId, displayName: member.displayName }} serverId={serverId} onClose={() => setShowStrikes(false)} />}
 
       {}
       {showKick && (
@@ -605,6 +708,16 @@ export function MemberActions({
                 style={{ color: 'var(--eb-accent2)' }}>
                 🔨 Zbanuj
               </button>
+            )}
+            {hasModActions && (
+              <>
+                <div style={{ height: '0.5px', background: 'var(--eb-border)', margin: '2px 8px' }} />
+                <button onClick={() => { setShowStrikes(true); setOpen(false) }}
+                  className="flex items-center gap-2 w-full px-3 py-2 text-xs hover:bg-white/[0.05] transition-colors"
+                  style={{ color: '#eab308' }}>
+                  ⚠️ Strike / historia
+                </button>
+              </>
             )}
           </div>,
           document.body
