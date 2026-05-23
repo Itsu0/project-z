@@ -52,6 +52,24 @@ router.post('/read', requireAuth, async (req: Request, res: Response) => {
   }
 })
 
+router.delete('/:notifId', requireAuth, async (req: Request, res: Response) => {
+  try {
+    await execute('DELETE FROM notifications WHERE id = ? AND user_id = ?', [req.params.notifId, req.user!.userId])
+    return res.json({ ok: true })
+  } catch (err) {
+    return res.status(500).json({ error: 'Błąd serwera' })
+  }
+})
+
+router.delete('/', requireAuth, async (req: Request, res: Response) => {
+  try {
+    await execute('DELETE FROM notifications WHERE user_id = ?', [req.user!.userId])
+    return res.json({ ok: true })
+  } catch (err) {
+    return res.status(500).json({ error: 'Błąd serwera' })
+  }
+})
+
 router.get('/mutes/:serverId', requireAuth, async (req: Request, res: Response) => {
   try {
     const { serverId } = req.params
