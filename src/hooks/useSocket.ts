@@ -180,6 +180,21 @@ export function useSocket() {
       } catch {}
     })
 
+    const handleForcedLeave = (data: { serverId: string }) => {
+      const store = useStore.getState()
+      const remaining = store.servers.filter(s => s.id !== data.serverId)
+      store.setServers(remaining)
+      _socket?.emit('leave_server', data.serverId)
+      if (store.currentServerId === data.serverId) {
+        const next = remaining[0]
+        store.setCurrentServer(next?.id ?? '')
+        store.setCurrentChannel('')
+      }
+    }
+
+    s.on('KICKED', handleForcedLeave)
+    s.on('BANNED', handleForcedLeave)
+
     s.on('PRESENCE_UPDATE', (data: { userId: string; status: string }) => {
       useStore.getState().updateMemberStatus(data.userId, data.status)
     })
