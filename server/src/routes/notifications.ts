@@ -12,6 +12,7 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
         m.content as message_content,
         u.display_name as author_name,
         u.avatar_color as author_avatar_color,
+        u.avatar_url as author_avatar_url,
         u.username as author_username,
         s.name as server_name,
         c.name as channel_name
