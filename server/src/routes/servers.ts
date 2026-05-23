@@ -142,6 +142,12 @@ router.post('/join/:inviteCode', requireAuth, async (req: Request, res: Response
     const isMember = await memberQueries.isMember(req.user!.userId, server.id)
     if (isMember) return res.status(409).json({ error: 'Już jesteś członkiem tego serwera' })
 
+    const existingBan = await queryOne<{ reason: string }>(
+      'SELECT reason FROM server_bans WHERE user_id = ? AND server_id = ?',
+      [req.user!.userId, server.id]
+    )
+    if (existingBan) return res.status(403).json({ error: 'Jesteś zbanowany na tym serwerze' })
+
     const memberCount = await serverQueries.memberCount(server.id)
     if (memberCount >= server.member_limit) {
       return res.status(403).json({ error: 'Serwer jest pełny' })
@@ -243,6 +249,13 @@ router.get('/invite/:code', requireAuth, async (req: Request, res: Response) => 
     if (!server) return res.status(404).json({ error: 'Serwer nie istnieje' })
     const alreadyMember = await memberQueries.isMember(req.user!.userId, invite.server_id)
     if (alreadyMember) return res.json({ server, alreadyMember: true })
+
+    const inviteBan = await queryOne<{ reason: string }>(
+      'SELECT reason FROM server_bans WHERE user_id = ? AND server_id = ?',
+      [req.user!.userId, invite.server_id]
+    )
+    if (inviteBan) return res.status(403).json({ error: 'Jesteś zbanowany na tym serwerze' })
+
     await memberQueries.add(req.user!.userId, invite.server_id)
 
     try {

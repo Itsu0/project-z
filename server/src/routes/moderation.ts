@@ -143,6 +143,9 @@ router.post('/:serverId/moderation/ban/:userId', requireAuth, async (req: Reques
     const { io } = await import('../index')
     io.to(`server:${serverId}`).emit('MEMBER_LEAVE', { serverId, userId })
 
+    const { kickUserFromServer } = await import('../socket')
+    kickUserFromServer(userId, serverId, 'BANNED', reason ?? undefined)
+
     return res.json({ ok: true })
   } catch (err) {
     console.error('[moderation/ban]', err)
@@ -205,6 +208,9 @@ router.delete('/:serverId/moderation/kick/:userId', requireAuth, async (req: Req
 
     const { io } = await import('../index')
     io.to(`server:${serverId}`).emit('MEMBER_LEAVE', { serverId, userId })
+
+    const { kickUserFromServer } = await import('../socket')
+    kickUserFromServer(userId, serverId, 'KICKED')
 
     return res.json({ ok: true })
   } catch (err) {

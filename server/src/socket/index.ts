@@ -106,6 +106,15 @@ export function getSocketInstance(): SocketIO | null {
   return _io
 }
 
+export function kickUserFromServer(userId: string, serverId: string, eventName: 'KICKED' | 'BANNED', reason?: string): void {
+  const socketId = onlineUsers.get(userId)
+  if (socketId && _io) {
+    _io.to(socketId).emit(eventName, { serverId, reason: reason ?? null })
+    const sock = _io.sockets.sockets.get(socketId)
+    if (sock) sock.leave(`server:${serverId}`)
+  }
+}
+
 export function setupSocket(io: SocketIO) {
   _io = io
 
@@ -126,6 +135,15 @@ export function setupSocket(io: SocketIO) {
     onlineUsers.set(userId, socket.id)
 
     socket.on('join_server', async (serverId: string) => {
+      const ban = await queryOne<{ reason: string }>(
+        'SELECT reason FROM server_bans WHERE user_id = ? AND server_id = ?',
+        [userId, serverId]
+      )
+      if (ban) {
+        socket.emit('BANNED', { serverId, reason: ban.reason })
+        return
+      }
+
       socket.join(`server:${serverId}`)
       const userRow = await queryOne<{ status: string }>('SELECT status FROM users WHERE id = ?', [userId])
       const currentStatus = userRow?.status ?? 'online'
@@ -161,6 +179,12 @@ export function setupSocket(io: SocketIO) {
         if ((data.content?.length ?? 0) > 2000) return
 
         if (!data.content?.trim() && !data.attachmentIds?.length) return
+
+        const banCheck = await queryOne<{ reason: string }>(
+          'SELECT reason FROM server_bans WHERE user_id = ? AND server_id = ?',
+          [userId, data.serverId]
+        )
+        if (banCheck) return
 
         if (await isMuted(userId, data.serverId)) {
           const mute = await queryOne<{ expires_at: string }>(
