@@ -188,6 +188,21 @@ export async function runMigrations(): Promise<void> {
     }
   }
 
+  try {
+    await conn.query(`CREATE TABLE IF NOT EXISTS \`server_bans\` (
+      \`user_id\`   CHAR(36)     NOT NULL,
+      \`server_id\` CHAR(36)     NOT NULL,
+      \`banned_by\` CHAR(36)     NOT NULL,
+      \`reason\`    VARCHAR(500) DEFAULT NULL,
+      \`created_at\` DATETIME    DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (\`user_id\`, \`server_id\`),
+      FOREIGN KEY (\`server_id\`) REFERENCES \`servers\`(\`id\`) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`)
+    console.log('   ↳ Tabela server_bans OK')
+  } catch (e: any) {
+    console.warn('   ⚠ Tabela server_bans:', e.message)
+  }
+
   const forumTablesSql: string[] = [
     `CREATE TABLE IF NOT EXISTS \`forum_posts\` (
       \`id\`            CHAR(36)       NOT NULL,

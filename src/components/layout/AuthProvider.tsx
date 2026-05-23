@@ -90,17 +90,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const firstServer = servers[0]
         setCurrentServer(firstServer.id)
 
-        const srvRes = await fetch(`${BASE}/api/servers/${firstServer.id}`, {
-          headers: { Authorization: `Bearer ${storedToken}` },
-        })
-        const srvData = await srvRes.json()
-        setChannels(firstServer.id, srvData.channels ?? [])
-        setMembers(firstServer.id, srvData.members ?? [])
+        let srvData: any = null
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            const srvRes = await fetch(`${BASE}/api/servers/${firstServer.id}`, {
+              headers: { Authorization: `Bearer ${storedToken}` },
+            })
+            if (srvRes.ok) {
+              srvData = await srvRes.json()
+              break
+            }
+            if (attempt < 2) await new Promise(r => setTimeout(r, 800 * (attempt + 1)))
+          } catch {
+            if (attempt < 2) await new Promise(r => setTimeout(r, 800 * (attempt + 1)))
+          }
+        }
 
-        const firstTextChannel = (srvData.channels ?? []).find(
-          (c: any) => c.type === 'text' || c.type === 'announcement'
-        )
-        if (firstTextChannel) setCurrentChannel(firstTextChannel.id)
+        if (srvData?.channels) {
+          setChannels(firstServer.id, srvData.channels)
+          setMembers(firstServer.id, srvData.members ?? [])
+          const firstTextChannel = srvData.channels.find(
+            (c: any) => c.type === 'text' || c.type === 'announcement'
+          )
+          if (firstTextChannel) setCurrentChannel(firstTextChannel.id)
+        }
 
         setReady(true)
       })
