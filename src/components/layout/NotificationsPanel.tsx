@@ -459,8 +459,8 @@ export function NotificationsPanelExpanded() {
     })
   }
 
-  async function markReadAndSwitch(id: string) {
-    await markRead(id)
+  function markReadAndSwitch(id: string) {
+    markRead(id)
     setActiveTab('all')
   }
 
@@ -477,10 +477,14 @@ export function NotificationsPanelExpanded() {
   function sendReply(notif: Notification) {
     if (!replyText.trim()) return
     socket.sendMessage(notif.channel_id, notif.server_id, replyText.trim(), undefined, notif.message_id)
-    markRead(notif.id)
+    setNotifs(p => p.filter(n => n.id !== notif.id))
+    fetch(`${BASE}/api/notifications/read`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ notifId: notif.id }),
+    }).catch(() => {})
     setReplyingTo(null)
     setReplyText('')
-    setActiveTab('all')
   }
 
   function formatTime(dateStr: string) {
