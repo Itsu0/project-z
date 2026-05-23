@@ -109,13 +109,13 @@ function TabProfile() {
         body: JSON.stringify({ displayName: displayName.trim(), customStatus, avatarColor }),
       })
 
-      if (userStatus !== currentUser.status) {
-        await fetch(`${BASE}/api/auth/status`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ status: userStatus }),
-        })
-      }
+      await fetch(`${BASE}/api/auth/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status: userStatus }),
+      })
+
+      if (typeof window !== 'undefined') localStorage.setItem('pz_status_pref', userStatus)
       setAuth(token, { ...currentUser, display_name: displayName.trim(), avatar_color: avatarColor, status: userStatus, custom_status: customStatus.trim() || null })
       setCurrentUserStatus(userStatus)
       setMsg('✓ Zapisano')

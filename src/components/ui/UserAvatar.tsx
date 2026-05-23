@@ -32,17 +32,16 @@ export function UserAvatar({ user, size = 32, showStatus = false, statusOverride
 
       {showStatus && (
         <span
-          className={clsx('absolute rounded-full border-[2px]', {
-            'bg-[var(--eb-online)]':  status === 'online',
-            'bg-[var(--eb-accent)]':  status === 'idle',
-            'bg-[var(--eb-accent2)]': status === 'dnd',
-            'bg-[var(--eb-text3)]':   status === 'offline',
-          })}
+          className="absolute rounded-full border-[2px]"
           style={{
             width: Math.max(8, size * 0.28),
             height: Math.max(8, size * 0.28),
             bottom: -1, right: -1,
             borderColor: 'var(--eb-bg1)',
+            background: status === 'online' ? '#22c55e'
+                      : status === 'idle'   ? '#f59e0b'
+                      : status === 'dnd'    ? '#ef4444'
+                      :                       '#6b7280',
           }}
         />
       )}

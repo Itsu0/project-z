@@ -33,8 +33,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     api.auth.me(storedToken)
       .then(async ({ user }) => {
-        setAuth(storedToken, { ...user, status: 'online' })
-        setCurrentUserStatus('online')
+        const savedStatus = (typeof window !== 'undefined' ? localStorage.getItem('pz_status_pref') : null) ?? 'online'
+        setAuth(storedToken, { ...user, status: savedStatus })
+        setCurrentUserStatus(savedStatus)
 
         try {
           const sRes = await fetch(`${BASE}/api/user/settings`, {
@@ -70,7 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await fetch(`${BASE}/api/auth/status`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${storedToken}` },
-          body: JSON.stringify({ status: 'online' }),
+          body: JSON.stringify({ status: savedStatus }),
         }).catch(() => {})
 
         const res = await fetch(`${BASE}/api/servers`, {
