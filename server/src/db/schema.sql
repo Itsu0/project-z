@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS users (
   status        ENUM('online','idle','dnd','offline') DEFAULT 'offline',
   custom_status VARCHAR(128)  DEFAULT NULL,
   is_dev        TINYINT(1)    DEFAULT 0,
+  is_mod        TINYINT(1)    DEFAULT 0,
   last_ip       VARCHAR(45)   DEFAULT NULL,
   created_at    DATETIME      DEFAULT CURRENT_TIMESTAMP,
   updated_at    DATETIME      DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

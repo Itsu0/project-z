@@ -46,6 +46,7 @@ function mapMessage(data: any): any {
       content: data.reply_to_content ?? '',
       authorName: data.reply_to_author_name ?? 'Użytkownik',
     } : null),
+    isAdminMsg: !!(data.is_admin_msg ?? data.isAdminMsg),
   }
 }
 

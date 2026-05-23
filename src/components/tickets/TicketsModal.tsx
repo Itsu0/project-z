@@ -1355,7 +1355,7 @@ function MyTickets({ token }: { token: string }) {
   )
 }
 
-function TicketsAdmin({ token }: { token: string }) {
+function TicketsAdmin({ token, isCreator = true }: { token: string; isCreator?: boolean }) {
   const [tickets,  setTickets]  = useState<any[]>([])
   const [filter,   setFilter]   = useState('open')
   const [loading,  setLoading]  = useState(true)
@@ -1536,12 +1536,14 @@ function TicketsAdmin({ token }: { token: string }) {
                         style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)' }}>
                         🔨 Zbanuj serwer
                       </button>
-                      <button
-                        onClick={() => setAction({ type: 'platform_ban', user: { user_id: t.user_id, display_name: t.display_name, avatar_color: t.avatar_color, avatar_url: t.avatar_url } })}
-                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all"
-                        style={{ background: 'rgba(124,58,237,0.1)', color: '#a78bfa', border: '1px solid rgba(124,58,237,0.3)' }}>
-                        🚫 Ban platforma
-                      </button>
+                      {isCreator && (
+                        <button
+                          onClick={() => setAction({ type: 'platform_ban', user: { user_id: t.user_id, display_name: t.display_name, avatar_color: t.avatar_color, avatar_url: t.avatar_url } })}
+                          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all"
+                          style={{ background: 'rgba(124,58,237,0.1)', color: '#a78bfa', border: '1px solid rgba(124,58,237,0.3)' }}>
+                          🚫 Ban platforma
+                        </button>
+                      )}
                     </div>
 
                     {}
@@ -2074,6 +2076,107 @@ function DevManager({ token }: { token: string }) {
   )
 }
 
+function ModManager({ token }: { token: string }) {
+  const [users,    setUsers]    = useState<any[]>([])
+  const [loading,  setLoading]  = useState(true)
+  const [search,   setSearch]   = useState('')
+  const [toggling, setToggling] = useState<string | null>(null)
+
+  async function load() {
+    setLoading(true)
+    try {
+      const r = await fetch(`${BASE}/api/admin/users/all`, { headers: { Authorization: `Bearer ${token}` } })
+      const d = await r.json()
+      setUsers(d.users ?? [])
+    } catch {} finally { setLoading(false) }
+  }
+
+  useEffect(() => { load() }, [token])
+
+  async function toggleMod(userId: string, current: boolean) {
+    setToggling(userId)
+    try {
+      await fetch(`${BASE}/api/admin/users/${userId}/mod`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ isMod: !current }),
+      })
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, is_mod: !current ? 1 : 0 } : u))
+    } catch {} finally { setToggling(null) }
+  }
+
+  const filtered = users.filter(u =>
+    (u.display_name + u.username).toLowerCase().includes(search.toLowerCase())
+  )
+
+  if (loading) return <div className="flex justify-center py-8"><Spinner /></div>
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="px-3 py-2.5 rounded-xl flex items-center gap-2"
+        style={{ background: 'rgba(34,197,94,0.07)', border: '1px solid rgba(34,197,94,0.2)' }}>
+        <span className="text-base">🛡</span>
+        <div>
+          <p className="text-xs font-semibold" style={{ color: '#4ade80' }}>Zarządzanie Moderatorami Aplikacji</p>
+          <p className="text-[10px]" style={{ color: 'var(--eb-text3)' }}>
+            {users.filter(u => !!u.is_mod).length} moderatorów · mogą przeglądać i odpowiadać na zgłoszenia
+          </p>
+        </div>
+      </div>
+
+      <input
+        value={search}
+        onChange={e => setSearch(e.target.value)}
+        placeholder="Szukaj użytkownika..."
+        className="ember-input w-full px-3 py-2 text-sm"
+      />
+
+      <div className="flex flex-col gap-1.5">
+        {filtered.map(u => {
+          const isMod = !!u.is_mod
+          return (
+            <div key={u.id}
+              className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all"
+              style={{
+                background: isMod ? 'rgba(34,197,94,0.07)' : 'var(--eb-bg3)',
+                border: `1px solid ${isMod ? 'rgba(34,197,94,0.3)' : 'var(--eb-border)'}`,
+              }}>
+              <Avatar user={u} size={32} />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-semibold" style={{ color: 'var(--eb-text1)' }}>{u.display_name}</span>
+                  <span className="text-[10px]" style={{ color: 'var(--eb-text3)' }}>@{u.username}</span>
+                  {isMod && (
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                      style={{ background: 'rgba(34,197,94,0.12)', color: '#4ade80', border: '0.5px solid rgba(34,197,94,0.35)' }}>
+                      🛡 Mod
+                    </span>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={() => toggleMod(u.id, isMod)}
+                disabled={toggling === u.id}
+                className="flex-shrink-0 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all"
+                style={{
+                  background: isMod ? 'rgba(239,68,68,0.1)' : 'rgba(34,197,94,0.1)',
+                  color: isMod ? '#ef4444' : '#4ade80',
+                  border: `1px solid ${isMod ? 'rgba(239,68,68,0.3)' : 'rgba(34,197,94,0.3)'}`,
+                  opacity: toggling === u.id ? 0.5 : 1,
+                }}>
+                {toggling === u.id ? '...' : isMod ? 'Odbierz' : 'Nadaj Mod'}
+              </button>
+            </div>
+          )
+        })}
+        {filtered.length === 0 && (
+          <p className="text-xs text-center py-6" style={{ color: 'var(--eb-text3)' }}>Brak użytkowników</p>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function GhostLauncher({ token }: { token: string }) {
   const [serverId, setServerId] = useState('')
   const [ghost,    setGhost]    = useState<string | null>(null)
@@ -2131,13 +2234,17 @@ export function TicketsModal({ onClose }: { onClose: () => void }) {
   const { token } = useStore()
   const [tab,       setTab]       = useState<'new' | 'my' | 'warnings' | 'tickets' | 'warnreply' | 'users' | 'ghost' | 'dev'>('new')
   const [isCreator, setIsCreator] = useState(false)
+  const [isMod,     setIsMod]     = useState(false)
   const [myCount,   setMyCount]   = useState(0)
   const [warnCount, setWarnCount] = useState(0)
 
   useEffect(() => {
     if (!token) return
     fetch(`${BASE}/api/tickets/creator-check`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.json()).then(d => { if (d.isCreator) setIsCreator(true) }).catch(() => {})
+      .then(r => r.json()).then(d => {
+        if (d.isCreator) setIsCreator(true)
+        if (d.isMod) setIsMod(true)
+      }).catch(() => {})
     fetch(`${BASE}/api/tickets/my`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json()).then(d => setMyCount(d.tickets?.length ?? 0)).catch(() => {})
     fetch(`${BASE}/api/user/warnings`, { headers: { Authorization: `Bearer ${token}` } })
@@ -2156,6 +2263,12 @@ export function TicketsModal({ onClose }: { onClose: () => void }) {
     { key: 'users',    label: `👤 ${t('tickets.tabUsers')}` },
     { key: 'ghost',    label: `👻 ${t('tickets.tabGhost')}` },
     { key: 'dev',      label: `⚡ Dev` },
+    { key: 'mods',     label: `🛡 Mody` },
+  ] as const
+
+  const modTabs = [
+    { key: 'tickets',  label: `📋 Zgłoszenia` },
+    { key: 'warnreply',label: `💬 Odpowiedzi` },
   ] as const
 
   return (
@@ -2201,7 +2314,7 @@ export function TicketsModal({ onClose }: { onClose: () => void }) {
 
         {}
         {isCreator && (
-          <div className="flex gap-1 px-6 pb-3 flex-shrink-0" style={{ borderBottom: '0.5px solid var(--eb-border)' }}>
+          <div className="flex gap-1 px-6 pb-3 flex-shrink-0 flex-wrap" style={{ borderBottom: '0.5px solid var(--eb-border)' }}>
             <div className="text-[9px] font-bold uppercase tracking-widest self-center mr-1"
               style={{ color: '#a855f7' }}>CREATOR</div>
             {adminTabs.map(tab_ => (
@@ -2216,18 +2329,35 @@ export function TicketsModal({ onClose }: { onClose: () => void }) {
             ))}
           </div>
         )}
-        {!isCreator && <div className="flex-shrink-0" style={{ borderBottom: '0.5px solid var(--eb-border)' }} />}
+        {!isCreator && isMod && (
+          <div className="flex gap-1 px-6 pb-3 flex-shrink-0" style={{ borderBottom: '0.5px solid var(--eb-border)' }}>
+            <div className="text-[9px] font-bold uppercase tracking-widest self-center mr-1"
+              style={{ color: '#4ade80' }}>MOD</div>
+            {modTabs.map(tab_ => (
+              <button key={tab_.key} onClick={() => setTab(tab_.key as any)}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+                style={{
+                  background: tab === tab_.key ? 'rgba(34,197,94,0.1)' : 'transparent',
+                  color: tab === tab_.key ? '#4ade80' : 'var(--eb-text3)',
+                }}>
+                {tab_.label}
+              </button>
+            ))}
+          </div>
+        )}
+        {!isCreator && !isMod && <div className="flex-shrink-0" style={{ borderBottom: '0.5px solid var(--eb-border)' }} />
 
         {}
         <div className="flex-1 overflow-y-auto px-6 py-4">
           {tab === 'new'       && <NewTicketForm token={token!} onCreated={() => setTab('my')} />}
           {tab === 'my'        && <MyTickets token={token!} />}
           {tab === 'warnings'  && <MyWarnings token={token!} />}
-          {tab === 'tickets'   && isCreator && <TicketsAdmin token={token!} />}
-          {tab === 'warnreply' && isCreator && <WarningRepliesAdmin token={token!} />}
+          {tab === 'tickets'   && (isCreator || isMod) && <TicketsAdmin token={token!} isCreator={isCreator} />}
+          {tab === 'warnreply' && (isCreator || isMod) && <WarningRepliesAdmin token={token!} />}
           {tab === 'users'     && isCreator && <UsersAdmin token={token!} />}
-          {tab === 'ghost'   && isCreator && <GhostLauncher token={token!} />}
-          {tab === 'dev'     && isCreator && <DevManager token={token!} />}
+          {tab === 'ghost'     && isCreator && <GhostLauncher token={token!} />}
+          {tab === 'dev'       && isCreator && <DevManager token={token!} />}
+          {tab === 'mods'      && isCreator && <ModManager token={token!} />}
         </div>
       </div>
     </div>
