@@ -1536,14 +1536,12 @@ function TicketsAdmin({ token, isCreator = true }: { token: string; isCreator?: 
                         style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)' }}>
                         🔨 Zbanuj serwer
                       </button>
-                      {isCreator && (
-                        <button
-                          onClick={() => setAction({ type: 'platform_ban', user: { user_id: t.user_id, display_name: t.display_name, avatar_color: t.avatar_color, avatar_url: t.avatar_url } })}
-                          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all"
-                          style={{ background: 'rgba(124,58,237,0.1)', color: '#a78bfa', border: '1px solid rgba(124,58,237,0.3)' }}>
-                          🚫 Ban platforma
-                        </button>
-                      )}
+                      <button
+                        onClick={() => setAction({ type: 'platform_ban', user: { user_id: t.user_id, display_name: t.display_name, avatar_color: t.avatar_color, avatar_url: t.avatar_url } })}
+                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all"
+                        style={{ background: 'rgba(124,58,237,0.1)', color: '#a78bfa', border: '1px solid rgba(124,58,237,0.3)' }}>
+                        🚫 Ban platforma
+                      </button>
                     </div>
 
                     {}
@@ -2269,6 +2267,7 @@ export function TicketsModal({ onClose }: { onClose: () => void }) {
   const modTabs = [
     { key: 'tickets',  label: `📋 Zgłoszenia` },
     { key: 'warnreply',label: `💬 Odpowiedzi` },
+    { key: 'ghost',    label: `👻 Ghost` },
   ] as const
 
   return (
@@ -2355,7 +2354,7 @@ export function TicketsModal({ onClose }: { onClose: () => void }) {
           {tab === 'tickets'   && (isCreator || isMod) && <TicketsAdmin token={token!} isCreator={isCreator} />}
           {tab === 'warnreply' && (isCreator || isMod) && <WarningRepliesAdmin token={token!} />}
           {tab === 'users'     && isCreator && <UsersAdmin token={token!} />}
-          {tab === 'ghost'     && isCreator && <GhostLauncher token={token!} />}
+          {tab === 'ghost'     && (isCreator || isMod) && <GhostLauncher token={token!} />}
           {tab === 'dev'       && isCreator && <DevManager token={token!} />}
           {tab === 'mods'      && isCreator && <ModManager token={token!} />}
         </div>
