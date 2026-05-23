@@ -18,8 +18,8 @@ const AVATAR_COLORS = [
 function PasswordStrength({ password }: { password: string }) {
   const checks = [
     { label: 'Min. 8 znaków',  ok: password.length >= 8 },
+    { label: 'Nie tylko cyfry', ok: !/^\d+$/.test(password) },
     { label: 'Wielka litera',  ok: /[A-Z]/.test(password) },
-    { label: 'Cyfra lub znak', ok: /[0-9!@#$%^&*]/.test(password) },
   ]
   const score = checks.filter(c => c.ok).length
   const colors = ['var(--eb-accent2)', 'var(--eb-accent)', 'var(--eb-online)']
@@ -95,6 +95,7 @@ export default function RegisterPage() {
     if (!tosAccepted) { setError('Musisz zaakceptować Regulamin i Politykę prywatności'); return }
     if (password !== passwordConfirm) { setError('Hasła nie są takie same'); return }
     if (password.length < 8) { setError('Hasło musi mieć minimum 8 znaków'); return }
+    if (/^\d+$/.test(password)) { setError('Hasło nie może składać się wyłącznie z cyfr'); return }
 
     setLoading(true)
     try {
