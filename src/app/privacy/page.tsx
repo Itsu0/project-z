@@ -98,7 +98,7 @@ export default function PrivacyPage() {
               <li style={li}><strong style={{ color: '#f1f5f9' }}>Tokeny weryfikacji e-mail</strong> — 24 godziny, następnie automatycznie usuwane.</li>
               <li style={li}><strong style={{ color: '#f1f5f9' }}>Logi moderacyjne</strong> — 90 dni, chyba że są potrzebne w związku z toczącym się postępowaniem.</li>
             </ul>
-            <p style={p} style={{ color: '#64748b', fontSize: 13 }}>
+            <p style={{ ...p, color: '#64748b', fontSize: 13 }}>
               Platforma jest w fazie testów beta. Dane mogą zostać zresetowane z powodów technicznych po uprzednim powiadomieniu.
             </p>
           </section>
