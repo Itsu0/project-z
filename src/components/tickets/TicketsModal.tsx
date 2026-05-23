@@ -2230,7 +2230,7 @@ function GhostLauncher({ token }: { token: string }) {
 export function TicketsModal({ onClose }: { onClose: () => void }) {
   const t = useT()
   const { token } = useStore()
-  const [tab,       setTab]       = useState<'new' | 'my' | 'warnings' | 'tickets' | 'warnreply' | 'users' | 'ghost' | 'dev'>('new')
+  const [tab,       setTab]       = useState<'new' | 'my' | 'warnings' | 'tickets' | 'warnreply' | 'users' | 'ghost' | 'dev' | 'mods'>('new')
   const [isCreator, setIsCreator] = useState(false)
   const [isMod,     setIsMod]     = useState(false)
   const [myCount,   setMyCount]   = useState(0)
@@ -2344,9 +2344,8 @@ export function TicketsModal({ onClose }: { onClose: () => void }) {
             ))}
           </div>
         )}
-        {!isCreator && !isMod && <div className="flex-shrink-0" style={{ borderBottom: '0.5px solid var(--eb-border)' }} />
+        {!isCreator && !isMod && <div className="flex-shrink-0" style={{ borderBottom: '0.5px solid var(--eb-border)' }} />}
 
-        {}
         <div className="flex-1 overflow-y-auto px-6 py-4">
           {tab === 'new'       && <NewTicketForm token={token!} onCreated={() => setTab('my')} />}
           {tab === 'my'        && <MyTickets token={token!} />}
