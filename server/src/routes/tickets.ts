@@ -12,6 +12,12 @@ async function isCreator(userId: string): Promise<boolean> {
   return first?.id === userId
 }
 
+async function isStaff(userId: string): Promise<boolean> {
+  if (await isCreator(userId)) return true
+  const mod = await queryOne<{ id: string }>('SELECT id FROM users WHERE id = ? AND is_mod = 1', [userId])
+  return !!mod
+}
+
 const CATEGORY_LABELS: Record<string, string> = {
   bug: 'Błąd techniczny',
   abuse: 'Naruszenie regulaminu',
@@ -81,7 +87,7 @@ router.get('/my', requireAuth, async (req: Request, res: Response) => {
 
 router.get('/', requireAuth, async (req: Request, res: Response) => {
   try {
-    if (!(await isCreator(req.user!.userId)))
+    if (!(await isStaff(req.user!.userId)))
       return res.status(403).json({ error: 'Brak uprawnień' })
 
     const { status } = req.query
@@ -112,7 +118,7 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
 
 router.patch('/:id', requireAuth, async (req: Request, res: Response) => {
   try {
-    if (!(await isCreator(req.user!.userId)))
+    if (!(await isStaff(req.user!.userId)))
       return res.status(403).json({ error: 'Brak uprawnień' })
 
     const { status, admin_reply } = req.body
@@ -139,9 +145,10 @@ router.patch('/:id', requireAuth, async (req: Request, res: Response) => {
 router.get('/creator-check', requireAuth, async (req: Request, res: Response) => {
   try {
     const creator = await isCreator(req.user!.userId)
-    return res.json({ isCreator: creator })
+    const staff   = creator || await isStaff(req.user!.userId)
+    return res.json({ isCreator: creator, isMod: staff && !creator })
   } catch {
-    return res.json({ isCreator: false })
+    return res.json({ isCreator: false, isMod: false })
   }
 })
 

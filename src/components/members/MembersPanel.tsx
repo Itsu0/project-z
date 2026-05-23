@@ -107,6 +107,12 @@ function MemberRow({ member, serverId, currentUserId, canKick, canBan, canMute, 
               ⚡ Dev
             </span>
           )}
+          {!!member.is_mod && !member.is_dev && (
+            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5 flex-shrink-0"
+              style={{ background: 'rgba(34,197,94,0.12)', color: '#4ade80', border: '0.5px solid rgba(34,197,94,0.35)', letterSpacing: '0.02em' }}>
+              🛡 Mod
+            </span>
+          )}
         </div>
         {member.custom_status && (
           <p className="text-[10px] truncate leading-tight mt-0.5" style={{ color: 'var(--eb-text3)' }}>

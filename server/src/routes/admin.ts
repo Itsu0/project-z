@@ -13,6 +13,12 @@ async function isCreator(userId: string): Promise<boolean> {
   return first?.id === userId
 }
 
+async function isModerator(userId: string): Promise<boolean> {
+  if (await isCreator(userId)) return true
+  const mod = await queryOne<{ id: string }>('SELECT id FROM users WHERE id = ? AND is_mod = 1', [userId])
+  return !!mod
+}
+
 async function requireCreator(req: Request, res: Response): Promise<boolean> {
   if (!(await isCreator(req.user!.userId))) {
     res.status(403).json({ error: 'Brak uprawnień' })
@@ -242,7 +248,7 @@ router.get('/users/all', requireAuth, async (req: Request, res: Response) => {
   if (!(await requireCreator(req, res))) return
   try {
     const users = await queryMany(
-      `SELECT id, username, display_name, avatar_color, avatar_url, is_dev
+      `SELECT id, username, display_name, avatar_color, avatar_url, is_dev, is_mod
        FROM users
        ORDER BY display_name ASC`
     )
@@ -257,6 +263,17 @@ router.patch('/users/:userId/dev', requireAuth, async (req: Request, res: Respon
   try {
     const { isDev } = req.body
     await execute('UPDATE users SET is_dev = ? WHERE id = ?', [isDev ? 1 : 0, req.params.userId])
+    return res.json({ ok: true })
+  } catch (err) {
+    return res.status(500).json({ error: 'Błąd serwera' })
+  }
+})
+
+router.patch('/users/:userId/mod', requireAuth, async (req: Request, res: Response) => {
+  if (!(await requireCreator(req, res))) return
+  try {
+    const { isMod } = req.body
+    await execute('UPDATE users SET is_mod = ? WHERE id = ?', [isMod ? 1 : 0, req.params.userId])
     return res.json({ ok: true })
   } catch (err) {
     return res.status(500).json({ error: 'Błąd serwera' })

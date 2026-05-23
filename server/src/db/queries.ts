@@ -124,7 +124,7 @@ export const userQueries = {
     const row = await queryOne<Omit<DbUser, 'password_hash' | 'email'>>(
       `SELECT id, username, display_name,
               CASE WHEN LENGTH(avatar_url) > 512 THEN avatar_url ELSE NULL END AS avatar_url,
-              avatar_color, status, custom_status, is_dev, created_at
+              avatar_color, status, custom_status, is_dev, is_mod, created_at
        FROM users WHERE id = ?`,
       [id]
     )
@@ -206,12 +206,12 @@ export const memberQueries = {
       user_id: string; username: string; display_name: string
       avatar_url: string | null; avatar_color: string; status: string
       custom_status: string | null; nickname: string | null; joined_at: string
-      is_dev: number
+      is_dev: number; is_mod: number
     }>(
       `SELECT u.id as user_id, u.username, u.display_name,
               CASE WHEN LENGTH(u.avatar_url) > 512 THEN u.avatar_url ELSE NULL END AS avatar_url,
               u.avatar_color, u.status, u.custom_status,
-              u.is_dev, sm.nickname, sm.joined_at
+              u.is_dev, u.is_mod, sm.nickname, sm.joined_at
        FROM server_members sm
        INNER JOIN users u ON u.id = sm.user_id
        WHERE sm.server_id = ?
