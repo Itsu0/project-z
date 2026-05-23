@@ -124,11 +124,12 @@ export function setupSocket(io: SocketIO) {
     console.log(`🔌 ${username} (${userId}) połączony`)
 
     onlineUsers.set(userId, socket.id)
-    await userQueries.updateStatus(userId, 'online')
 
     socket.on('join_server', async (serverId: string) => {
       socket.join(`server:${serverId}`)
-      socket.to(`server:${serverId}`).emit('PRESENCE_UPDATE', { userId, status: 'online' })
+      const userRow = await queryOne<{ status: string }>('SELECT status FROM users WHERE id = ?', [userId])
+      const currentStatus = userRow?.status ?? 'online'
+      socket.to(`server:${serverId}`).emit('PRESENCE_UPDATE', { userId, status: currentStatus })
 
       const muted = await isMuted(userId, serverId)
       if (muted) {
