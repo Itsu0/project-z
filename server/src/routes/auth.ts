@@ -24,6 +24,10 @@ router.post('/register', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Hasło musi mieć minimum 8 znaków' })
     }
 
+    if (/^\d+$/.test(password)) {
+      return res.status(400).json({ error: 'Hasło nie może składać się wyłącznie z cyfr' })
+    }
+
     if (!birthDate) {
       return res.status(400).json({ error: 'Data urodzenia jest wymagana' })
     }
@@ -235,6 +239,7 @@ router.patch('/password', requireAuth, async (req: Request, res: Response) => {
     const { oldPassword, newPassword } = req.body
     if (!oldPassword || !newPassword) return res.status(400).json({ error: 'Wymagane: oldPassword, newPassword' })
     if (newPassword.length < 8) return res.status(400).json({ error: 'Nowe hasło musi mieć min. 8 znaków' })
+    if (/^\d+$/.test(newPassword)) return res.status(400).json({ error: 'Hasło nie może składać się wyłącznie z cyfr' })
 
     const user = await userQueries.findById(req.user!.userId)
     if (!user) return res.status(404).json({ error: 'Użytkownik nie znaleziony' })
