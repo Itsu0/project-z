@@ -30,7 +30,8 @@ export async function sendVerificationEmail(email: string, displayName: string, 
   await transporter.sendMail({
     from:    SMTP_FROM,
     to:      email,
-    subject: 'Nexus — Potwierdź adres e-mail',
+    subject: 'Potwierdz swoj adres e-mail w Nexus',
+    text: `Czesc, ${displayName}!\n\nDziekujemy za rejestracje w Nexus.\nKliknij ponizszy link, aby potwierdzic swoj adres e-mail:\n\n${link}\n\nLink wygasnie po 24 godzinach.\n\nJesli nie zakladales konta w Nexus, zignoruj ta wiadomosc.\n\n© ${new Date().getFullYear()} Nexus`,
     html: `
 <!DOCTYPE html>
 <html lang="pl">
@@ -47,13 +48,13 @@ export async function sendVerificationEmail(email: string, displayName: string, 
         </tr>
         <tr>
           <td style="padding:36px 40px">
-            <h2 style="margin:0 0 8px;color:#f1f5f9;font-size:20px;font-weight:600">Cześć, ${displayName}! 👋</h2>
+            <h2 style="margin:0 0 8px;color:#f1f5f9;font-size:20px;font-weight:600">Czesc, ${displayName}!</h2>
             <p style="margin:0 0 24px;color:#94a3b8;font-size:14px;line-height:1.6">
               Dziękujemy za rejestrację w Nexus. Kliknij poniższy przycisk, aby potwierdzić swój adres e-mail i aktywować konto.
             </p>
             <div style="text-align:center;margin:0 0 28px">
               <a href="${link}" style="display:inline-block;background:linear-gradient(135deg,#dc2626,#f59e0b);color:#fff;text-decoration:none;padding:14px 36px;border-radius:12px;font-size:15px;font-weight:600;letter-spacing:0.2px">
-                ✅ Potwierdź adres e-mail
+                Potwierdz adres e-mail
               </a>
             </div>
             <p style="margin:0 0 8px;color:#64748b;font-size:12px;line-height:1.5">
