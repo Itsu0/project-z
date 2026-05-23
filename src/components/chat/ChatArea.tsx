@@ -425,7 +425,7 @@ export function ChatArea({ onOpenSettings }: { onOpenSettings?: () => void }) {
   }
 
   async function handleResendVerifyEmail() {
-    if (!currentUser?.email && !(currentUser as any)?.email) return
+    if (!(currentUser as any)?.email) return
     setResendingVerify(true)
     try {
       await fetch(`${BASE}/api/auth/resend-verification`, {
