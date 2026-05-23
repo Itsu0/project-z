@@ -96,12 +96,15 @@ export const userQueries = {
     email: string
     passwordHash: string
     avatarColor?: string
+    birthDate?: string
   }) => {
     const id = uuidv4()
     await execute(
-      `INSERT INTO users (id, username, display_name, email, password_hash, avatar_color)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [id, data.username, data.displayName, data.email, data.passwordHash, data.avatarColor ?? 'linear-gradient(135deg,#64748b,#475569)']
+      `INSERT INTO users (id, username, display_name, email, password_hash, avatar_color, birth_date)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [id, data.username, data.displayName, data.email, data.passwordHash,
+       data.avatarColor ?? 'linear-gradient(135deg,#64748b,#475569)',
+       data.birthDate ?? null]
     )
     return id
   },

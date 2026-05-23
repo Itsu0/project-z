@@ -58,6 +58,7 @@ export default function RegisterPage() {
 
   const [email,           setEmail]           = useState('')
   const [username,        setUsername]        = useState('')
+  const [birthDate,       setBirthDate]       = useState('')
   const [displayName,     setDisplayName]     = useState('')
   const [password,        setPassword]        = useState('')
   const [passwordConfirm, setPasswordConfirm] = useState('')
@@ -76,6 +77,14 @@ export default function RegisterPage() {
     setError('')
     if (username.length < 2)  { setError('Nazwa użytkownika musi mieć minimum 2 znaki'); return }
     if (username.length > 32) { setError('Nazwa użytkownika może mieć maksymalnie 32 znaki'); return }
+    if (!birthDate) { setError('Data urodzenia jest wymagana'); return }
+    const birth = new Date(birthDate)
+    const today = new Date()
+    let age = today.getFullYear() - birth.getFullYear()
+    const m = today.getMonth() - birth.getMonth()
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--
+    if (age < 16) { setError('Musisz mieć ukończone 16 lat, aby założyć konto'); return }
+    if (age > 120) { setError('Nieprawidłowa data urodzenia'); return }
     setDisplayName(username)
     setStep(2)
   }
@@ -93,7 +102,7 @@ export default function RegisterPage() {
       const res = await fetch(`${BASE}/api/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, displayName: displayName || username, email, password, avatarColor }),
+        body: JSON.stringify({ username, displayName: displayName || username, email, password, avatarColor, birthDate }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Błąd rejestracji')
@@ -208,6 +217,22 @@ export default function RegisterPage() {
                 </span>
               </div>
               <p className="text-[10px]" style={{ color: 'var(--eb-text3)' }}>Tylko małe litery, cyfry, _ . - (bez spacji)</p>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold tracking-wide uppercase" style={{ color: 'var(--eb-text2)' }}>Data urodzenia</label>
+              <input
+                type="date" value={birthDate}
+                onChange={e => setBirthDate(e.target.value)}
+                required
+                max={new Date(new Date().setFullYear(new Date().getFullYear() - 16)).toISOString().split('T')[0]}
+                min="1900-01-01"
+                className="ember-input w-full px-4 py-3"
+                style={{ fontSize: 16, colorScheme: 'dark' }}
+              />
+              <p className="text-[10px]" style={{ color: 'var(--eb-text3)' }}>
+                Musisz mieć ukończone 16 lat (wymóg RODO art. 8)
+              </p>
             </div>
 
             {error && (

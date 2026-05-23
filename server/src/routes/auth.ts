@@ -10,7 +10,7 @@ const router = Router()
 
 router.post('/register', async (req: Request, res: Response) => {
   try {
-    const { username, displayName, email, password, avatarColor } = req.body
+    const { username, displayName, email, password, avatarColor, birthDate } = req.body
 
     if (!username || !email || !password) {
       return res.status(400).json({ error: 'Wymagane pola: username, email, password' })
@@ -22,6 +22,28 @@ router.post('/register', async (req: Request, res: Response) => {
 
     if (password.length < 8) {
       return res.status(400).json({ error: 'Hasło musi mieć minimum 8 znaków' })
+    }
+
+    if (!birthDate) {
+      return res.status(400).json({ error: 'Data urodzenia jest wymagana' })
+    }
+
+    const birth = new Date(birthDate)
+    if (isNaN(birth.getTime())) {
+      return res.status(400).json({ error: 'Nieprawidłowa data urodzenia' })
+    }
+
+    const today = new Date()
+    let age = today.getFullYear() - birth.getFullYear()
+    const monthDiff = today.getMonth() - birth.getMonth()
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) age--
+
+    if (age < 16) {
+      return res.status(400).json({ error: 'Musisz mieć ukończone 16 lat, aby założyć konto' })
+    }
+
+    if (age > 120) {
+      return res.status(400).json({ error: 'Nieprawidłowa data urodzenia' })
     }
 
     const existingEmail    = await userQueries.findByEmail(email)
@@ -36,6 +58,7 @@ router.post('/register', async (req: Request, res: Response) => {
       displayName: displayName ?? username,
       email,
       passwordHash,
+      birthDate: birth.toISOString().split('T')[0],
     })
 
     if (avatarColor) {
