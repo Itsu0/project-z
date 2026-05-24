@@ -453,6 +453,10 @@ export function setupSocket(io: SocketIO) {
       } catch {}
     })
 
+    socket.on('PING', (cb: unknown) => {
+      if (typeof cb === 'function') cb()
+    })
+
     socket.on('MARK_NOTIFICATIONS_READ', async (data: { channelId?: string; serverId?: string }) => {
       try {
         if (data.channelId) {

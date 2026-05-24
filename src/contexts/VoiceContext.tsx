@@ -271,30 +271,15 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   const vadCleanupRef      = useRef<(() => void) | null>(null)
   const lastDisconnectRef  = useRef<number>(0)
 
-  const measureRtt = useCallback(async () => {
-    const room = roomRef.current
-    if (!room) return
+  const measureRtt = useCallback(() => {
+    if (!roomRef.current) return
     try {
-      const engine = (room as any).engine
-      const pcs: RTCPeerConnection[] = []
-      for (const key of ['publisher', '_publisher', 'subscriber', '_subscriber']) {
-        const pc = engine?.[key]?.pc
-        if (pc && typeof pc.getStats === 'function') pcs.push(pc)
-      }
-      if (pcs.length === 0) return
-      let best: number | null = null
-      for (const pc of pcs) {
-        try {
-          const stats = await pc.getStats()
-          stats.forEach((r: any) => {
-            if (r.type === 'candidate-pair' && r.currentRoundTripTime != null) {
-              const ms = Math.round(r.currentRoundTripTime * 1000)
-              if (best === null || ms < best) best = ms
-            }
-          })
-        } catch {}
-      }
-      if (best !== null) setLatency(best)
+      const socket = getSocketInstance()
+      if (!socket?.connected) return
+      const t0 = performance.now()
+      socket.emit('PING', () => {
+        setLatency(Math.round(performance.now() - t0))
+      })
     } catch {}
   }, [])
 
