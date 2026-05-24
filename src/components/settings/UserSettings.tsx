@@ -1351,7 +1351,7 @@ export function UserSettings({ onClose }: Props) {
   ]
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+    <div id="user-settings-modal" className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)' }}>
       <div className="w-full max-w-2xl rounded-2xl overflow-hidden flex"
         style={{ background: 'var(--eb-bg1)', border: '0.5px solid var(--eb-border2)', maxHeight: '85vh' }}>

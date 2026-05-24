@@ -137,3 +137,48 @@
 [data-platform="mobile"] .reaction-pill.active { background:rgba(245,158,11,0.12); border-color:rgba(245,158,11,0.35); color:var(--eb-accent); }
 [data-platform="mobile"] .icon-btn { @apply flex items-center justify-center rounded-lg cursor-pointer; width:36px; height:36px; color:var(--eb-text2); background:transparent; -webkit-tap-highlight-color:transparent; }
 [data-platform="mobile"] .icon-btn:active { background:rgba(255,255,255,0.06); color:var(--eb-text1); }
+
+/* ─── UserSettings mobile overrides ─────────────────────────────── */
+@media (max-width: 767px) {
+  #user-settings-modal { padding: 0 !important; }
+  #user-settings-modal > div {
+    max-width: 100% !important; border-radius: 0 !important;
+    flex-direction: column !important; max-height: 100dvh !important;
+    height: 100dvh !important;
+  }
+  /* sidebar → horizontal scrollable tab strip */
+  #user-settings-modal > div > div:first-child {
+    width: 100% !important; flex-direction: row !important;
+    overflow-x: auto !important; overflow-y: hidden !important;
+    border-right: none !important; border-bottom: 0.5px solid var(--eb-border) !important;
+    flex-shrink: 0 !important; padding: 6px 8px !important;
+    gap: 6px !important; align-items: center !important;
+    scrollbar-width: none !important;
+  }
+  #user-settings-modal > div > div:first-child::-webkit-scrollbar { display: none; }
+  /* hide the bottom links section in sidebar */
+  #user-settings-modal > div > div:first-child > div:last-child { display: none !important; }
+  /* shrink the title header in sidebar */
+  #user-settings-modal > div > div:first-child > div:first-child { display: none !important; }
+  /* tab buttons in sidebar row */
+  #user-settings-modal > div > div:first-child .flex-col { flex-direction: row !important; gap: 4px !important; padding: 0 !important; flex: 1 !important; }
+  #user-settings-modal > div > div:first-child button {
+    white-space: nowrap !important; font-size: 12px !important;
+    padding: 6px 12px !important; border-radius: 20px !important;
+    flex-shrink: 0 !important;
+  }
+  /* content area */
+  #user-settings-modal > div > div:last-child {
+    padding: 16px !important; flex: 1 !important; overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+}
+[data-platform="mobile"] #user-settings-modal { padding: 0 !important; }
+[data-platform="mobile"] #user-settings-modal > div { max-width:100% !important; border-radius:0 !important; flex-direction:column !important; max-height:100dvh !important; height:100dvh !important; }
+[data-platform="mobile"] #user-settings-modal > div > div:first-child { width:100% !important; flex-direction:row !important; overflow-x:auto !important; overflow-y:hidden !important; border-right:none !important; border-bottom:0.5px solid var(--eb-border) !important; flex-shrink:0 !important; padding:6px 8px !important; gap:6px !important; align-items:center !important; scrollbar-width:none !important; }
+[data-platform="mobile"] #user-settings-modal > div > div:first-child::-webkit-scrollbar { display:none; }
+[data-platform="mobile"] #user-settings-modal > div > div:first-child > div:first-child { display:none !important; }
+[data-platform="mobile"] #user-settings-modal > div > div:first-child > div:last-child { display:none !important; }
+[data-platform="mobile"] #user-settings-modal > div > div:first-child .flex-col { flex-direction:row !important; gap:4px !important; padding:0 !important; flex:1 !important; }
+[data-platform="mobile"] #user-settings-modal > div > div:first-child button { white-space:nowrap !important; font-size:12px !important; padding:6px 12px !important; border-radius:20px !important; flex-shrink:0 !important; }
+[data-platform="mobile"] #user-settings-modal > div > div:last-child { padding:16px !important; flex:1 !important; overflow-y:auto !important; -webkit-overflow-scrolling:touch !important; }

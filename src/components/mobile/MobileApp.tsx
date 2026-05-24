@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useStore } from '@/lib/store'
 import { useVoice } from '@/contexts/VoiceContext'
-import { useSocket } from '@/hooks/useSocket'
+import { useSocket }  from '@/hooks/useSocket'
 import { useMessages } from '@/hooks/useMessages'
 import { ReportModal } from '@/components/chat/ReportModal'
 import { UserSettings } from '@/components/settings/UserSettings'
@@ -94,7 +94,8 @@ function Av({ url, color, name, size = 36 }: { url?: string | null; color: strin
 /* ─── Chat Screen ───────────────────────────────────────────────── */
 function ChatScreen() {
   const { servers, channels, currentServerId, currentChannelId, setCurrentServer, setCurrentChannel, currentUser, voice } = useStore()
-  const { sendMessage } = useSocket()
+  const { sendMessage }  = useSocket()
+  const { openDevicePicker } = useVoice()
   const currentChannelIdSafe = currentChannelId ?? ''
   const { messages, loading } = useMessages(currentChannelIdSafe)
   const [drawerOpen, setDrawerOpen]   = useState(false)
@@ -172,15 +173,15 @@ function ChatScreen() {
               style={{ display: 'flex', gap: 10, padding: '4px 12px', background: ctxMenu?.msgId === msg.id ? 'rgba(255,255,255,0.04)' : 'transparent' }}
             >
               <Av
-                url={msg.author?.avatar_url}
-                color={msg.author?.avatar_color || '#f59e0b'}
-                name={msg.author?.display_name || msg.author?.username || '?'}
+                url={msg.author?.avatar ?? msg.author?.avatar_url}
+                color={msg.author?.avatarColor ?? msg.author?.avatar_color ?? '#f59e0b'}
+                name={msg.author?.displayName ?? msg.author?.display_name ?? msg.author?.username ?? '?'}
                 size={32}
               />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 2 }}>
                   <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--eb-text1)' }}>
-                    {msg.author?.display_name || msg.author?.username || 'Użytkownik'}
+                    {msg.author?.displayName ?? msg.author?.display_name ?? msg.author?.username ?? 'Użytkownik'}
                   </span>
                   <span style={{ fontSize: 10, color: 'var(--eb-text3)' }}>
                     {msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString('pl', { hour: '2-digit', minute: '2-digit' }) : ''}
@@ -214,13 +215,13 @@ function ChatScreen() {
           rows={1}
           onChange={e => { setText(e.target.value); e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 100) + 'px' }}
           onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
-          disabled={!currentChannel}
+          disabled={!currentChannelId}
           style={{ resize: 'none', overflowY: 'auto', minHeight: 38, maxHeight: 100 }}
         />
         <button
           className="mobile-send-btn"
           onClick={send}
-          disabled={!text.trim() || !currentChannel}
+          disabled={!text.trim() || !currentChannelId}
           style={{ opacity: !text.trim() || !currentChannel ? 0.4 : 1, flexShrink: 0 }}
         >
           <IC.Send />
@@ -305,8 +306,11 @@ function ChatScreen() {
           ))}
           {voiceChannels.length > 0 && <div style={{ padding: '10px 16px 4px', fontSize: 11, fontWeight: 600, color: 'var(--eb-text3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Głosowe</div>}
           {voiceChannels.map(ch => (
-            <div key={ch.id} className="mobile-channel-item">
-              <IC.Volume /><span>{ch.name}</span>
+            <div key={ch.id} className="mobile-channel-item"
+              onClick={() => { openDevicePicker(ch.id); setDrawerOpen(false) }}>
+              <IC.Volume />
+              <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ch.name}</span>
+              <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--eb-online)', flexShrink: 0 }}>Dołącz</span>
             </div>
           ))}
         </div>
