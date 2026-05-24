@@ -23,8 +23,8 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
        LEFT JOIN channels c  ON c.id = n.channel_id
        WHERE n.user_id = ?
        ORDER BY n.created_at DESC
-       LIMIT ?`,
-      [req.user!.userId, limit]
+       LIMIT ${limit}`,
+      [req.user!.userId]
     )
     const unreadCount = notifications.filter((n: any) => !n.read_at).length
     return res.json({ notifications, unreadCount })

@@ -323,8 +323,8 @@ export const messageQueries = {
          WHERE m.channel_id = ?
            AND m.created_at < (SELECT created_at FROM messages WHERE id = ?)
          ORDER BY m.created_at DESC
-         LIMIT ?`,
-        [channelId, beforeId, lim]
+         LIMIT ${lim}`,
+        [channelId, beforeId]
       )
     }
     return queryMany<DbMessage>(
@@ -339,8 +339,8 @@ export const messageQueries = {
        LEFT JOIN users ru ON ru.id = rm.author_id
        WHERE m.channel_id = ?
        ORDER BY m.created_at DESC
-       LIMIT ?`,
-      [channelId, lim]
+       LIMIT ${lim}`,
+      [channelId]
     )
   },
 
