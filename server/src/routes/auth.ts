@@ -5,7 +5,10 @@ import { userQueries, serverQueries } from '../db/queries'
 import { signToken, requireAuth, getClientIp, recordIp } from '../middleware/auth'
 import { execute, queryOne } from '../db/pool'
 import { sendVerificationEmail, sendPasswordResetEmail } from '../lib/mailer'
-import { generateSecret, verify as totpVerify, generateURI } from 'otplib'
+import { authenticator } from 'otplib'
+const generateSecret = () => authenticator.generateSecret()
+const totpVerify = ({ token, secret }: { token: string; secret: string }) => authenticator.verify({ token, secret })
+const generateURI = ({ label, secret }: { issuer?: string; label: string; secret: string }) => authenticator.keyuri(label, 'Project-Z', secret)
 
 const router = Router()
 
