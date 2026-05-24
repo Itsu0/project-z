@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express'
-import bcrypt from 'bcryptjs'
+import bcrypt from 'bcrypt'
 import crypto from 'crypto'
 import { userQueries, serverQueries } from '../db/queries'
 import { signToken, requireAuth, getClientIp, recordIp } from '../middleware/auth'
