@@ -2,10 +2,12 @@
 import { useState, FormEvent } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
+import { useT } from '@/lib/i18n'
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
 export default function ResetPasswordPage() {
+  const t = useT()
   const params = useParams()
   const token = params.token as string
   const router = useRouter()
@@ -20,9 +22,9 @@ export default function ResetPasswordPage() {
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
     setError('')
-    if (password !== confirm) { setError('Hasła nie są takie same'); return }
-    if (password.length < 8)  { setError('Hasło musi mieć minimum 8 znaków'); return }
-    if (/^\d+$/.test(password)) { setError('Hasło nie może składać się wyłącznie z cyfr'); return }
+    if (password !== confirm) { setError(t('auth.reset.mismatch')); return }
+    if (password.length < 8)  { setError(t('auth.reset.tooShort')); return }
+    if (/^\d+$/.test(password)) { setError(t('auth.reset.noDigitsOnly')); return }
     setLoading(true)
     try {
       const res = await fetch(`${BASE}/api/auth/reset-password`, {
@@ -31,11 +33,11 @@ export default function ResetPasswordPage() {
         body: JSON.stringify({ token, password }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Błąd serwera')
+      if (!res.ok) throw new Error(data.error ?? t('common.serverError'))
       setDone(true)
       setTimeout(() => router.push('/auth/login'), 3000)
     } catch (err: any) {
-      setError(err.message ?? 'Błąd serwera')
+      setError(err.message ?? t('common.serverError'))
     } finally {
       setLoading(false)
     }
@@ -47,10 +49,10 @@ export default function ResetPasswordPage() {
         <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-bold text-2xl mb-4"
           style={{ background: 'linear-gradient(135deg,#dc2626,#f59e0b)' }}>N</div>
         <h1 className="text-2xl font-semibold" style={{ color: 'var(--eb-text1)' }}>
-          {done ? 'Hasło zmienione' : 'Nowe hasło'}
+          {done ? t('auth.reset.titleDone') : t('auth.reset.title')}
         </h1>
         <p className="text-sm mt-1" style={{ color: 'var(--eb-text2)' }}>
-          {done ? 'Za chwilę zostaniesz przekierowany' : 'Ustaw nowe hasło do konta'}
+          {done ? t('auth.reset.subtitleDone') : t('auth.reset.subtitle')}
         </p>
       </div>
 
@@ -66,17 +68,17 @@ export default function ResetPasswordPage() {
               </svg>
             </div>
             <p className="text-sm" style={{ color: 'var(--eb-text2)' }}>
-              Hasło zostało pomyślnie zmienione. Za chwilę zostaniesz przekierowany na stronę logowania.
+              {t('auth.reset.successMsg')}
             </p>
             <Link href="/auth/login" className="ember-btn text-sm font-semibold px-6 py-2.5">
-              Zaloguj się teraz
+              {t('auth.reset.loginNow')}
             </Link>
           </div>
         ) : (
           <form onSubmit={onSubmit} className="flex flex-col gap-5">
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold tracking-wide uppercase" style={{ color: 'var(--eb-text2)' }}>
-                Nowe hasło
+                {t('auth.reset.newPassword')}
               </label>
               <div className="relative">
                 <input
@@ -99,7 +101,7 @@ export default function ResetPasswordPage() {
 
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold tracking-wide uppercase" style={{ color: 'var(--eb-text2)' }}>
-                Potwierdź hasło
+                {t('auth.reset.confirmPassword')}
               </label>
               <input
                 type="password" value={confirm} onChange={e => setConfirm(e.target.value)}
@@ -110,7 +112,7 @@ export default function ResetPasswordPage() {
                 )}
               />
               {confirm && password !== confirm && (
-                <p className="text-[10px]" style={{ color: 'var(--eb-accent2)' }}>Hasła nie są takie same</p>
+                <p className="text-[10px]" style={{ color: 'var(--eb-accent2)' }}>{t('auth.reset.mismatch')}</p>
               )}
             </div>
 
@@ -126,7 +128,7 @@ export default function ResetPasswordPage() {
 
             <button type="submit" disabled={loading} className="ember-btn w-full mt-1"
               style={{ minHeight: 44, fontSize: 14, fontWeight: 600, opacity: loading ? 0.7 : 1 }}>
-              {loading ? 'Zapisywanie...' : 'Ustaw nowe hasło'}
+              {loading ? t('auth.reset.saving') : t('auth.reset.submit')}
             </button>
           </form>
         )}

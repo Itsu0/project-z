@@ -27,372 +27,405 @@ interface Notification {
   reply_to_id?: string
 }
 
-const PATCH_NOTES = [
+interface PatchEntry { type: string; pl: string; en: string }
+interface PatchRelease { version: string; date: string; labelPl: string; labelEn: string; entries: PatchEntry[] }
+
+const PATCH_NOTES: PatchRelease[] = [
+  {
+    version: '0.7.0',
+    date: '2026-05-24',
+    labelPl: 'Najnowsza',
+    labelEn: 'Latest',
+    entries: [
+      { type: 'new', pl: 'Znajomi — wysyłanie/akceptowanie/odrzucanie zaproszeń, usuwanie znajomych, wyszukiwanie użytkowników', en: 'Friends — send/accept/decline requests, remove friends, search for users' },
+      { type: 'new', pl: 'Weryfikacja dwuskładnikowa (2FA) — konfiguracja przez aplikację TOTP (Google Authenticator, Authy itp.)', en: 'Two-factor authentication (2FA) — setup via TOTP app (Google Authenticator, Authy, etc.)' },
+      { type: 'new', pl: 'Resetowanie hasła — link resetujący wysyłany e-mailem, ważny 30 minut', en: 'Password reset — reset link sent by email, valid for 30 minutes' },
+      { type: 'new', pl: 'Usuwanie konta — trwałe usunięcie konta z potwierdzeniem hasłem', en: 'Account deletion — permanently delete your account with password confirmation' },
+      { type: 'imp', pl: 'Pełne tłumaczenie interfejsu — wszystkie zakładki ustawień, strony auth i dokumenty prawne dostępne w PL i EN', en: 'Full UI translation — all settings tabs, auth pages and legal documents available in PL and EN' },
+      { type: 'fix', pl: 'Profil publiczny — pole totp_enabled teraz poprawnie zwracane przez API', en: 'Public profile — totp_enabled field now correctly returned by the API' },
+    ],
+  },
   {
     version: '0.6.9',
     date: '2026-05-22',
-    label: 'Najnowsza',
+    labelPl: '',
+    labelEn: '',
     entries: [
-      { type: 'new', text: 'Wielojęzyczność — dodano obsługę języka angielskiego; zmiana języka dostępna w Ustawieniach → Konto' },
+      { type: 'new', pl: 'Wielojęzyczność — dodano obsługę języka angielskiego; zmiana języka dostępna w Ustawieniach → Konto', en: 'Multilanguage — added English support; change language in Settings → Account' },
     ],
   },
   {
     version: '0.6.8',
     date: '2026-05-22',
-    label: '',
+    labelPl: '',
+    labelEn: '',
     entries: [
-      { type: 'new', text: 'Rebrand — platforma działa teraz pod nazwą Project-Z' },
-      { type: 'new', text: 'Własna domena — projekt dostępny pod adresem project-z.cloud z certyfikatem SSL' },
-      { type: 'new', text: 'Stały tunel Cloudflare — backend i LiveKit mają teraz stałe adresy, które nie zmieniają się po restarcie serwera' },
-      { type: 'fix', text: 'Kanał głosowy — naprawiono błąd łączenia z localhost zamiast z serwerem produkcyjnym' },
-      { type: 'fix', text: 'Kanały — usunięcie kanału nie blokuje już możliwości tworzenia nowych; zmiana widoczna natychmiast u wszystkich' },
-      { type: 'imp', text: 'Serwer głosowy — zwiększono limit jednoczesnych uczestników do 250, zoptymalizowano bufory UDP' },
+      { type: 'new', pl: 'Rebrand — platforma działa teraz pod nazwą Project-Z', en: 'Rebrand — platform is now called Project-Z' },
+      { type: 'new', pl: 'Własna domena — projekt dostępny pod adresem project-z.cloud z certyfikatem SSL', en: 'Custom domain — project available at project-z.cloud with SSL certificate' },
+      { type: 'new', pl: 'Stały tunel Cloudflare — backend i LiveKit mają teraz stałe adresy, które nie zmieniają się po restarcie serwera', en: 'Permanent Cloudflare tunnel — backend and LiveKit now have stable addresses that do not change after server restart' },
+      { type: 'fix', pl: 'Kanał głosowy — naprawiono błąd łączenia z localhost zamiast z serwerem produkcyjnym', en: 'Voice channel — fixed connection error pointing to localhost instead of production server' },
+      { type: 'fix', pl: 'Kanały — usunięcie kanału nie blokuje już możliwości tworzenia nowych; zmiana widoczna natychmiast u wszystkich', en: 'Channels — deleting a channel no longer blocks creating new ones; change is immediately visible to everyone' },
+      { type: 'imp', pl: 'Serwer głosowy — zwiększono limit jednoczesnych uczestników do 250, zoptymalizowano bufory UDP', en: 'Voice server — increased concurrent participant limit to 250, optimized UDP buffers' },
     ],
   },
   {
     version: '0.6.6',
     date: '2026-05-19',
-    label: '',
+    labelPl: '',
+    labelEn: '',
     entries: [
-      { type: 'fix', text: 'Usuwanie wiadomości — znika natychmiast u wszystkich bez potrzeby odświeżania' },
-      { type: 'new', text: 'Wydajność — aplikacja szybciej ładuje wiadomości, szczególnie na dużych serwerach' },
-      { type: 'new', text: 'Wyszukiwanie — szybsze i dokładniejsze wyniki na serwerach z dużą historią czatu' },
+      { type: 'fix', pl: 'Usuwanie wiadomości — znika natychmiast u wszystkich bez potrzeby odświeżania', en: 'Message deletion — disappears instantly for everyone without needing a refresh' },
+      { type: 'new', pl: 'Wydajność — aplikacja szybciej ładuje wiadomości, szczególnie na dużych serwerach', en: 'Performance — app loads messages faster, especially on large servers' },
+      { type: 'new', pl: 'Wyszukiwanie — szybsze i dokładniejsze wyniki na serwerach z dużą historią czatu', en: 'Search — faster and more accurate results on servers with a large chat history' },
     ],
   },
   {
     version: '0.6.5',
     date: '2026-05-19',
-    label: '',
+    labelPl: '',
+    labelEn: '',
     entries: [
-      { type: 'fix', text: 'Ankiety — głosowanie zablokowane po upłynięciu czasu trwania ankiety' },
+      { type: 'fix', pl: 'Ankiety — głosowanie zablokowane po upłynięciu czasu trwania ankiety', en: 'Polls — voting blocked after the poll duration expires' },
     ],
   },
   {
     version: '0.6.4',
     date: '2026-05-17',
-    label: '',
+    labelPl: '',
+    labelEn: '',
     entries: [
-      { type: 'fix',  text: 'Poprawki bezpieczeństwa — hardening serwera i aplikacji desktopowej' },
+      { type: 'fix', pl: 'Poprawki bezpieczeństwa — hardening serwera i aplikacji desktopowej', en: 'Security fixes — server and desktop app hardening' },
     ],
   },
   {
     version: '0.6.3',
     date: '2026-05-17',
-    label: '',
+    labelPl: '',
+    labelEn: '',
     entries: [
-      { type: 'fix',  text: 'Suwak w oknie GIF-ów — dopasowany do ciemnego motywu aplikacji, zamiast domyślnego białego paska przeglądarki' },
+      { type: 'fix', pl: 'Suwak w oknie GIF-ów — dopasowany do ciemnego motywu aplikacji, zamiast domyślnego białego paska przeglądarki', en: 'GIF picker scrollbar — now matches the dark app theme instead of the default white browser bar' },
     ],
   },
   {
     version: '0.6.2',
     date: '2026-05-12',
-    label: '',
+    labelPl: '',
+    labelEn: '',
     entries: [
-      { type: 'new',  text: '⏱ Czas trwania ankiet — wybierz 5 min, 10 min, 30 min, 1h, 6h lub 24h; ankieta automatycznie się zamknie i wyśle podsumowanie na kanał' },
-      { type: 'new',  text: '📊 Odliczanie w ankiecie — timer widoczny na karcie ankiety do momentu zamknięcia' },
-      { type: 'new',  text: '🏆 Wyniki ankiety jako karta — po zamknięciu kanał dostaje wizualną kartę z paskami postępu i koroną przy zwycięzcy' },
+      { type: 'new', pl: '⏱ Czas trwania ankiet — wybierz 5 min, 10 min, 30 min, 1h, 6h lub 24h; ankieta automatycznie się zamknie i wyśle podsumowanie na kanał', en: '⏱ Poll duration — choose 5 min, 10 min, 30 min, 1h, 6h or 24h; poll closes automatically and sends a summary to the channel' },
+      { type: 'new', pl: '📊 Odliczanie w ankiecie — timer widoczny na karcie ankiety do momentu zamknięcia', en: '📊 Poll countdown — timer visible on the poll card until it closes' },
+      { type: 'new', pl: '🏆 Wyniki ankiety jako karta — po zamknięciu kanał dostaje wizualną kartę z paskami postępu i koroną przy zwycięzcy', en: '🏆 Poll results card — after closing, the channel gets a visual card with progress bars and a crown for the winner' },
     ],
   },
   {
     version: '0.6.1',
     date: '2026-05-10',
-    label: '',
+    labelPl: '',
+    labelEn: '',
     entries: [
-      { type: 'new',  text: '📁 Wysyłanie plików/obrazków — przycisk spinacza, drag & drop, miniatury obrazków w czacie, pobieranie plików' },
-      { type: 'new',  text: '📊 Ankiety — przycisk 📊, kreator z pytaniem i opcjami, paski postępu z wynikami w czasie rzeczywistym, głosowanie/odgłosowanie' },
+      { type: 'new', pl: '📁 Wysyłanie plików/obrazków — przycisk spinacza, drag & drop, miniatury obrazków w czacie, pobieranie plików', en: '📁 File/image uploads — paperclip button, drag & drop, image thumbnails in chat, file downloads' },
+      { type: 'new', pl: '📊 Ankiety — przycisk 📊, kreator z pytaniem i opcjami, paski postępu z wynikami w czasie rzeczywistym, głosowanie/odgłosowanie', en: '📊 Polls — 📊 button, creator with question and options, real-time progress bars, vote/unvote' },
     ],
   },
   {
     version: '0.6.0',
     date: '2026-05-06',
-    label: '',
+    labelPl: '',
+    labelEn: '',
     entries: [
-      { type: 'new',  text: '📌 Przypinanie wiadomości — ikona pinezki przy hover, przypięte wiadomości dostępne z ikony w nagłówku kanału' },
-      { type: 'new',  text: '✏️ Edytowanie wiadomości — ołówek przy hover, inline edytor; wiadomości edytowane opatrzone znacznikiem "(edytowano)"' },
-      { type: 'new',  text: '↩️ Odpowiedzi na wiadomości — przycisk przy hover, pasek "Odpowiadasz X" nad polem wpisywania, cytowanie widoczne w wiadomości' },
-      { type: 'new',  text: '⌨️ Wskaźnik pisania — animowane kropki i "X pisze..." gdy ktoś wpisuje tekst' },
-      { type: 'fix',  text: 'Udostępnianie ekranu naprawione — nowy mechanizm zgodny z Electron 31+' },
+      { type: 'new', pl: '📌 Przypinanie wiadomości — ikona pinezki przy hover, przypięte wiadomości dostępne z ikony w nagłówku kanału', en: '📌 Pin messages — pin icon on hover, pinned messages accessible from the channel header icon' },
+      { type: 'new', pl: '✏️ Edytowanie wiadomości — ołówek przy hover, inline edytor; wiadomości edytowane opatrzone znacznikiem "(edytowano)"', en: '✏️ Edit messages — pencil on hover, inline editor; edited messages marked with "(edited)"' },
+      { type: 'new', pl: '↩️ Odpowiedzi na wiadomości — przycisk przy hover, pasek "Odpowiadasz X" nad polem wpisywania, cytowanie widoczne w wiadomości', en: '↩️ Message replies — button on hover, "Replying to X" bar above input, quote visible in message' },
+      { type: 'new', pl: '⌨️ Wskaźnik pisania — animowane kropki i "X pisze..." gdy ktoś wpisuje tekst', en: '⌨️ Typing indicator — animated dots and "X is typing..." when someone types' },
+      { type: 'fix', pl: 'Udostępnianie ekranu naprawione — nowy mechanizm zgodny z Electron 31+', en: 'Screen sharing fixed — new mechanism compatible with Electron 31+' },
     ],
   },
   {
     version: '0.5.9',
     date: '2026-05-04',
-    label: '',
+    labelPl: '',
+    labelEn: '',
     entries: [
-      { type: 'fix',  text: 'Udostępnianie ekranu naprawione — nowy mechanizm zgodny z Electron 31+ (setDisplayMediaRequestHandler)' },
+      { type: 'fix', pl: 'Udostępnianie ekranu naprawione — nowy mechanizm zgodny z Electron 31+ (setDisplayMediaRequestHandler)', en: 'Screen sharing fixed — new mechanism compatible with Electron 31+ (setDisplayMediaRequestHandler)' },
     ],
   },
   {
     version: '0.5.8',
     date: '2026-05-03',
-    label: '',
+    labelPl: '',
+    labelEn: '',
     entries: [
-      { type: 'new',  text: 'Pasek kanałów — gdy kanałów za dużo, zawijają się do kolejnej linii zamiast wyjeżdżać poza ekran' },
-      { type: 'fix',  text: 'Przycisk "Opublikuj post" w forum — był nieaktywny przy pustej treści bez żadnego komunikatu; teraz wyświetla błąd' },
+      { type: 'new', pl: 'Pasek kanałów — gdy kanałów za dużo, zawijają się do kolejnej linii zamiast wyjeżdżać poza ekran', en: 'Channel bar — when there are too many channels, they wrap to the next line instead of going off-screen' },
+      { type: 'fix', pl: 'Przycisk "Opublikuj post" w forum — był nieaktywny przy pustej treści bez żadnego komunikatu; teraz wyświetla błąd', en: '"Publish post" button in forum — was inactive with empty content without any message; now shows an error' },
     ],
   },
   {
     version: '0.5.7',
     date: '2026-05-02',
-    label: '',
+    labelPl: '',
+    labelEn: '',
     entries: [
-      { type: 'fix',  text: 'Przycisk "Opublikuj post" w forum — przycisk nie był kliknięty gdy pole treści było puste (brak wizualnego komunikatu o błędzie); teraz pokazuje komunikat' },
+      { type: 'fix', pl: 'Przycisk "Opublikuj post" w forum — przycisk nie był kliknięty gdy pole treści było puste (brak wizualnego komunikatu o błędzie); teraz pokazuje komunikat', en: '"Publish post" button in forum — button was not clickable when content was empty (no error message); now shows a message' },
     ],
   },
   {
     version: '0.5.6',
     date: '2026-05-01',
-    label: '',
+    labelPl: '',
+    labelEn: '',
     entries: [
-      { type: 'fix',  text: 'Forum naprawione — zapytania do bazy używają teraz pool.query() zamiast prepared statements, co eliminuje błąd 500 na Railway' },
-      { type: 'fix',  text: 'GIF-y działają stabilnie — Tenor v1 API z poprawnym formatem odpowiedzi' },
+      { type: 'fix', pl: 'Forum naprawione — zapytania do bazy używają teraz pool.query() zamiast prepared statements, co eliminuje błąd 500 na Railway', en: 'Forum fixed — database queries now use pool.query() instead of prepared statements, eliminating 500 errors on Railway' },
+      { type: 'fix', pl: 'GIF-y działają stabilnie — Tenor v1 API z poprawnym formatem odpowiedzi', en: 'GIFs work reliably — Tenor v1 API with correct response format' },
     ],
   },
   {
     version: '0.5.5',
     date: '2026-04-29',
-    label: '',
+    labelPl: '',
+    labelEn: '',
     entries: [
-      { type: 'fix',  text: 'GIF-y działają poprawnie — zmieniono API Tenor z v2 na v1 (g.tenor.com), które zwraca dane w prawidłowym formacie' },
-      { type: 'fix',  text: 'Forum naprawione — tabele forum_posts i forum_replies tworzone jawnie przy każdym starcie serwera, niezależnie od schema.sql' },
+      { type: 'fix', pl: 'GIF-y działają poprawnie — zmieniono API Tenor z v2 na v1 (g.tenor.com), które zwraca dane w prawidłowym formacie', en: 'GIFs work correctly — switched Tenor API from v2 to v1 (g.tenor.com), which returns data in the correct format' },
+      { type: 'fix', pl: 'Forum naprawione — tabele forum_posts i forum_replies tworzone jawnie przy każdym starcie serwera, niezależnie od schema.sql', en: 'Forum fixed — forum_posts and forum_replies tables explicitly created on every server start, regardless of schema.sql' },
     ],
   },
   {
     version: '0.5.4',
     date: '2026-04-28',
-    label: '',
+    labelPl: '',
+    labelEn: '',
     entries: [
-      { type: 'fix',  text: 'GIF-y działają w Electronie — requesty przechodzą przez serwer backend zamiast bezpośrednio do Tenor (omijanie blokady CORS/TLS)' },
-      { type: 'fix',  text: 'Posty forum wyświetlają się poprawnie — naprawiono sortowanie dla nowych postów bez odpowiedzi' },
-      { type: 'imp',  text: 'Forum pokazuje teraz komunikat błędu z przyciskiem "Spróbuj ponownie" zamiast cichej pustej listy' },
+      { type: 'fix', pl: 'GIF-y działają w Electronie — requesty przechodzą przez serwer backend zamiast bezpośrednio do Tenor (omijanie blokady CORS/TLS)', en: 'GIFs work in Electron — requests go through the backend server instead of directly to Tenor (bypassing CORS/TLS block)' },
+      { type: 'fix', pl: 'Posty forum wyświetlają się poprawnie — naprawiono sortowanie dla nowych postów bez odpowiedzi', en: 'Forum posts display correctly — fixed sorting for new posts without replies' },
+      { type: 'imp', pl: 'Forum pokazuje teraz komunikat błędu z przyciskiem "Spróbuj ponownie" zamiast cichej pustej listy', en: 'Forum now shows an error message with a "Try again" button instead of a silent empty list' },
     ],
   },
   {
     version: '0.5.3',
     date: '2026-04-27',
-    label: '',
+    labelPl: '',
+    labelEn: '',
     entries: [
-      { type: 'fix',  text: 'GIF-y działają ponownie — zmieniono dostawcę z Giphy (wycofany klucz publiczny) na Tenor (Google)' },
-      { type: 'imp',  text: 'Picker GIF-ów w czacie i forum korzysta z Tenor API — stabilniejszy, bez limitów dla normalnego użycia' },
+      { type: 'fix', pl: 'GIF-y działają ponownie — zmieniono dostawcę z Giphy (wycofany klucz publiczny) na Tenor (Google)', en: 'GIFs work again — switched provider from Giphy (deprecated public key) to Tenor (Google)' },
+      { type: 'imp', pl: 'Picker GIF-ów w czacie i forum korzysta z Tenor API — stabilniejszy, bez limitów dla normalnego użycia', en: 'GIF picker in chat and forum uses Tenor API — more stable, no limits for normal usage' },
     ],
   },
   {
     version: '0.5.2',
     date: '2026-04-24',
-    label: '',
+    labelPl: '',
+    labelEn: '',
     entries: [
-      { type: 'fix',  text: 'Ustawienia → Konto: numer wersji aplikacji (np. v0.5.2) widoczny od razu, bez konieczności klikania przycisku' },
-      { type: 'fix',  text: 'Picker wyboru okna do stream — okno modalne wyrenderowane przez portal, zawsze na środku ekranu bez chowania się za innymi elementami' },
-      { type: 'fix',  text: 'Przycisk "Udostępnij ekran" w widoku kanału głosowego otwiera teraz picker okien tak samo jak przycisk w dolnym docku' },
+      { type: 'fix', pl: 'Ustawienia → Konto: numer wersji aplikacji widoczny od razu, bez konieczności klikania przycisku', en: 'Settings → Account: app version number visible immediately, no need to click a button' },
+      { type: 'fix', pl: 'Picker wyboru okna do stream — okno modalne wyrenderowane przez portal, zawsze na środku ekranu', en: 'Stream window picker — modal rendered via portal, always centered on screen' },
+      { type: 'fix', pl: 'Przycisk "Udostępnij ekran" w widoku kanału głosowego otwiera teraz picker okien', en: '"Share screen" button in voice channel view now opens the window picker' },
     ],
   },
   {
     version: '0.5.1',
     date: '2026-04-22',
-    label: '',
+    labelPl: '',
+    labelEn: '',
     entries: [
-      { type: 'new',  text: 'Picker okien przy udostępnianiu ekranu — zamiast całego ekranu możesz wybrać konkretne okno lub monitor z podglądem miniatur' },
-      { type: 'new',  text: 'Przycisk GIF w polu wiadomości — wbudowana wyszukiwarka Giphy (trendy + wyszukiwanie), GIF wysyłany jednym kliknięciem' },
-      { type: 'imp',  text: 'GIF-y wysłane przez czat wyświetlają się jako obrazek (nie gołe URL), maks. 256px wysokości z zaokrąglonymi rogami' },
+      { type: 'new', pl: 'Picker okien przy udostępnianiu ekranu — zamiast całego ekranu możesz wybrać konkretne okno lub monitor z podglądem miniatur', en: 'Window picker for screen sharing — choose a specific window or monitor with thumbnail previews instead of the full screen' },
+      { type: 'new', pl: 'Przycisk GIF w polu wiadomości — wbudowana wyszukiwarka Giphy (trendy + wyszukiwanie), GIF wysyłany jednym kliknięciem', en: 'GIF button in message field — built-in Giphy search (trending + search), GIF sent with one click' },
+      { type: 'imp', pl: 'GIF-y wysłane przez czat wyświetlają się jako obrazek, maks. 256px wysokości z zaokrąglonymi rogami', en: 'GIFs sent in chat display as images, max 256px height with rounded corners' },
     ],
   },
   {
     version: '0.5.0',
     date: '2026-04-20',
-    label: '',
+    labelPl: '',
+    labelEn: '',
     entries: [
-      { type: 'new',  text: 'Forum przebudowane od podstaw — posty, wątki i odpowiedzi jak na Discordzie, zupełnie nowy interfejs z kartami postów' },
-      { type: 'new',  text: 'Wsparcie GIF w forum — wbudowana wyszukiwarka Giphy w oknie tworzenia postów i odpowiedzi' },
-      { type: 'new',  text: 'Podgląd GIF w odpowiedziach — miniatura przed wysłaniem z możliwością usunięcia' },
-      { type: 'imp',  text: 'Licznik odpowiedzi i data ostatniej aktywności widoczne bezpośrednio na karcie posta' },
-      { type: 'imp',  text: 'Pasek wyszukiwania postów w widoku forum — filtruje lokalnie po tytule i treści' },
+      { type: 'new', pl: 'Forum przebudowane od podstaw — posty, wątki i odpowiedzi jak na Discordzie, zupełnie nowy interfejs z kartami postów', en: 'Forum rebuilt from scratch — posts, threads and replies like Discord, brand new interface with post cards' },
+      { type: 'new', pl: 'Wsparcie GIF w forum — wbudowana wyszukiwarka Giphy w oknie tworzenia postów i odpowiedzi', en: 'GIF support in forum — built-in Giphy search in the post and reply creation window' },
+      { type: 'new', pl: 'Podgląd GIF w odpowiedziach — miniatura przed wysłaniem z możliwością usunięcia', en: 'GIF preview in replies — thumbnail before sending with the option to remove' },
+      { type: 'imp', pl: 'Licznik odpowiedzi i data ostatniej aktywności widoczne bezpośrednio na karcie posta', en: 'Reply count and last activity date visible directly on the post card' },
+      { type: 'imp', pl: 'Pasek wyszukiwania postów w widoku forum — filtruje lokalnie po tytule i treści', en: 'Post search bar in forum view — filters locally by title and content' },
     ],
   },
   {
     version: '0.4.9',
     date: '2026-04-14',
-    label: '',
+    labelPl: '',
+    labelEn: '',
     entries: [
-      { type: 'new',  text: 'Kanały Forum — nowy typ kanału (🗂) przeznaczony na wątki i dyskusje, dostępny w ustawieniach serwera i szybkim tworzeniu' },
-      { type: 'new',  text: 'Przycisk „Sprawdź aktualizacje" w Ustawieniach → Konto — wyświetla status i komunikat błędu jeśli aktualizacja nie powiedzie się' },
-      { type: 'imp',  text: 'Automatyczna aktualizacja działa poprawnie na Windows z antywirusem przechwytującym TLS (naprawa NODE_TLS_REJECT_UNAUTHORIZED)' },
-      { type: 'imp',  text: 'Baner aktualizacji pojawia się niezawodnie — zdarzenie jest buforowane do momentu załadowania strony' },
-      { type: 'fix',  text: 'Wyszukiwanie wiadomości (Ctrl+F) — naprawiono brak wyników dla starszych wiadomości (server_id był NULL w bazie)' },
-      { type: 'fix',  text: 'Usunięto zbędny przycisk „Zastosuj motyw i tryb" — ustawienia zapisują się automatycznie przy każdej zmianie' },
+      { type: 'new', pl: 'Kanały Forum — nowy typ kanału (🗂) przeznaczony na wątki i dyskusje', en: 'Forum channels — new channel type (🗂) designed for threads and discussions' },
+      { type: 'new', pl: 'Przycisk „Sprawdź aktualizacje" w Ustawieniach → Konto — wyświetla status i komunikat błędu', en: '"Check for updates" button in Settings → Account — shows status and error message' },
+      { type: 'imp', pl: 'Automatyczna aktualizacja działa poprawnie na Windows z antywirusem przechwytującym TLS', en: 'Auto-update works correctly on Windows with antivirus intercepting TLS' },
+      { type: 'imp', pl: 'Baner aktualizacji pojawia się niezawodnie — zdarzenie jest buforowane do momentu załadowania strony', en: 'Update banner appears reliably — event is buffered until the page loads' },
+      { type: 'fix', pl: 'Wyszukiwanie wiadomości (Ctrl+F) — naprawiono brak wyników dla starszych wiadomości', en: 'Message search (Ctrl+F) — fixed missing results for older messages' },
+      { type: 'fix', pl: 'Usunięto zbędny przycisk „Zastosuj motyw i tryb" — ustawienia zapisują się automatycznie', en: 'Removed redundant "Apply theme and mode" button — settings save automatically' },
     ],
   },
   {
     version: '0.4.1',
     date: '2026-04-12',
-    label: '',
+    labelPl: '',
+    labelEn: '',
     entries: [
-      { type: 'new',  text: 'Wyszukiwanie wiadomości (Ctrl+F) — przeszukuje wszystkie kanały serwera z podświetlaniem frazy i przejściem do wiadomości' },
-      { type: 'new',  text: 'Auto-updater — aplikacja wykrywa nowe wersje przy starcie i oferuje pobranie w tle bez przerywania pracy' },
-      { type: 'new',  text: 'Odznaka ⚡ Dev przy nicku dewelopera platformy' },
-      { type: 'fix',  text: 'Przesyłanie logo serwera — naprawiono błąd bazy danych (zła nazwa kolumny, za mały typ danych VARCHAR→MEDIUMTEXT)' },
-      { type: 'fix',  text: 'Logo serwera widoczne wszędzie — ujednolicono nazwę pola icon_url w całym frontendzie' },
+      { type: 'new', pl: 'Wyszukiwanie wiadomości (Ctrl+F) — przeszukuje wszystkie kanały serwera z podświetlaniem frazy i przejściem do wiadomości', en: 'Message search (Ctrl+F) — searches all server channels with phrase highlighting and jump to message' },
+      { type: 'new', pl: 'Auto-updater — aplikacja wykrywa nowe wersje przy starcie i oferuje pobranie w tle', en: 'Auto-updater — app detects new versions on startup and offers background download' },
+      { type: 'new', pl: 'Odznaka ⚡ Dev przy nicku dewelopera platformy', en: '⚡ Dev badge next to the platform developer\'s username' },
+      { type: 'fix', pl: 'Przesyłanie logo serwera — naprawiono błąd bazy danych (zła nazwa kolumny, VARCHAR→MEDIUMTEXT)', en: 'Server logo upload — fixed database error (wrong column name, VARCHAR→MEDIUMTEXT)' },
+      { type: 'fix', pl: 'Logo serwera widoczne wszędzie — ujednolicono nazwę pola icon_url w całym frontendzie', en: 'Server logo visible everywhere — unified icon_url field name throughout the frontend' },
     ],
   },
   {
     version: '0.4.0',
     date: '2026-04-05',
-    label: '',
+    labelPl: '',
+    labelEn: '',
     entries: [
-      { type: 'new',  text: '8 motywów kolorystycznych — Ember, Ocean, Forest, Purple, Rose, Midnight, Sunset, Arctic — zmiana na żywo bez restartu' },
-      { type: 'new',  text: 'Zakładka „Co nowego" z pełną historią zmian w aplikacji' },
-      { type: 'imp',  text: 'Rozmiar tekstu (Mały 14px / Normalny 16px / Duży 18px) zmienia się natychmiast bez restartu' },
-      { type: 'imp',  text: 'Tryb kompaktowy — mniejsze odstępy między wiadomościami, działa w czasie rzeczywistym' },
-      { type: 'fix',  text: 'Push-to-Talk — naprawiono brak działania skrótu PTT po ponownym uruchomieniu aplikacji' },
-      { type: 'fix',  text: 'Moderator może teraz przypisywać rangi Członek i Do Weryfikacji (nie może dawać Moderatora/Administratora)' },
-      { type: 'fix',  text: 'Zdjęcia profilowe nie znikają po restarcie aplikacji (błąd w polu avatarUrl→avatar)' },
-      { type: 'fix',  text: 'Status (DND, Zaraz wracam itp.) aktualizuje się natychmiast w panelu członków u wszystkich' },
-      { type: 'fix',  text: 'Usunięto profil audio 96/128 kbps — zbyt duże zużycie pasma bez zauważalnej różnicy' },
-      { type: 'fix',  text: 'Usunięto wyświetlanie bitrate przy dołączaniu do kanałów głosowych' },
+      { type: 'new', pl: '8 motywów kolorystycznych — Ember, Ocean, Forest, Purple, Rose, Midnight, Sunset, Arctic — zmiana na żywo bez restartu', en: '8 color themes — Ember, Ocean, Forest, Purple, Rose, Midnight, Sunset, Arctic — live change without restart' },
+      { type: 'new', pl: 'Zakładka „Co nowego" z pełną historią zmian w aplikacji', en: '"What\'s new" tab with full change history in the app' },
+      { type: 'imp', pl: 'Rozmiar tekstu (Mały 14px / Normalny 16px / Duży 18px) zmienia się natychmiast bez restartu', en: 'Text size (Small 14px / Normal 16px / Large 18px) changes instantly without restart' },
+      { type: 'imp', pl: 'Tryb kompaktowy — mniejsze odstępy między wiadomościami, działa w czasie rzeczywistym', en: 'Compact mode — smaller spacing between messages, works in real-time' },
+      { type: 'fix', pl: 'Push-to-Talk — naprawiono brak działania skrótu PTT po ponownym uruchomieniu aplikacji', en: 'Push-to-Talk — fixed PTT shortcut not working after restarting the app' },
+      { type: 'fix', pl: 'Zdjęcia profilowe nie znikają po restarcie aplikacji', en: 'Profile pictures no longer disappear after restarting the app' },
+      { type: 'fix', pl: 'Status (DND, Zaraz wracam itp.) aktualizuje się natychmiast w panelu członków u wszystkich', en: 'Status (DND, Away, etc.) updates instantly in the member panel for everyone' },
     ],
   },
   {
     version: '0.3.0',
     date: '2026-03-25',
-    label: '',
+    labelPl: '',
+    labelEn: '',
     entries: [
-      { type: 'new',  text: 'Szybkie nadawanie rangi z menu kontekstowego (⋮) przy każdym członku' },
-      { type: 'new',  text: 'Hierarchia ról — Moderator nie może moderować, wyciszyć ani zbanować Administratora' },
-      { type: 'imp',  text: 'Ranga pojawia się natychmiast po nadaniu — bez odświeżania strony' },
-      { type: 'imp',  text: 'Kanały odblokowują się natychmiast po zmianie roli bez restartu' },
-      { type: 'fix',  text: 'Dołączanie przez link zaproszenia — nowy członek pojawia się natychmiast u wszystkich (brakowało zdarzenia MEMBER_JOIN)' },
-      { type: 'fix',  text: 'Nakładka głosowa (Alt+Shift+O) — nie znikała po ponownym wywołaniu skrótu' },
-      { type: 'fix',  text: 'Menu kontekstowe rangi nie zamykało się przy kliknięciu wewnątrz listy' },
-      { type: 'fix',  text: 'Menu kontekstowe było przykrywane przez inne wiersze — naprawiono przez portal z position:fixed' },
-      { type: 'fix',  text: 'Ładowanie... zamiast listy rang — brakowało endpointu GET /api/servers/:id/roles' },
+      { type: 'new', pl: 'Szybkie nadawanie rangi z menu kontekstowego (⋮) przy każdym członku', en: 'Quick role assignment from the context menu (⋮) next to each member' },
+      { type: 'new', pl: 'Hierarchia ról — Moderator nie może moderować, wyciszyć ani zbanować Administratora', en: 'Role hierarchy — Moderator cannot moderate, mute or ban an Administrator' },
+      { type: 'imp', pl: 'Ranga pojawia się natychmiast po nadaniu — bez odświeżania strony', en: 'Role appears immediately after assignment — no page refresh needed' },
+      { type: 'imp', pl: 'Kanały odblokowują się natychmiast po zmianie roli bez restartu', en: 'Channels unlock immediately after role change without restart' },
+      { type: 'fix', pl: 'Dołączanie przez link zaproszenia — nowy członek pojawia się natychmiast u wszystkich', en: 'Joining via invite link — new member appears instantly for everyone' },
+      { type: 'fix', pl: 'Nakładka głosowa (Alt+Shift+O) — nie znikała po ponownym wywołaniu skrótu', en: 'Voice overlay (Alt+Shift+O) — was not dismissing when shortcut was called again' },
     ],
   },
   {
     version: '0.2.1',
     date: '2026-03-12',
-    label: '',
+    labelPl: '',
+    labelEn: '',
     entries: [
-      { type: 'new',  text: 'Nakładka głosowa w grze — wyświetla uczestników kanału z animacją mówienia' },
-      { type: 'new',  text: 'Skrót Alt+Shift+O do pokazania/ukrycia nakładki' },
-      { type: 'new',  text: 'Instalator NSIS — pełny instalator Windows z uiohook-napi' },
-      { type: 'new',  text: 'Globalne PTT przez mysz za pomocą uiohook-napi (przycisk myszy jako Push-to-Talk)' },
-      { type: 'imp',  text: 'Nakładka przez IPC zamiast BroadcastChannel — stabilniejsza komunikacja między procesami' },
-      { type: 'imp',  text: 'Manifest UAC requireAdministrator dla electron.exe — wymagane do globalnych skrótów' },
-      { type: 'fix',  text: 'Wyrzucanie członków — brakowało zdarzenia MEMBER_LEAVE, panel nie odświeżał listy' },
-      { type: 'fix',  text: 'Crash przy wyrzucaniu członka z ustawień serwera' },
-      { type: 'fix',  text: 'Aktualizacje obecności (online/offline) w czasie rzeczywistym' },
-      { type: 'fix',  text: 'Podwójny update store przy dołączaniu/opuszczaniu serwera' },
+      { type: 'new', pl: 'Nakładka głosowa w grze — wyświetla uczestników kanału z animacją mówienia', en: 'In-game voice overlay — displays channel participants with speaking animation' },
+      { type: 'new', pl: 'Skrót Alt+Shift+O do pokazania/ukrycia nakładki', en: 'Alt+Shift+O shortcut to show/hide the overlay' },
+      { type: 'new', pl: 'Instalator NSIS — pełny instalator Windows z uiohook-napi', en: 'NSIS installer — full Windows installer with uiohook-napi' },
+      { type: 'new', pl: 'Globalne PTT przez mysz za pomocą uiohook-napi (przycisk myszy jako Push-to-Talk)', en: 'Global mouse PTT via uiohook-napi (mouse button as Push-to-Talk)' },
+      { type: 'imp', pl: 'Nakładka przez IPC zamiast BroadcastChannel — stabilniejsza komunikacja między procesami', en: 'Overlay via IPC instead of BroadcastChannel — more stable inter-process communication' },
+      { type: 'fix', pl: 'Wyrzucanie członków — brakowało zdarzenia MEMBER_LEAVE, panel nie odświeżał listy', en: 'Kicking members — missing MEMBER_LEAVE event, panel was not refreshing the list' },
     ],
   },
   {
     version: '0.2.0',
     date: '2026-03-01',
-    label: '',
+    labelPl: '',
+    labelEn: '',
     entries: [
-      { type: 'new',  text: 'Aplikacja desktopowa Electron (Windows) — pierwsza wersja .exe' },
-      { type: 'new',  text: 'Push-to-Talk z przyciskiem myszy' },
-      { type: 'new',  text: 'Ulepszony UI wyboru klawisza PTT' },
-      { type: 'imp',  text: 'Wyłączenie throttlingu Chromium w tle — naprawia brak dźwięku podczas grania' },
-      { type: 'imp',  text: 'Automatyczne przyznawanie uprawnień do mikrofonu w Electronie' },
-      { type: 'fix',  text: 'Mikrofon USB nie nadawał dźwięku przy dołączaniu do kanału' },
-      { type: 'fix',  text: 'Deadlock VAD powodujący brak dźwięku przy starcie' },
-      { type: 'fix',  text: 'Błąd „Requested device not found" przy ponownym dołączaniu do kanału' },
-      { type: 'fix',  text: 'Pre-warm getUserMedia przed LiveKit — stabilniejsze połączenie mikrofonu' },
-      { type: 'fix',  text: 'Utknięty pokój LiveKit po rozłączeniu — usuwa pusty pokój przy dołączaniu' },
-      { type: 'fix',  text: 'Rate limiter blokował wszystkich użytkowników — brak trust proxy na Railway' },
+      { type: 'new', pl: 'Aplikacja desktopowa Electron (Windows) — pierwsza wersja .exe', en: 'Electron desktop app (Windows) — first .exe release' },
+      { type: 'new', pl: 'Push-to-Talk z przyciskiem myszy', en: 'Push-to-Talk with mouse button' },
+      { type: 'imp', pl: 'Wyłączenie throttlingu Chromium w tle — naprawia brak dźwięku podczas grania', en: 'Disabled Chromium background throttling — fixes missing audio while gaming' },
+      { type: 'fix', pl: 'Mikrofon USB nie nadawał dźwięku przy dołączaniu do kanału', en: 'USB microphone not transmitting audio when joining a channel' },
+      { type: 'fix', pl: 'Deadlock VAD powodujący brak dźwięku przy starcie', en: 'VAD deadlock causing no audio at startup' },
     ],
   },
   {
     version: '0.1.1',
     date: '2026-02-14',
-    label: '',
+    labelPl: '',
+    labelEn: '',
     entries: [
-      { type: 'new',  text: 'Autouzupełnianie @wzmianek z wyszukiwaniem, strzałkami, @everyone i @here' },
-      { type: 'new',  text: 'Zdarzenia MEMBER_JOIN/MEMBER_LEAVE — lista członków aktualizuje się na żywo' },
-      { type: 'new',  text: 'Odznaka Dev (⚡) dla deweloperów — kolumna is_dev + zmienna DEV_USERNAMES' },
-      { type: 'new',  text: 'Baner informacyjny na stronach logowania (tryb testowy/produkcja)' },
-      { type: 'imp',  text: 'Podgląd niestandardowego statusu i aktualizacje profilu w czasie rzeczywistym' },
-      { type: 'fix',  text: 'Avatar znikał po wysłaniu wiadomości — unieważnienie cache profilu' },
-      { type: 'fix',  text: 'Podwójny @@ w autouzupełnianiu wzmianek' },
-      { type: 'fix',  text: 'avatar_url zmieniony z VARCHAR(512) na MEDIUMTEXT — obsługa base64' },
-      { type: 'fix',  text: 'Migracje uruchamiają się automatycznie przy starcie serwera' },
-      { type: 'fix',  text: 'Poprawki deploymentu Railway — DB_NAME, trust proxy, healthcheck' },
+      { type: 'new', pl: 'Autouzupełnianie @wzmianek z wyszukiwaniem, strzałkami, @everyone i @here', en: '@mention autocomplete with search, arrow navigation, @everyone and @here' },
+      { type: 'new', pl: 'Zdarzenia MEMBER_JOIN/MEMBER_LEAVE — lista członków aktualizuje się na żywo', en: 'MEMBER_JOIN/MEMBER_LEAVE events — member list updates in real-time' },
+      { type: 'new', pl: 'Odznaka Dev (⚡) dla deweloperów — kolumna is_dev + zmienna DEV_USERNAMES', en: 'Dev badge (⚡) for developers — is_dev column + DEV_USERNAMES variable' },
+      { type: 'fix', pl: 'Avatar znikał po wysłaniu wiadomości — unieważnienie cache profilu', en: 'Avatar disappeared after sending a message — profile cache invalidation' },
     ],
   },
   {
     version: '0.1.0',
     date: '2026-02-01',
-    label: 'Pierwsze wydanie',
+    labelPl: 'Pierwsze wydanie',
+    labelEn: 'First release',
     entries: [
-      { type: 'new',  text: 'Serwery z kanałami tekstowymi, głosowymi, ogłoszeniowymi i forum' },
-      { type: 'new',  text: 'System ról i uprawnień (Administrator, Moderator, Członek, Do Weryfikacji)' },
-      { type: 'new',  text: 'Wyciszanie, wyrzucanie i banowanie członków z potwierdzeniem' },
-      { type: 'new',  text: 'Powiadomienia — wzmianki, odpowiedzi, reakcje z szybką odpowiedzią' },
-      { type: 'new',  text: 'Własne emoji serwera (do 50 sztuk)' },
-      { type: 'new',  text: 'Połączenia głosowe przez LiveKit — VAD, Push-to-Talk, wyciszanie, deafen' },
-      { type: 'new',  text: 'Udostępnianie ekranu i kamera w kanałach głosowych' },
-      { type: 'new',  text: 'Linki zaproszenia do serwerów' },
-      { type: 'new',  text: 'Ustawienia profilu — avatar, status, kolor, niestandardowy status' },
-      { type: 'new',  text: 'Ustawienia audio — urządzenie, głośność, VAD, PTT, profil jakości' },
-      { type: 'new',  text: 'Panel administracyjny dla deweloperów' },
+      { type: 'new', pl: 'Serwery z kanałami tekstowymi, głosowymi, ogłoszeniowymi i forum', en: 'Servers with text, voice, announcement and forum channels' },
+      { type: 'new', pl: 'System ról i uprawnień (Administrator, Moderator, Członek, Do Weryfikacji)', en: 'Role and permission system (Administrator, Moderator, Member, Pending)' },
+      { type: 'new', pl: 'Wyciszanie, wyrzucanie i banowanie członków z potwierdzeniem', en: 'Muting, kicking and banning members with confirmation' },
+      { type: 'new', pl: 'Powiadomienia — wzmianki, odpowiedzi, reakcje z szybką odpowiedzią', en: 'Notifications — mentions, replies, reactions with quick reply' },
+      { type: 'new', pl: 'Własne emoji serwera (do 50 sztuk)', en: 'Custom server emoji (up to 50)' },
+      { type: 'new', pl: 'Połączenia głosowe przez LiveKit — VAD, Push-to-Talk, wyciszanie, deafen', en: 'Voice calls via LiveKit — VAD, Push-to-Talk, mute, deafen' },
+      { type: 'new', pl: 'Udostępnianie ekranu i kamera w kanałach głosowych', en: 'Screen sharing and camera in voice channels' },
+      { type: 'new', pl: 'Linki zaproszenia do serwerów', en: 'Server invite links' },
+      { type: 'new', pl: 'Ustawienia profilu — avatar, status, kolor, niestandardowy status', en: 'Profile settings — avatar, status, color, custom status' },
+      { type: 'new', pl: 'Ustawienia audio — urządzenie, głośność, VAD, PTT, profil jakości', en: 'Audio settings — device, volume, VAD, PTT, quality profile' },
+      { type: 'new', pl: 'Panel administracyjny dla deweloperów', en: 'Admin panel for developers' },
     ],
   },
 ]
 
-const ENTRY_META = {
-  new: { color: '#22c55e', label: 'Nowość',   bg: 'rgba(34,197,94,0.1)'  },
-  fix: { color: '#60a5fa', label: 'Naprawa',  bg: 'rgba(96,165,250,0.1)' },
-  imp: { color: '#f59e0b', label: 'Poprawa',  bg: 'rgba(245,158,11,0.1)' },
+const ENTRY_COLORS = {
+  new: { color: '#22c55e', bg: 'rgba(34,197,94,0.1)'  },
+  fix: { color: '#60a5fa', bg: 'rgba(96,165,250,0.1)' },
+  imp: { color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' },
 }
 
 function PatchNotes() {
+  const t = useT()
+  const lang = useStore(s => s.userSettings.language ?? 'pl')
+
+  const labelMap = {
+    new: t('notif.changelog.new'),
+    fix: t('notif.changelog.fix'),
+    imp: t('notif.changelog.imp'),
+  }
+
   return (
     <div className="pt-2 flex flex-col gap-4">
-      {PATCH_NOTES.map(release => (
-        <div key={release.version}>
-          {}
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-xs font-bold px-2 py-0.5 rounded-full"
-              style={{ background: 'var(--eb-gradient)', color: '#fff' }}>
-              v{release.version}
-            </span>
-            {release.label && (
-              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
-                style={{ background: 'rgba(34,197,94,0.15)', color: '#22c55e', border: '0.5px solid rgba(34,197,94,0.3)' }}>
-                {release.label}
+      {PATCH_NOTES.map(release => {
+        const label = lang === 'en' ? release.labelEn : release.labelPl
+        return (
+          <div key={release.version}>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-xs font-bold px-2 py-0.5 rounded-full"
+                style={{ background: 'var(--eb-gradient)', color: '#fff' }}>
+                v{release.version}
               </span>
-            )}
-            <span className="text-[10px] ml-auto" style={{ color: 'var(--eb-text3)' }}>{release.date}</span>
-          </div>
+              {label && (
+                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                  style={{ background: 'rgba(34,197,94,0.15)', color: '#22c55e', border: '0.5px solid rgba(34,197,94,0.3)' }}>
+                  {label}
+                </span>
+              )}
+              <span className="text-[10px] ml-auto" style={{ color: 'var(--eb-text3)' }}>{release.date}</span>
+            </div>
 
-          {}
-          <div className="flex flex-col gap-1.5 pl-1">
-            {release.entries.map((entry, i) => {
-              const meta = ENTRY_META[entry.type as keyof typeof ENTRY_META] ?? ENTRY_META.new
-              return (
-                <div key={i} className="flex items-start gap-2">
-                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded mt-0.5 flex-shrink-0"
-                    style={{ background: meta.bg, color: meta.color }}>
-                    {meta.label}
-                  </span>
-                  <span className="text-[11px] leading-snug" style={{ color: 'var(--eb-text2)' }}>
-                    {entry.text}
-                  </span>
-                </div>
-              )
-            })}
-          </div>
+            <div className="flex flex-col gap-1.5 pl-1">
+              {release.entries.map((entry, i) => {
+                const meta = ENTRY_COLORS[entry.type as keyof typeof ENTRY_COLORS] ?? ENTRY_COLORS.new
+                const text = lang === 'en' ? entry.en : entry.pl
+                return (
+                  <div key={i} className="flex items-start gap-2">
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded mt-0.5 flex-shrink-0"
+                      style={{ background: meta.bg, color: meta.color }}>
+                      {labelMap[entry.type as keyof typeof labelMap] ?? entry.type}
+                    </span>
+                    <span className="text-[11px] leading-snug" style={{ color: 'var(--eb-text2)' }}>
+                      {text}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
 
-          <div className="mt-3 h-px" style={{ background: 'var(--eb-border)' }} />
-        </div>
-      ))}
+            <div className="mt-3 h-px" style={{ background: 'var(--eb-border)' }} />
+          </div>
+        )
+      })}
     </div>
   )
 }
 
-const NOTIF_META: Record<NotifType, { color: string; label: string; icon: string }> = {
-  mention:  { color: '#f87171', label: 'Oznaczenie', icon: '@' },
-  reply:    { color: '#4a9eff', label: 'Odpowiedź',  icon: '↩' },
-  reaction: { color: '#f59e0b', label: 'Reakcja',    icon: '😄' },
+const NOTIF_COLORS: Record<NotifType, { color: string; icon: string }> = {
+  mention:  { color: '#f87171', icon: '@' },
+  reply:    { color: '#4a9eff', icon: '↩' },
+  reaction: { color: '#f59e0b', icon: '😄' },
 }
 
 export function NotificationsPanelExpanded() {
@@ -590,7 +623,8 @@ export function NotificationsPanelExpanded() {
         )}
 
         {!loading && (activeTab === 'all' || activeTab === 'unread') && visible.map(notif => {
-          const meta = NOTIF_META[notif.type]
+          const notifColors = NOTIF_COLORS[notif.type]
+          const notifLabel = notif.type === 'mention' ? t('notif.mention') : notif.type === 'reply' ? t('notif.reply') : t('notif.reaction')
           const isReplying = replyingTo === notif.id
           const canReply = notif.type === 'mention' || notif.type === 'reply'
 
@@ -613,8 +647,8 @@ export function NotificationsPanelExpanded() {
                     }
                   </div>
                   <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold"
-                    style={{ background: meta.color, border: '1.5px solid var(--eb-bg1)', color: '#fff' }}>
-                    {meta.icon}
+                    style={{ background: notifColors.color, border: '1.5px solid var(--eb-bg1)', color: '#fff' }}>
+                    {notifColors.icon}
                   </div>
                 </div>
 
@@ -624,8 +658,8 @@ export function NotificationsPanelExpanded() {
                       {notif.author_name}
                     </span>
                     <span className="text-[9px] font-medium px-1.5 py-px rounded-full flex-shrink-0"
-                      style={{ background: `${meta.color}22`, color: meta.color }}>
-                      {meta.label}
+                      style={{ background: `${notifColors.color}22`, color: notifColors.color }}>
+                      {notifLabel}
                     </span>
                     {!notif.read_at && (
                       <div className="w-1.5 h-1.5 rounded-full flex-shrink-0 ml-auto"
