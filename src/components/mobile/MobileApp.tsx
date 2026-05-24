@@ -95,7 +95,7 @@ function Av({ url, color, name, size = 36 }: { url?: string | null; color: strin
 function ChatScreen() {
   const { servers, channels, currentServerId, currentChannelId, setCurrentServer, setCurrentChannel, currentUser, voice } = useStore()
   const { sendMessage }  = useSocket()
-  const { openDevicePicker, disconnect } = useVoice()
+  const { openDevicePicker, disconnect, toggleMute, muted, participants } = useVoice()
   const currentChannelIdSafe = currentChannelId ?? ''
   const { messages, loading } = useMessages(currentChannelIdSafe)
   const [drawerOpen, setDrawerOpen]   = useState(false)
@@ -146,6 +146,41 @@ function ChatScreen() {
           </div>
         )}
       </div>
+
+      {/* Voice bar */}
+      {voice.connected && (() => {
+        const voiceCh = serverChannels.find(c => c.id === voice.channelId)
+        return (
+          <div style={{ background: 'rgba(34,197,94,0.07)', borderBottom: '0.5px solid rgba(34,197,94,0.18)', padding: '0 12px', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, minHeight: 40 }}>
+            <div style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--eb-online)', flexShrink: 0, animation: 'pulse 2s infinite' }} />
+            <span style={{ fontSize: 12, color: 'var(--eb-online)', fontWeight: 500, flex: 1 }}>
+              {voiceCh ? voiceCh.name : 'Głos'}
+              {participants.length > 0 && (
+                <span style={{ color: 'var(--eb-text3)', fontWeight: 400 }}> · {participants.length} os.</span>
+              )}
+            </span>
+            <button
+              onClick={() => toggleMute()}
+              style={{
+                background: muted ? 'rgba(239,68,68,0.15)' : 'rgba(34,197,94,0.12)',
+                border: `0.5px solid ${muted ? 'rgba(239,68,68,0.3)' : 'rgba(34,197,94,0.3)'}`,
+                borderRadius: 20, padding: '4px 11px',
+                fontSize: 12, fontWeight: 500,
+                color: muted ? '#ef4444' : 'var(--eb-online)',
+                cursor: 'pointer',
+              }}
+            >
+              {muted ? '🔇 Wyciszony' : '🎤 Aktywny'}
+            </button>
+            <button
+              onClick={() => disconnect()}
+              style={{ background: 'rgba(239,68,68,0.1)', border: '0.5px solid rgba(239,68,68,0.25)', borderRadius: 20, padding: '4px 11px', fontSize: 12, fontWeight: 500, color: '#ef4444', cursor: 'pointer' }}
+            >
+              Rozłącz
+            </button>
+          </div>
+        )
+      })()}
 
       {/* Messages */}
       <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '4px 0' }}
