@@ -17,7 +17,7 @@ async function request<T>(
   }
   if (token) headers['Authorization'] = `Bearer ${token}`
 
-  const res = await fetch(`${BASE}${path}`, { ...options, headers })
+  const res = await fetch(`${BASE}${path}`, { ...options, headers, credentials: 'include' })
   const data = await res.json()
 
   if (!res.ok) throw new ApiError(res.status, data.error ?? 'Błąd serwera')
@@ -54,14 +54,13 @@ export const api = {
 export const tokenStore = {
   get: (): string | null => {
     if (typeof window === 'undefined') return null
-    return localStorage.getItem('pz_token')
+    return sessionStorage.getItem('pz_token')
   },
   set: (token: string) => {
-    localStorage.setItem('pz_token', token)
-    document.cookie = `pz_token=${token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Strict`
+    sessionStorage.setItem('pz_token', token)
   },
   clear: () => {
-    localStorage.removeItem('pz_token')
+    sessionStorage.removeItem('pz_token')
     document.cookie = 'pz_token=; path=/; max-age=0'
   },
 }

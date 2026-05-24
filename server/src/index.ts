@@ -40,7 +40,6 @@ function isAllowedOrigin(origin: string | undefined): boolean {
   if (!origin) return true
   if (origin === FRONTEND) return true
   if (origin.startsWith('http://localhost:')) return true
-  if (origin.endsWith('.vercel.app')) return true
   const extra = (process.env.ALLOWED_ORIGINS ?? '').split(',').map(s => s.trim()).filter(Boolean)
   return extra.includes(origin)
 }
@@ -51,6 +50,9 @@ app.use((_req, res, next) => {
   res.set('X-XSS-Protection', '1; mode=block')
   res.set('Referrer-Policy', 'strict-origin-when-cross-origin')
   res.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
+  if (process.env.NODE_ENV === 'production') {
+    res.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
+  }
   next()
 })
 
@@ -96,6 +98,7 @@ const messageLimiter = rateLimit({
 })
 
 app.use(globalLimiter)
+app.use('/api/livekit/webhook', express.raw({ type: '*/*' }))
 app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true }))
 

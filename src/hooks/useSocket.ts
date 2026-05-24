@@ -14,7 +14,7 @@ function getSocket(token: string): Socket {
   if (_socket) return _socket
   _socket = io(BASE, {
     auth: { token },
-
+    withCredentials: true,
     transports: ['websocket', 'polling'],
     reconnection: true,
     reconnectionAttempts: 10,

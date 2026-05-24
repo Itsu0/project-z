@@ -139,7 +139,7 @@ interface Store {
 
 export const useStore = create<Store>((set, get) => ({
 
-  token: typeof window !== 'undefined' ? localStorage.getItem('pz_token') : null,
+  token: typeof window !== 'undefined' ? sessionStorage.getItem('pz_token') : null,
   currentUser: null,
   setAuth: (token, user) => set({ token, currentUser: user }),
   setCurrentUserStatus: (status: string) => set(state => ({
@@ -147,7 +147,7 @@ export const useStore = create<Store>((set, get) => ({
   })),
   clearAuth: () => {
     if (typeof window !== 'undefined') {
-      localStorage.removeItem('pz_token')
+      sessionStorage.removeItem('pz_token')
       document.cookie = 'pz_token=; path=/; max-age=0'
     }
     set({ token: null, currentUser: null, servers: [], channels: {}, members: {} })
