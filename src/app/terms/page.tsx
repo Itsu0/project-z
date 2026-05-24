@@ -106,7 +106,7 @@ function TermsContent() {
               <h2 style={h2}>9. Desktop application</h2>
               <p style={p}>The Project-Z desktop application (Nexus) is available for Windows, macOS, and Linux. By installing and using the desktop application, you additionally accept:</p>
               <ul style={ul}>
-                <li style={li}>The application may request permission to use <strong>global keyboard and mouse hooks</strong> — used exclusively for the Push-to-Talk (PTT) feature in voice channels. This permission is optional; you will be asked for consent upon first launch. Without consent, PTT will not function, but all other Platform features remain available.</li>
+                <li style={li}>The application uses <strong>global keyboard and mouse hooks</strong> — used exclusively for the Push-to-Talk (PTT) feature in voice channels. Hooks are active only while the application is running and are used solely to detect the assigned PTT key.</li>
                 <li style={li}>PTT settings (assigned key) are stored locally on your device.</li>
                 <li style={li}>The application supports automatic updates — new versions are downloaded and installed automatically to ensure security and stability.</li>
               </ul>
@@ -246,7 +246,7 @@ function TermsContent() {
             <h2 style={h2}>9. Aplikacja desktopowa</h2>
             <p style={p}>Aplikacja desktopowa Project-Z (Nexus) dostępna jest na systemy Windows, macOS i Linux. Instalując i korzystając z aplikacji desktopowej, akceptujesz dodatkowo:</p>
             <ul style={ul}>
-              <li style={li}>Aplikacja może poprosić o zgodę na korzystanie z <strong>globalnych hooków klawiatury i myszy</strong> — używanych wyłącznie do funkcji Push-to-Talk (PTT) na kanałach głosowych. Zgoda jest dobrowolna i zostaniesz o nią zapytany/a przy pierwszym uruchomieniu. Bez udzielenia zgody PTT nie będzie działać, pozostałe funkcje Platformy pozostają dostępne bez zmian.</li>
+              <li style={li}>Aplikacja korzysta z <strong>globalnych hooków klawiatury i myszy</strong> — używanych wyłącznie do funkcji Push-to-Talk (PTT) na kanałach głosowych. Hooki są aktywne wyłącznie podczas działania aplikacji i służą jedynie do wykrywania wciśnięcia przypisanego klawisza PTT.</li>
               <li style={li}>Ustawienia PTT (przypisany klawisz) są przechowywane lokalnie na Twoim urządzeniu i nie są przesyłane na serwer.</li>
               <li style={li}>Aplikacja obsługuje automatyczne aktualizacje — nowe wersje są pobierane i instalowane automatycznie w celu zapewnienia bezpieczeństwa i stabilności.</li>
             </ul>

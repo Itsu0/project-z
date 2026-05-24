@@ -577,8 +577,7 @@ app.whenReady().then(async () => {
   })
 
   createTray()
-  const pttConsented = await checkUiohookConsent()
-  if (pttConsented) setupUiohook()
+  setupUiohook()
 
   registerOverlayShortcut()
   setupAutoUpdater()
