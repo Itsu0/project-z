@@ -168,8 +168,8 @@ function ChatScreen() {
   const { openDevicePicker, disconnect, toggleMute, muted, participants } = useVoice()
   const currentChannelIdSafe = currentChannelId ?? ''
   const { messages, loading } = useMessages(currentChannelIdSafe)
-  const [drawerOpen, setDrawerOpen]         = useState(false)
-  const [text, setText]                     = useState('')
+  const [serverPickerOpen, setServerPickerOpen] = useState(false)
+  const [text, setText]                         = useState('')
   const [reportMsg, setReportMsg]           = useState<null | { id: string; content: string; author: string }>(null)
   const [ctxMenu, setCtxMenu]               = useState<null | { msgId: string; content: string; author: string; y: number }>(null)
   const [showEmoji, setShowEmoji]           = useState(false)
@@ -228,20 +228,59 @@ function ChatScreen() {
     if (pressTimer.current) clearTimeout(pressTimer.current)
   }
 
-  const headerTitle = currentChannel ? `#${currentChannel.name}` : currentServer?.name ?? 'Czaty'
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }}>
       {/* Header */}
-      <div className="mobile-header">
-        <button className="icon-btn" onClick={() => setDrawerOpen(true)}><IC.Menu /></button>
-        <span className="mobile-header-title">{headerTitle}</span>
-        {voice.connected && (
-          <div style={{ fontSize: 11, color: 'var(--eb-online)', display: 'flex', alignItems: 'center', gap: 4 }}>
-            <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--eb-online)' }} />
-            Głos
-          </div>
+      <div className="mobile-header" style={{ gap: 8 }}>
+        {/* Server selector */}
+        <button onClick={() => setServerPickerOpen(true)}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.05)', border: '0.5px solid var(--eb-border2)', borderRadius: 10, padding: '4px 8px', cursor: 'pointer', flexShrink: 0, maxWidth: 120 }}>
+          {currentServer?.icon_url
+            ? <img src={currentServer.icon_url} alt="" width={18} height={18} style={{ borderRadius: 4, objectFit: 'cover' }} />
+            : <div style={{ width: 18, height: 18, borderRadius: 4, background: currentServer?.icon_color || 'var(--eb-gradient)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+                {currentServer ? currentServer.name.charAt(0).toUpperCase() : '?'}
+              </div>
+          }
+          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--eb-text1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {currentServer?.name ?? 'Serwer'}
+          </span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="10" height="10" style={{ color: 'var(--eb-text3)', flexShrink: 0 }}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 9l6 6 6-6"/>
+          </svg>
+        </button>
+        <span className="mobile-header-title" style={{ fontSize: 13 }}>
+          {currentChannel ? `~ ${currentChannel.name}` : ''}
+        </span>
+        {/* Report button */}
+        {currentChannel && (
+          <button className="icon-btn" style={{ flexShrink: 0 }}
+            onClick={() => setCtxMenu({ msgId: '', content: '', author: '', y: 0 })}>
+            <IC.Flag />
+          </button>
         )}
+      </div>
+
+      {/* Channel strip */}
+      <div style={{ display: 'flex', overflowX: 'auto', scrollbarWidth: 'none', borderBottom: '0.5px solid var(--eb-border)', background: 'var(--eb-bg1)', padding: '0 6px', flexShrink: 0, gap: 2 }}
+        className="hide-scrollbar">
+        {serverChannels.map(ch => {
+          const isVoice = ch.type === 'voice'
+          const isActive = isVoice ? voice.channelId === ch.id : currentChannelId === ch.id
+          return (
+            <button key={ch.id}
+              className={`server-tab${isActive ? ' active' : ''}`}
+              onClick={() => {
+                if (isVoice) { isActive ? disconnect() : openDevicePicker(ch.id) }
+                else setCurrentChannel(ch.id)
+              }}>
+              {isVoice
+                ? <IC.Volume />
+                : <span style={{ fontSize: 11, opacity: 0.7 }}>~</span>
+              }
+              {ch.name}
+            </button>
+          )
+        })}
       </div>
 
       {/* Voice bar */}
@@ -496,70 +535,34 @@ function ChatScreen() {
         />
       )}
 
-      {/* Drawer overlay */}
-      <div className={`mobile-drawer-overlay${drawerOpen ? ' open' : ''}`} onClick={() => setDrawerOpen(false)} />
-
-      {/* Drawer */}
-      <div className={`mobile-drawer${drawerOpen ? ' open' : ''}`} style={{ flexDirection: 'column' }}>
-        {/* Voice status bar */}
-        {voice.connected && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'rgba(34,197,94,0.07)', borderBottom: '0.5px solid rgba(34,197,94,0.18)', flexShrink: 0 }}>
-            <div style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--eb-online)', flexShrink: 0 }} />
-            <span style={{ flex: 1, fontSize: 12, color: 'var(--eb-online)', fontWeight: 500 }}>
-              Połączono z głosem
-            </span>
-            <button
-              onClick={() => { disconnect(); setDrawerOpen(false) }}
-              style={{ fontSize: 11, color: 'var(--eb-accent2)', background: 'rgba(239,68,68,0.1)', border: 'none', borderRadius: 8, padding: '3px 8px', cursor: 'pointer' }}
-            >
-              Rozłącz
-            </button>
-          </div>
-        )}
-        <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-        <div className="mobile-server-list">
-          {servers.map(srv => (
-            <button
-              key={srv.id}
-              className={`mobile-server-icon${currentServerId === srv.id ? ' active' : ''}`}
-              style={{ background: srv.icon_color || 'var(--eb-bg3)' }}
-              onClick={() => setCurrentServer(srv.id)}
-              title={srv.name}
-            >
-              {srv.icon_url
-                ? <img src={srv.icon_url} alt={srv.name} width={36} height={36} style={{ borderRadius: 'inherit', objectFit: 'cover' }} />
-                : srv.name.charAt(0).toUpperCase()}
-            </button>
-          ))}
-        </div>
-        <div className="mobile-channel-list">
-          {!currentServerId && <div style={{ padding: '24px 16px', color: 'var(--eb-text3)', fontSize: 13 }}>Wybierz serwer</div>}
-          {textChannels.length > 0 && <div style={{ padding: '10px 16px 4px', fontSize: 11, fontWeight: 600, color: 'var(--eb-text3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Tekstowe</div>}
-          {textChannels.map(ch => (
-            <div key={ch.id} className={`mobile-channel-item${currentChannelId === ch.id ? ' active' : ''}`}
-              onClick={() => { setCurrentChannel(ch.id); setDrawerOpen(false) }}>
-              <IC.Hash />
-              <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ch.name}</span>
+      {/* Server picker sheet */}
+      {serverPickerOpen && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 400, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)' }} onClick={() => setServerPickerOpen(false)} />
+          <div style={{ position: 'relative', background: 'var(--eb-bg1)', borderRadius: '20px 20px 0 0', border: '0.5px solid var(--eb-border2)', zIndex: 1, paddingBottom: 'env(safe-area-inset-bottom, 0px)', maxHeight: '70vh', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ padding: '16px 16px 10px', borderBottom: '0.5px solid var(--eb-border)', flexShrink: 0 }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--eb-text3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Serwery</span>
             </div>
-          ))}
-          {voiceChannels.length > 0 && <div style={{ padding: '10px 16px 4px', fontSize: 11, fontWeight: 600, color: 'var(--eb-text3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Głosowe</div>}
-          {voiceChannels.map(ch => {
-            const isHere = voice.channelId === ch.id
-            return (
-              <div key={ch.id}
-                className={`mobile-channel-item${isHere ? ' voice-active' : ''}`}
-                onClick={() => { isHere ? disconnect() : openDevicePicker(ch.id); setDrawerOpen(false) }}>
-                <IC.Volume />
-                <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ch.name}</span>
-                <span style={{ fontSize: 11, flexShrink: 0, color: isHere ? 'var(--eb-online)' : 'var(--eb-text3)' }}>
-                  {isHere ? '● Ty' : 'Dołącz'}
-                </span>
-              </div>
-            )
-          })}
+            <div style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
+              {servers.map(srv => (
+                <button key={srv.id}
+                  onClick={() => { setCurrentServer(srv.id); setServerPickerOpen(false) }}
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', background: currentServerId === srv.id ? 'rgba(255,255,255,0.05)' : 'none', border: 'none', borderBottom: '0.5px solid var(--eb-border)', cursor: 'pointer' }}>
+                  <div style={{ width: 36, height: 36, borderRadius: currentServerId === srv.id ? 10 : 14, background: srv.icon_color || 'var(--eb-bg3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700, color: '#fff', flexShrink: 0, overflow: 'hidden', transition: 'border-radius 0.2s' }}>
+                    {srv.icon_url ? <img src={srv.icon_url} alt={srv.name} width={36} height={36} style={{ objectFit: 'cover' }} /> : srv.name.charAt(0).toUpperCase()}
+                  </div>
+                  <span style={{ flex: 1, fontSize: 14, fontWeight: 500, color: currentServerId === srv.id ? 'var(--eb-text1)' : 'var(--eb-text2)', textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {srv.name}
+                  </span>
+                  {currentServerId === srv.id && (
+                    <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--eb-accent)', flexShrink: 0 }} />
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
-        </div>
-      </div>
+      )}
     </div>
   )
 }
