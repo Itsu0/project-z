@@ -101,7 +101,7 @@ export function JoinVoiceButton({ channel }: Props) {
   const {
     connected, connecting, error,
     participants, muted, deafened, screenSharing, screenTracks,
-    pttActive, audioBlocked,
+    pttActive, audioBlocked, latency,
     openDevicePicker, unlockAudio, disconnect,
     toggleMute, toggleDeafen, toggleScreenShare, startScreenShareFromSource,
     showStream, setShowStream,
@@ -110,6 +110,13 @@ export function JoinVoiceButton({ channel }: Props) {
   const { pttEnabled, pttKey } = userSettings
   const isElectron = typeof window !== 'undefined' && !!(window as any).electronPZ
   const [showSourcePicker, setShowSourcePicker] = useState(false)
+
+  function latencyColor(ms: number): string {
+    if (ms < 60)  return '#22c55e'
+    if (ms < 150) return '#f59e0b'
+    if (ms < 300) return '#f97316'
+    return '#ef4444'
+  }
 
   const isInThisChannel = voice.channelId === channel.id
 
@@ -162,6 +169,18 @@ export function JoinVoiceButton({ channel }: Props) {
             <div className="text-center">
               <p className="font-semibold mb-1" style={{ color: 'var(--eb-online)' }}>{t('voice.connected')}</p>
               <p style={{ fontSize: 12, color: 'var(--eb-text3)' }}>#{channel.name}</p>
+              {latency !== null && (
+                <p
+                  className="text-[11px] font-mono font-semibold mt-1 inline-flex items-center gap-1"
+                  title="Opóźnienie (ping) do serwera głosowego"
+                >
+                  <span
+                    className="inline-block w-1.5 h-1.5 rounded-full"
+                    style={{ background: latencyColor(latency) }}
+                  />
+                  <span style={{ color: latencyColor(latency) }}>{latency} ms</span>
+                </p>
+              )}
             </div>
 
             {participants.length > 0 && (

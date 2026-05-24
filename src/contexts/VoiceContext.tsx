@@ -30,6 +30,7 @@ interface VoiceCtx {
   screenTracks: ScreenTrack[]
   showStream: boolean
   watchingIdentity: string | null
+  latency: number | null
   setShowStream: (v: boolean) => void
   setWatchingIdentity: (id: string | null) => void
   openDevicePicker: (channelId: string) => Promise<void>
@@ -68,9 +69,11 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   const [pttActive,        setPttActive]        = useState(false)
   const [audioBlocked,     setAudioBlocked]     = useState(false)
   const [extInstalled,     setExtInstalled]     = useState(false)
+  const [latency,          setLatency]          = useState<number | null>(null)
 
   const roomRef           = useRef<any>(null)
   const pendingChannelId  = useRef<string | null>(null)
+  const rttIntervalRef    = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const sendToOverlay = useCallback((parts: VoiceParticipant[]) => {
     try { (window as any).electronPZ?.updateOverlayParticipants?.(parts) } catch {}
@@ -267,6 +270,27 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   const vadCleanupRef      = useRef<(() => void) | null>(null)
   const lastDisconnectRef  = useRef<number>(0)
 
+  const startRttMeasurement = useCallback(() => {
+    if (rttIntervalRef.current) clearInterval(rttIntervalRef.current)
+    rttIntervalRef.current = setInterval(async () => {
+      const room = roomRef.current
+      if (!room) return
+      try {
+        const pc = (room.engine as any)?.subscriber?.pc
+               ?? (room.engine as any)?.publisher?.pc
+        if (!pc) return
+        const stats: RTCStatsReport = await pc.getStats()
+        let rtt: number | null = null
+        stats.forEach((r: any) => {
+          if (r.type === 'candidate-pair' && r.nominated && r.currentRoundTripTime != null) {
+            rtt = Math.round(r.currentRoundTripTime * 1000)
+          }
+        })
+        if (rtt !== null) setLatency(rtt)
+      } catch {}
+    }, 3000)
+  }, [])
+
   const connectWithDevices = useCallback(async (overrides?: { profile?: string; input?: string; output?: string }) => {
     const channelId = pendingChannelId.current
     if (!channelId || !token) return
@@ -364,9 +388,10 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           document.querySelectorAll('audio').forEach(e => e.remove())
           document.querySelectorAll('video').forEach(e => e.remove())
           vadCleanupRef.current?.(); vadCleanupRef.current = null
+          if (rttIntervalRef.current) { clearInterval(rttIntervalRef.current); rttIntervalRef.current = null }
           setParticipants([]); setMuted(false); setDeafened(false)
           setScreenSharing(false); setScreenTracks([]); setShowStream(false)
-          setWatchingIdentity(null); setAudioBlocked(false); leaveVoice()
+          setWatchingIdentity(null); setAudioBlocked(false); setLatency(null); leaveVoice()
           try { (window as any).electronPZ?.updateOverlayParticipants?.([]) } catch {}
           try { (window as any).electronPZ?.hideOverlay?.() } catch {}
         })
@@ -545,6 +570,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
 
       if (pttEnabled) { setMuted(true); setVoiceMuted(true) } else { setMuted(false) }
       update(); joinVoice(channelId)
+      startRttMeasurement()
 
       try { (window as any).electronPZ?.showOverlay?.() } catch {}
 
@@ -610,7 +636,8 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     }
     lastDisconnectRef.current = Date.now()
     vadCleanupRef.current?.(); vadCleanupRef.current = null
-    setParticipants([]); setMuted(false); setDeafened(false); setScreenSharing(false); leaveVoice()
+    if (rttIntervalRef.current) { clearInterval(rttIntervalRef.current); rttIntervalRef.current = null }
+    setParticipants([]); setMuted(false); setDeafened(false); setScreenSharing(false); setLatency(null); leaveVoice()
 
     try { (window as any).electronPZ?.updateOverlayParticipants?.([]) } catch {}
     try { (window as any).electronPZ?.hideOverlay?.() } catch {}
@@ -686,6 +713,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       screenTracks,
       showStream,
       watchingIdentity,
+      latency,
       setShowStream,
       setWatchingIdentity,
       openDevicePicker, unlockAudio, disconnect,
