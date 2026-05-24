@@ -58,9 +58,13 @@ router.get('/token', requireAuth, async (req: Request, res: Response) => {
       avatarUrl: userInfo?.avatar_url,
     })
 
-    const apiKey    = process.env.LIVEKIT_API_KEY    ?? 'devkey'
-    const apiSecret = process.env.LIVEKIT_API_SECRET ?? 'secret'
-    const lkUrl     = process.env.LIVEKIT_URL        ?? 'ws://localhost:7880'
+    const apiKey    = process.env.LIVEKIT_API_KEY
+    const apiSecret = process.env.LIVEKIT_API_SECRET
+    const lkUrl     = process.env.LIVEKIT_URL ?? 'ws://localhost:7880'
+
+    if (!apiKey || !apiSecret) {
+      return res.status(503).json({ error: 'Usługa głosowa niedostępna' })
+    }
 
     const roomName = `channel_${channelId}`
 
@@ -114,7 +118,7 @@ router.get('/token', requireAuth, async (req: Request, res: Response) => {
     return res.json({
       token,
       roomName,
-      serverUrl: process.env.LIVEKIT_URL ?? 'ws://localhost:7880',
+      serverUrl: lkUrl,
     })
   } catch (err) {
     console.error('[livekit/token]', err)
@@ -123,9 +127,27 @@ router.get('/token', requireAuth, async (req: Request, res: Response) => {
 })
 
 router.post('/webhook', async (req: Request, res: Response) => {
+  try {
+    const apiKey    = process.env.LIVEKIT_API_KEY
+    const apiSecret = process.env.LIVEKIT_API_SECRET
+    if (!apiKey || !apiSecret) return res.status(503).json({ error: 'Niedostępne' })
 
-  console.log('[livekit/webhook]', req.body?.event)
-  res.json({ ok: true })
+    const { WebhookReceiver } = await import('livekit-server-sdk')
+    const receiver = new WebhookReceiver(apiKey, apiSecret)
+
+    const rawBody = req.body instanceof Buffer
+      ? req.body.toString('utf8')
+      : typeof req.body === 'string'
+        ? req.body
+        : JSON.stringify(req.body)
+
+    const event = await receiver.receive(rawBody, req.headers.authorization)
+    console.log('[livekit/webhook]', event.event)
+    return res.json({ ok: true })
+  } catch (err) {
+    console.error('[livekit/webhook] invalid signature:', err)
+    return res.status(401).json({ error: 'Nieprawidłowy podpis webhooka' })
+  }
 })
 
 export default router

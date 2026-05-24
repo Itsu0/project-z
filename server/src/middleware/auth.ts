@@ -48,14 +48,22 @@ export function verifyToken(token: string): AuthPayload {
   return jwt.verify(token, process.env.JWT_SECRET!) as AuthPayload
 }
 
-export async function requireAuth(req: Request, res: Response, next: NextFunction) {
+function extractToken(req: Request): string | null {
+  const cookieHeader = req.headers.cookie ?? ''
+  const m = cookieHeader.match(/(?:^|;\s*)pz_token=([^;]+)/)
+  if (m) return decodeURIComponent(m[1])
   const auth = req.headers.authorization
-  if (!auth?.startsWith('Bearer ')) {
+  if (auth?.startsWith('Bearer ')) return auth.slice(7)
+  return null
+}
+
+export async function requireAuth(req: Request, res: Response, next: NextFunction) {
+  const token = extractToken(req)
+  if (!token) {
     return res.status(401).json({ error: 'Brak tokena autoryzacji' })
   }
 
   try {
-    const token = auth.slice(7)
     const payload = verifyToken(token)
 
     const user = await userQueries.findById(payload.userId)

@@ -38,6 +38,8 @@ livekit-server*
 
 # ── Misc ──────────────────────────────────────────────────
 .vercel
+livekit.yaml
+railway_backup.sql
 
 # IDE / AI tools
 .claude/

@@ -26,20 +26,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const storedToken = tokenStore.get()
-    if (!storedToken) {
-      router.push('/auth/login')
-      return
-    }
 
-    api.auth.me(storedToken)
-      .then(async ({ user }) => {
+    const fetchMe = storedToken
+      ? api.auth.me(storedToken)
+      : fetch(`${BASE}/api/auth/me`, { credentials: 'include' })
+          .then(r => r.ok ? r.json() : Promise.reject(new Error('no session')))
+
+    fetchMe
+      .then(async ({ user, token: freshToken }: { user: any; token?: string }) => {
+        const effectiveToken = storedToken ?? freshToken ?? ''
+        if (!storedToken && freshToken) tokenStore.set(freshToken)
         const savedStatus = (typeof window !== 'undefined' ? localStorage.getItem('pz_status_pref') : null) ?? 'online'
-        setAuth(storedToken, { ...user, status: savedStatus })
+        setAuth(effectiveToken, { ...user, status: savedStatus })
         setCurrentUserStatus(savedStatus)
 
         try {
           const sRes = await fetch(`${BASE}/api/user/settings`, {
-            headers: { Authorization: `Bearer ${storedToken}` },
+            headers: { Authorization: `Bearer ${effectiveToken}` },
           })
           const sData = await sRes.json()
           let settings: UserSettings = { ...DEFAULT_SETTINGS, ...sData.settings }
@@ -55,7 +58,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
                 await fetch(`${BASE}/api/user/settings`, {
                   method: 'PATCH',
-                  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${storedToken}` },
+                  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${effectiveToken}` },
                   body: JSON.stringify(settings),
                 }).catch(() => {})
               }
@@ -70,12 +73,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         await fetch(`${BASE}/api/auth/status`, {
           method: 'PATCH',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${storedToken}` },
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${effectiveToken}` },
           body: JSON.stringify({ status: savedStatus }),
         }).catch(() => {})
 
         const res = await fetch(`${BASE}/api/servers`, {
-          headers: { Authorization: `Bearer ${storedToken}` },
+          headers: { Authorization: `Bearer ${effectiveToken}` },
         })
         const data = await res.json()
         const servers = data.servers ?? []
@@ -94,7 +97,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         for (let attempt = 0; attempt < 3; attempt++) {
           try {
             const srvRes = await fetch(`${BASE}/api/servers/${firstServer.id}`, {
-              headers: { Authorization: `Bearer ${storedToken}` },
+              headers: { Authorization: `Bearer ${effectiveToken}` },
             })
             if (srvRes.ok) {
               srvData = await srvRes.json()

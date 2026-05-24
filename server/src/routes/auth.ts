@@ -9,6 +9,15 @@ import { generateSecret, verify as totpVerify, generateURI } from 'otplib'
 
 const router = Router()
 
+const AUTH_COOKIE = 'pz_token'
+const cookieOpts = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'strict' as const,
+  maxAge: 7 * 24 * 60 * 60 * 1000,
+  path: '/',
+}
+
 router.post('/register', async (req: Request, res: Response) => {
   try {
     const { username, displayName, email, password, avatarColor, birthDate } = req.body
@@ -126,6 +135,7 @@ router.get('/verify-email/:token', async (req: Request, res: Response) => {
     if (!user) return res.status(404).json({ error: 'Użytkownik nie znaleziony' })
 
     const jwtToken = signToken({ userId: row.user_id, username: user.username })
+    res.cookie(AUTH_COOKIE, jwtToken, cookieOpts)
     return res.json({ token: jwtToken, user })
   } catch (err) {
     console.error('[auth/verify-email]', err)
@@ -206,6 +216,7 @@ router.post('/login', async (req: Request, res: Response) => {
     const profile = await userQueries.publicProfile(user.id)
 
     recordIp(user.id, getClientIp(req)).catch(() => {})
+    res.cookie(AUTH_COOKIE, token, cookieOpts)
     return res.json({ token, user: profile })
   } catch (err) {
     console.error('[auth/login]', err)
@@ -217,7 +228,9 @@ router.get('/me', requireAuth, async (req: Request, res: Response) => {
   try {
     const user = await userQueries.publicProfile(req.user!.userId)
     if (!user) return res.status(404).json({ error: 'Użytkownik nie znaleziony' })
-    return res.json({ user })
+    const freshToken = signToken({ userId: req.user!.userId, username: req.user!.username })
+    res.cookie(AUTH_COOKIE, freshToken, cookieOpts)
+    return res.json({ user, token: freshToken })
   } catch (err) {
     console.error('[auth/me]', err)
     return res.status(500).json({ error: 'Błąd serwera' })
@@ -227,6 +240,7 @@ router.get('/me', requireAuth, async (req: Request, res: Response) => {
 router.post('/logout', requireAuth, async (req: Request, res: Response) => {
   try {
     await userQueries.updateStatus(req.user!.userId, 'offline')
+    res.clearCookie(AUTH_COOKIE, { path: '/' })
     return res.json({ ok: true })
   } catch (err) {
     console.error('[auth/logout]', err)
@@ -442,6 +456,7 @@ router.post('/2fa/verify-login', async (req: Request, res: Response) => {
     if (!user) return res.status(404).json({ error: 'Nie znaleziono użytkownika' })
     const token = signToken({ userId: payload.userId, username: user.username })
     await userQueries.updateStatus(payload.userId, 'online')
+    res.cookie(AUTH_COOKIE, token, cookieOpts)
     return res.json({ token, user })
   } catch (err) {
     console.error('[auth/2fa/verify-login]', err)

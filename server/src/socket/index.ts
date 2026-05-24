@@ -120,9 +120,13 @@ export function setupSocket(io: SocketIO) {
   _io = io
 
   io.use(async (socket, next) => {
-    const token = socket.handshake.auth?.token as string
-    if (!token) return next(new Error('Brak tokena'))
-    const payload = verifySocketToken(token)
+    const cookieHeader = socket.handshake.headers.cookie ?? ''
+    const cookieMatch  = cookieHeader.match(/(?:^|;\s*)pz_token=([^;]+)/)
+    const cookieToken  = cookieMatch ? decodeURIComponent(cookieMatch[1]) : null
+    const rawToken     = cookieToken || (socket.handshake.auth?.token as string | undefined)
+
+    if (!rawToken) return next(new Error('Brak tokena'))
+    const payload = verifySocketToken(rawToken)
     if (!payload) return next(new Error('Nieprawidłowy token'))
 
     const xff = socket.handshake.headers['x-forwarded-for']
@@ -130,6 +134,12 @@ export function setupSocket(io: SocketIO) {
               || socket.handshake.address || '0.0.0.0'
     const ipBan = await queryOne<{ reason: string }>('SELECT reason FROM banned_ips WHERE ip = ? LIMIT 1', [ip]).catch(() => null)
     if (ipBan) return next(new Error('IP_BANNED'))
+
+    const userBan = await queryOne<{ reason: string }>(
+      `SELECT reason FROM user_bans WHERE user_id = ? AND (expires_at IS NULL OR expires_at > NOW()) LIMIT 1`,
+      [payload.userId]
+    ).catch(() => null)
+    if (userBan) return next(new Error('BANNED'))
 
     socket.data.userId   = payload.userId
     socket.data.username = payload.username
