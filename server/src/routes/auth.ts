@@ -19,9 +19,10 @@ function isStrongPassword(p: string): boolean {
   return cats >= 3
 }
 
-const loginAttempts = new Map<string, { count: number; lockedUntil: number }>()
+const DUMMY_HASH = bcrypt.hashSync('__timing_protection_dummy__', 12)
 const resendCooldown = new Map<string, number>()
 const avatarRateMap  = new Map<string, number>()
+const twoFaAttempts  = new Map<string, { count: number; resetAt: number }>()
 
 const AUTH_COOKIE = 'pz_token'
 const cookieOpts = {
@@ -204,29 +205,35 @@ router.post('/login', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Wymagane pola: email, password' })
     }
 
-    const attemptKey = String(email).toLowerCase()
-    const attempt = loginAttempts.get(attemptKey)
-    if (attempt?.lockedUntil && attempt.lockedUntil > Date.now()) {
-      const remaining = Math.ceil((attempt.lockedUntil - Date.now()) / 60000)
+    const attemptKey = String(email).toLowerCase().slice(0, 254)
+
+    const lockRow = await queryOne<{ attempts: number; locked_until: string | null }>(
+      'SELECT attempts, locked_until FROM login_lockouts WHERE lookup_key = ?',
+      [attemptKey]
+    )
+    if (lockRow?.locked_until && new Date(lockRow.locked_until + 'Z') > new Date()) {
+      const remaining = Math.ceil((new Date(lockRow.locked_until + 'Z').getTime() - Date.now()) / 60000)
       return res.status(429).json({ error: `Konto zablokowane na ${remaining} min z powodu zbyt wielu nieudanych prób` })
     }
 
     const user = await userQueries.findByEmail(email)
-    if (!user) {
-      const rec = loginAttempts.get(attemptKey) ?? { count: 0, lockedUntil: 0 }
-      const n = rec.count + 1
-      loginAttempts.set(attemptKey, { count: n, lockedUntil: n >= 5 ? Date.now() + 15 * 60_000 : 0 })
+    const hashToCompare = user?.password_hash ?? DUMMY_HASH
+    const valid = await bcrypt.compare(password, hashToCompare)
+
+    if (!user || !valid) {
+      await execute(
+        `INSERT INTO login_lockouts (lookup_key, attempts, locked_until) VALUES (?, 1, NULL)
+         ON DUPLICATE KEY UPDATE
+           attempts = attempts + 1,
+           locked_until = CASE WHEN attempts + 1 >= 5
+             THEN DATE_ADD(UTC_TIMESTAMP(), INTERVAL 15 MINUTE)
+             ELSE locked_until END`,
+        [attemptKey]
+      )
       return res.status(401).json({ error: 'Nieprawidłowy email lub hasło' })
     }
 
-    const valid = await bcrypt.compare(password, user.password_hash)
-    if (!valid) {
-      const rec = loginAttempts.get(attemptKey) ?? { count: 0, lockedUntil: 0 }
-      const n = rec.count + 1
-      loginAttempts.set(attemptKey, { count: n, lockedUntil: n >= 5 ? Date.now() + 15 * 60_000 : 0 })
-      return res.status(401).json({ error: 'Nieprawidłowy email lub hasło' })
-    }
-    loginAttempts.delete(attemptKey)
+    await execute('DELETE FROM login_lockouts WHERE lookup_key = ?', [attemptKey])
 
     const verCheck = await queryOne<{ email_verified: number }>(
       'SELECT email_verified FROM users WHERE id = ?', [user.id]
@@ -474,6 +481,13 @@ router.post('/2fa/verify-login', async (req: Request, res: Response) => {
     const { tempToken, code } = req.body
     if (!tempToken || !code) return res.status(400).json({ error: 'Wymagane: tempToken, code' })
 
+    const ipKey = getClientIp(req)
+    const twoFaRec = twoFaAttempts.get(ipKey) ?? { count: 0, resetAt: Date.now() + 5 * 60_000 }
+    if (Date.now() > twoFaRec.resetAt) { twoFaRec.count = 0; twoFaRec.resetAt = Date.now() + 5 * 60_000 }
+    if (twoFaRec.count >= 10) {
+      return res.status(429).json({ error: 'Zbyt wiele prób weryfikacji 2FA, poczekaj 5 minut' })
+    }
+
     let payload: { userId: string; twoFaPending: boolean }
     try {
       const jwt = await import('jsonwebtoken')
@@ -489,7 +503,12 @@ router.post('/2fa/verify-login', async (req: Request, res: Response) => {
     if (!row?.totp_secret) return res.status(400).json({ error: 'Błąd konfiguracji 2FA' })
 
     const valid = totpVerify({ token: code, secret: row.totp_secret! })
-    if (!valid) return res.status(400).json({ error: 'Nieprawidłowy kod 2FA' })
+    if (!valid) {
+      twoFaRec.count++
+      twoFaAttempts.set(ipKey, twoFaRec)
+      return res.status(400).json({ error: 'Nieprawidłowy kod 2FA' })
+    }
+    twoFaAttempts.delete(ipKey)
 
     const user = await userQueries.publicProfile(payload.userId)
     if (!user) return res.status(404).json({ error: 'Nie znaleziono użytkownika' })
