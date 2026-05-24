@@ -178,6 +178,7 @@ function ChatScreen() {
   const [showVoicePanel, setShowVoicePanel] = useState(false)
   const [uploadingFile, setUploadingFile]   = useState(false)
   const [pendingAttachment, setPendingAttachment] = useState<{ id: string; url: string; filename: string; contentType: string; previewUrl?: string } | null>(null)
+  const [replyTo, setReplyTo] = useState<{ id: string; authorName: string; content: string } | null>(null)
   const endRef     = useRef<HTMLDivElement>(null)
   const inputRef   = useRef<HTMLTextAreaElement>(null)
   const fileRef    = useRef<HTMLInputElement>(null)
@@ -209,9 +210,10 @@ function ChatScreen() {
   function send() {
     const t = text.trim()
     if ((!t && !pendingAttachment) || !currentChannelId || !currentServerId) return
-    sendMessage(currentChannelId, currentServerId, t, undefined, undefined, pendingAttachment ? [pendingAttachment.id] : undefined)
+    sendMessage(currentChannelId, currentServerId, t, undefined, replyTo?.id, pendingAttachment ? [pendingAttachment.id] : undefined)
     setText('')
     setPendingAttachment(null)
+    setReplyTo(null)
     inputRef.current?.focus()
   }
 
@@ -339,42 +341,87 @@ function ChatScreen() {
         ) : null}
 
         {messages.map((msg: any) => {
-          const isMine = msg.author?.id === currentUser?.id || msg.userId === currentUser?.id
+          const isMine    = msg.author?.id === currentUser?.id || msg.userId === currentUser?.id
+          const isAdmin   = Boolean(msg.isAdminMsg)
+          const authorName = isAdmin ? 'Administrator Aplikacji' : (msg.author?.displayName ?? msg.author?.display_name ?? msg.author?.username ?? 'Użytkownik')
+          const timeStr   = msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString('pl', { hour: '2-digit', minute: '2-digit' }) : ''
+          const isGif     = typeof msg.content === 'string' && /^https?:\/\/(media\.tenor\.com|media[0-9]*\.giphy\.com|tenor\.com)/i.test(msg.content.trim())
           return (
             <div
               key={msg.id}
-              onTouchStart={e => onLongPressStart(msg.id, msg.content, msg.author?.display_name || msg.author?.username || '?', e.touches[0].clientY)}
+              onTouchStart={e => onLongPressStart(msg.id, msg.content, authorName, e.touches[0].clientY)}
               onTouchEnd={onLongPressEnd}
               onTouchMove={onLongPressEnd}
-              style={{ display: 'flex', gap: 10, padding: '4px 12px', background: ctxMenu?.msgId === msg.id ? 'rgba(255,255,255,0.04)' : 'transparent' }}
+              style={{
+                display: 'flex', gap: 10, padding: '4px 12px',
+                background: ctxMenu?.msgId === msg.id
+                  ? 'rgba(255,255,255,0.04)'
+                  : isAdmin ? 'rgba(124,58,237,0.06)' : 'transparent',
+                borderLeft: isAdmin ? '2px solid #7c3aed' : 'none',
+              }}
             >
-              <Av
-                url={msg.author?.avatar ?? msg.author?.avatar_url}
-                color={msg.author?.avatarColor ?? msg.author?.avatar_color ?? '#f59e0b'}
-                name={msg.author?.displayName ?? msg.author?.display_name ?? msg.author?.username ?? '?'}
-                size={32}
-              />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 2 }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--eb-text1)' }}>
-                    {msg.author?.displayName ?? msg.author?.display_name ?? msg.author?.username ?? 'Użytkownik'}
-                  </span>
-                  <span style={{ fontSize: 10, color: 'var(--eb-text3)' }}>
-                    {msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString('pl', { hour: '2-digit', minute: '2-digit' }) : ''}
-                  </span>
-                </div>
-                <div style={{ fontSize: 14, color: 'var(--eb-text2)', lineHeight: 1.45, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
-                  {msg.content}
-                </div>
-              </div>
-              {!isMine && (
-                <button
-                  onTouchStart={e => { e.stopPropagation(); setCtxMenu({ msgId: msg.id, content: msg.content, author: msg.author?.display_name || msg.author?.username || '?', y: 0 }) }}
-                  style={{ background: 'none', border: 'none', color: 'var(--eb-text3)', padding: '2px 4px', alignSelf: 'flex-start', flexShrink: 0 }}
-                >
-                  <IC.Flag />
-                </button>
+              {/* Avatar */}
+              {isAdmin ? (
+                <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg,#7c3aed,#4f46e5)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, flexShrink: 0, marginTop: 2 }}>⚡</div>
+              ) : (
+                <Av
+                  url={msg.author?.avatar ?? msg.author?.avatar_url}
+                  color={msg.author?.avatarColor ?? msg.author?.avatar_color ?? '#f59e0b'}
+                  name={authorName}
+                  size={32}
+                />
               )}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                {/* Reply reference */}
+                {msg.replyTo && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3, paddingLeft: 6, borderLeft: '2px solid var(--eb-accent)' }}>
+                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="var(--eb-text3)" strokeWidth="2.5"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--eb-accent)', flexShrink: 0 }}>{msg.replyTo.authorName}</span>
+                    <span style={{ fontSize: 11, color: 'var(--eb-text3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {/^https?:\/\/(media\.tenor\.com|media[0-9]*\.giphy\.com|tenor\.com)/i.test(msg.replyTo.content ?? '') ? '🖼 GIF' : msg.replyTo.content}
+                    </span>
+                  </div>
+                )}
+                {/* Header row */}
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 5, marginBottom: 2 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: isAdmin ? '#a78bfa' : 'var(--eb-text1)' }}>
+                    {authorName}
+                  </span>
+                  {isAdmin && (
+                    <span style={{ fontSize: 9, fontWeight: 600, color: '#a78bfa', background: 'rgba(124,58,237,0.18)', border: '0.5px solid rgba(124,58,237,0.5)', borderRadius: 4, padding: '1px 5px', letterSpacing: '0.03em' }}>⚡ ADMIN</span>
+                  )}
+                  <span style={{ fontSize: 10, color: 'var(--eb-text3)' }}>{timeStr}</span>
+                </div>
+                {/* Content */}
+                {isGif ? (
+                  <img src={msg.content.trim()} alt="GIF" style={{ borderRadius: 10, maxHeight: 160, maxWidth: '85%', objectFit: 'contain', display: 'block', marginTop: 2 }} />
+                ) : (
+                  <div style={{ fontSize: 14, color: 'var(--eb-text2)', lineHeight: 1.45, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
+                    {msg.content}
+                  </div>
+                )}
+                {/* Attachments */}
+                {(msg.attachments ?? []).length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                    {msg.attachments.map((a: any) => (
+                      a.contentType?.startsWith('image/') ? (
+                        <img key={a.id} src={a.previewUrl ?? a.url} alt={a.filename} style={{ borderRadius: 8, maxHeight: 160, maxWidth: '85%', objectFit: 'contain', display: 'block' }} />
+                      ) : (
+                        <a key={a.id} href={a.url} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--eb-bg3)', borderRadius: 8, padding: '6px 10px', fontSize: 12, color: 'var(--eb-accent)', textDecoration: 'none' }}>
+                          📎 {a.filename}
+                        </a>
+                      )
+                    ))}
+                  </div>
+                )}
+              </div>
+              {/* Action: reply */}
+              <button
+                onTouchStart={e => { e.stopPropagation(); setReplyTo({ id: msg.id, authorName, content: msg.content ?? '' }); inputRef.current?.focus() }}
+                style={{ background: 'none', border: 'none', color: 'var(--eb-text3)', padding: '2px 4px', alignSelf: 'flex-start', flexShrink: 0, opacity: 0.6 }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
+              </button>
             </div>
           )
         })}
@@ -383,6 +430,17 @@ function ChatScreen() {
 
       {/* Input */}
       <div style={{ background: 'var(--eb-bg1)', borderTop: '0.5px solid var(--eb-border)', paddingBottom: 'env(safe-area-inset-bottom, 0px)', flexShrink: 0 }}>
+        {replyTo && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px 0', borderBottom: '0.5px solid var(--eb-border)' }}>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--eb-accent)" strokeWidth="2.5"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
+            <span style={{ fontSize: 11, color: 'var(--eb-text3)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              Odpowiadasz <span style={{ color: 'var(--eb-accent)', fontWeight: 600 }}>{replyTo.authorName}</span>
+            </span>
+            <button onClick={() => setReplyTo(null)} style={{ background: 'none', border: 'none', color: 'var(--eb-text3)', cursor: 'pointer', padding: 2, flexShrink: 0 }}>
+              <IC.X />
+            </button>
+          </div>
+        )}
         {pendingAttachment && (
           <div style={{ padding: '8px 12px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
             {pendingAttachment.previewUrl
@@ -522,7 +580,13 @@ function ChatScreen() {
               Wiadomość od <strong style={{ color: 'var(--eb-text2)' }}>{ctxMenu.author}</strong>
             </div>
             <button
-              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', background: 'none', border: 'none', color: '#ef4444', fontSize: 14, cursor: 'pointer' }}
+              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', background: 'none', border: 'none', color: 'var(--eb-text2)', fontSize: 14, cursor: 'pointer' }}
+              onClick={() => { setReplyTo({ id: ctxMenu.msgId, authorName: ctxMenu.author, content: ctxMenu.content }); setCtxMenu(null); inputRef.current?.focus() }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg> Odpowiedz
+            </button>
+            <button
+              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', background: 'none', border: 'none', color: '#ef4444', fontSize: 14, cursor: 'pointer', borderTop: '0.5px solid var(--eb-border)' }}
               onClick={() => { setReportMsg({ id: ctxMenu.msgId, content: ctxMenu.content, author: ctxMenu.author }); setCtxMenu(null) }}
             >
               <IC.Flag /> Zgłoś wiadomość
