@@ -35,6 +35,7 @@ const PORT       = Number(process.env.PORT ?? 3001)
 const FRONTEND   = process.env.FRONTEND_URL ?? 'http://localhost:3000'
 
 app.set('trust proxy', 1)
+app.disable('x-powered-by')
 
 function isAllowedOrigin(origin: string | undefined): boolean {
   if (!origin) return true
@@ -55,7 +56,7 @@ app.use((_req, res, next) => {
   res.set('Cross-Origin-Resource-Policy', 'same-origin')
   res.set('Cross-Origin-Opener-Policy', 'same-origin')
   if (process.env.NODE_ENV === 'production') {
-    res.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
+    res.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload')
   }
   next()
 })
@@ -101,7 +102,16 @@ const messageLimiter = rateLimit({
   legacyHeaders:   false,
 })
 
+const socketioLimiter = rateLimit({
+  windowMs:        60 * 1000,
+  max:             60,
+  message:         { error: 'Zbyt wiele połączeń, poczekaj chwilę' },
+  standardHeaders: false,
+  legacyHeaders:   false,
+})
+
 app.use(globalLimiter)
+app.use('/socket.io', socketioLimiter)
 app.use('/api/livekit/webhook', express.raw({ type: '*/*' }))
 app.use(express.json({ limit: '2mb' }))
 app.use(express.urlencoded({ extended: true }))

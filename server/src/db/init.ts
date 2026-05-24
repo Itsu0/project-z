@@ -203,6 +203,19 @@ export async function runMigrations(): Promise<void> {
     console.warn('   ⚠ Tabela server_bans:', e.message)
   }
 
+  try {
+    await conn.query(`CREATE TABLE IF NOT EXISTS \`login_lockouts\` (
+      \`lookup_key\`   VARCHAR(255) NOT NULL,
+      \`attempts\`     INT          NOT NULL DEFAULT 0,
+      \`locked_until\` DATETIME     DEFAULT NULL,
+      \`updated_at\`   DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (\`lookup_key\`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`)
+    console.log('   ↳ Tabela login_lockouts OK')
+  } catch (e: any) {
+    console.warn('   ⚠ Tabela login_lockouts:', e.message)
+  }
+
   const forumTablesSql: string[] = [
     `CREATE TABLE IF NOT EXISTS \`forum_posts\` (
       \`id\`            CHAR(36)       NOT NULL,
