@@ -31,6 +31,7 @@ function TwoFAForm() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tempToken, code: code.replace(/\s/g, '') }),
+        credentials: 'include',
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? t('common.error'))
