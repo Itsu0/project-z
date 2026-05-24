@@ -132,6 +132,13 @@ export function DesktopSourcePicker({ onSelect, onClose }: { onSelect: (id: stri
   )
 }
 
+function latencyColor(ms: number): string {
+  if (ms < 60)  return '#22c55e'
+  if (ms < 150) return '#f59e0b'
+  if (ms < 300) return '#f97316'
+  return '#ef4444'
+}
+
 function SpeakingBars() {
   return (
     <div className="speaking-bars flex gap-px items-end" style={{ height: 10 }}>
@@ -192,6 +199,7 @@ export function VoiceDock() {
   const {
     participants, connecting, muted, deafened, screenSharing,
     connected, toggleMute, toggleDeafen, toggleScreenShare, startScreenShareFromSource, disconnect,
+    latency,
   } = useVoice()
 
   const t = useT()
@@ -242,6 +250,19 @@ export function VoiceDock() {
             background: connecting ? 'var(--eb-accent)' : muted ? 'var(--eb-accent2)' : 'var(--eb-online)',
             animation: 'pulse-dot 2s ease-in-out infinite',
           }} />
+        {!connecting && latency !== null && (
+          <div
+            className="text-[9px] font-mono font-semibold px-1.5 py-0.5 rounded-md flex-shrink-0"
+            title={`Opóźnienie: ${latency} ms`}
+            style={{
+              background: `${latencyColor(latency)}18`,
+              color: latencyColor(latency),
+              border: `0.5px solid ${latencyColor(latency)}55`,
+            }}
+          >
+            {latency}ms
+          </div>
+        )}
       </div>
 
       {}
