@@ -725,6 +725,7 @@ type UpdateCheckState = 'idle' | 'checking' | 'up-to-date' | 'available' | 'erro
 
 function TabAccount() {
   const { token, currentUser, clearAuth, patchUserSettings, userSettings } = useStore()
+  const lang = userSettings.language ?? 'pl'
   const t = useT()
   const router = useRouter()
   const [oldPass, setOldPass] = useState('')
@@ -937,6 +938,7 @@ function TabAccount() {
 }
 
 function TwoFASection({ token }: { token: string }) {
+  const t = useT()
   const [status,    setStatus]    = useState<'idle'|'loading'|'setup'|'enabled'|'disabling'>('idle')
   const [qrDataUrl, setQrDataUrl] = useState('')
   const [secret,    setSecret]    = useState('')
@@ -975,7 +977,7 @@ function TwoFASection({ token }: { token: string }) {
       })
       const d = await res.json()
       if (!res.ok) throw new Error(d.error)
-      setStatus('enabled'); setCode(''); setMsg('✓ 2FA włączone')
+      setStatus('enabled'); setCode(''); setMsg(t('settings.2fa.enabled'))
     } catch (e: any) { setMsg(e.message) }
   }
 
@@ -989,7 +991,7 @@ function TwoFASection({ token }: { token: string }) {
       })
       const d = await res.json()
       if (!res.ok) throw new Error(d.error)
-      setStatus('idle'); setCode(''); setMsg('2FA wyłączone')
+      setStatus('idle'); setCode(''); setMsg(t('settings.2fa.disabled'))
     } catch (e: any) { setMsg(e.message) }
   }
 
@@ -998,32 +1000,32 @@ function TwoFASection({ token }: { token: string }) {
       <div className="flex items-center justify-between mb-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--eb-text2)' }}>
-            Weryfikacja dwuskładnikowa (2FA)
+            {t('settings.2fa.title')}
           </p>
           <p className="text-xs mt-0.5" style={{ color: 'var(--eb-text3)' }}>
-            {status === 'enabled' ? 'Aktywne — Twoje konto jest chronione' : 'Dodaj dodatkową warstwę ochrony'}
+            {status === 'enabled' ? t('settings.2fa.active') : t('settings.2fa.inactive')}
           </p>
         </div>
         {status === 'enabled' && (
           <span className="text-xs font-semibold px-2 py-0.5 rounded-full"
-            style={{ background: 'rgba(34,197,94,0.15)', color: 'var(--eb-online)' }}>Aktywne</span>
+            style={{ background: 'rgba(34,197,94,0.15)', color: 'var(--eb-online)' }}>{t('settings.2fa.badge')}</span>
         )}
       </div>
 
       {status === 'idle' && (
         <button onClick={startSetup} className="ember-btn py-2 text-xs font-semibold">
-          Włącz 2FA
+          {t('settings.2fa.enable')}
         </button>
       )}
 
       {status === 'loading' && (
-        <p className="text-xs" style={{ color: 'var(--eb-text3)' }}>Generowanie kodu...</p>
+        <p className="text-xs" style={{ color: 'var(--eb-text3)' }}>{t('settings.2fa.generating')}</p>
       )}
 
       {status === 'setup' && (
         <div className="flex flex-col gap-3">
           <p className="text-xs" style={{ color: 'var(--eb-text2)' }}>
-            Zeskanuj kod QR aplikacją (Google Authenticator, Authy itp.), a następnie wpisz 6-cyfrowy kod.
+            {t('settings.2fa.scanQr')}
           </p>
           {qrDataUrl && (
             <div className="flex flex-col items-center gap-2">
@@ -1037,21 +1039,21 @@ function TwoFASection({ token }: { token: string }) {
             <input type="text" inputMode="numeric" maxLength={7} value={code} onChange={e => setCode(e.target.value)}
               placeholder="123 456" className="ember-input flex-1 px-3 py-2 text-sm text-center tracking-widest font-mono" />
             <button onClick={confirmEnable} disabled={code.replace(/\s/g,'').length !== 6}
-              className="ember-btn px-4 py-2 text-xs font-semibold">Potwierdź</button>
+              className="ember-btn px-4 py-2 text-xs font-semibold">{t('settings.2fa.confirm')}</button>
           </div>
         </div>
       )}
 
       {status === 'enabled' && (
         <div className="flex flex-col gap-2">
-          <p className="text-xs" style={{ color: 'var(--eb-text3)' }}>Podaj kod z aplikacji aby wyłączyć 2FA:</p>
+          <p className="text-xs" style={{ color: 'var(--eb-text3)' }}>{t('settings.2fa.enterToDisable')}</p>
           <div className="flex gap-2">
             <input type="text" inputMode="numeric" maxLength={7} value={code} onChange={e => setCode(e.target.value)}
               placeholder="123 456" className="ember-input flex-1 px-3 py-2 text-sm text-center tracking-widest font-mono" />
             <button onClick={disable} disabled={code.replace(/\s/g,'').length !== 6}
               className="px-4 py-2 text-xs font-semibold rounded-lg"
               style={{ background: 'rgba(220,38,38,0.12)', color: 'var(--eb-accent2)', border: '0.5px solid rgba(220,38,38,0.3)' }}>
-              Wyłącz
+              {t('settings.2fa.disable')}
             </button>
           </div>
         </div>
@@ -1065,6 +1067,7 @@ function TwoFASection({ token }: { token: string }) {
 }
 
 function DeleteAccountSection({ token, onDeleted }: { token: string; onDeleted: () => void }) {
+  const t = useT()
   const [open,     setOpen]     = useState(false)
   const [password, setPassword] = useState('')
   const [loading,  setLoading]  = useState(false)
@@ -1091,7 +1094,7 @@ function DeleteAccountSection({ token, onDeleted }: { token: string; onDeleted: 
       <button onClick={() => setOpen(true)}
         className="w-full py-2 text-xs font-medium transition-all hover:opacity-80"
         style={{ color: 'rgba(220,38,38,0.6)', background: 'none', border: 'none', cursor: 'pointer' }}>
-        Usuń konto
+        {t('settings.deleteAccount.title')}
       </button>
     )
   }
@@ -1099,24 +1102,21 @@ function DeleteAccountSection({ token, onDeleted }: { token: string; onDeleted: 
   return (
     <div className="p-4 rounded-xl flex flex-col gap-3"
       style={{ background: 'rgba(220,38,38,0.08)', border: '0.5px solid rgba(220,38,38,0.3)' }}>
-      <p className="text-xs font-semibold" style={{ color: 'var(--eb-accent2)' }}>Usuń konto</p>
-      <p className="text-xs" style={{ color: 'var(--eb-text2)' }}>
-        Ta akcja jest <strong>nieodwracalna</strong>. Wszystkie Twoje dane zostaną trwale usunięte.
-        Potwierdź hasłem.
-      </p>
+      <p className="text-xs font-semibold" style={{ color: 'var(--eb-accent2)' }}>{t('settings.deleteAccount.title')}</p>
+      <p className="text-xs" style={{ color: 'var(--eb-text2)' }}>{t('settings.deleteAccount.warning')}</p>
       <input type="password" value={password} onChange={e => setPassword(e.target.value)}
-        placeholder="Twoje hasło" className="ember-input w-full px-3 py-2 text-sm" />
+        placeholder={t('settings.deleteAccount.passwordPlaceholder')} className="ember-input w-full px-3 py-2 text-sm" />
       {error && <p className="text-xs" style={{ color: 'var(--eb-accent2)' }}>{error}</p>}
       <div className="flex gap-2">
         <button onClick={() => { setOpen(false); setPassword(''); setError('') }}
           className="flex-1 py-2 rounded-lg text-xs"
           style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--eb-text2)', border: 'none', cursor: 'pointer' }}>
-          Anuluj
+          {t('settings.deleteAccount.cancel')}
         </button>
         <button onClick={deleteAccount} disabled={loading || !password}
           className="flex-1 py-2 rounded-lg text-xs font-semibold"
           style={{ background: 'rgba(220,38,38,0.25)', color: '#f87171', border: '0.5px solid rgba(220,38,38,0.4)', cursor: 'pointer', opacity: loading || !password ? 0.5 : 1 }}>
-          {loading ? 'Usuwanie...' : 'Usuń konto'}
+          {loading ? t('settings.deleteAccount.deleting') : t('settings.deleteAccount.btn')}
         </button>
       </div>
     </div>
@@ -1125,6 +1125,7 @@ function DeleteAccountSection({ token, onDeleted }: { token: string; onDeleted: 
 
 function TabFriends() {
   const { token } = useStore()
+  const t = useT()
   const [friends,  setFriends]  = useState<any[]>([])
   const [incoming, setIncoming] = useState<any[]>([])
   const [outgoing, setOutgoing] = useState<any[]>([])
@@ -1173,7 +1174,7 @@ function TabFriends() {
       })
       const d = await res.json()
       if (!res.ok) throw new Error(d.error)
-      setMsg(d.accepted ? 'Znajomy dodany!' : 'Zaproszenie wysłane!')
+      setMsg(d.accepted ? t('settings.friends.added') : t('settings.friends.sent'))
       load()
     } catch (e: any) { setMsg(e.message) }
   }
@@ -1203,9 +1204,9 @@ function TabFriends() {
   }
 
   const TABS = [
-    { id: 'friends',  label: `Znajomi (${friends.length})` },
-    { id: 'requests', label: `Zaproszenia${incoming.length > 0 ? ` (${incoming.length})` : ''}` },
-    { id: 'add',      label: 'Dodaj znajomego' },
+    { id: 'friends',  label: t('settings.friends.tabFriends', { n: friends.length }) },
+    { id: 'requests', label: t('settings.friends.tabRequests') + (incoming.length > 0 ? ` (${incoming.length})` : '') },
+    { id: 'add',      label: t('settings.friends.tabAdd') },
   ] as const
 
   return (
@@ -1228,7 +1229,7 @@ function TabFriends() {
       {tab === 'friends' && (
         <div className="flex flex-col gap-2">
           {friends.length === 0 ? (
-            <p className="text-sm text-center py-6" style={{ color: 'var(--eb-text3)' }}>Brak znajomych. Dodaj kogoś!</p>
+            <p className="text-sm text-center py-6" style={{ color: 'var(--eb-text3)' }}>{t('settings.friends.noFriends')}</p>
           ) : friends.map(f => (
             <div key={f.id} className="flex items-center gap-3 p-3 rounded-xl"
               style={{ background: 'rgba(255,255,255,0.03)', border: '0.5px solid var(--eb-border)' }}>
@@ -1243,7 +1244,7 @@ function TabFriends() {
               <button onClick={() => removeFriend(f.id)}
                 className="text-xs px-2.5 py-1 rounded-lg"
                 style={{ background: 'rgba(220,38,38,0.1)', color: 'var(--eb-accent2)', border: '0.5px solid rgba(220,38,38,0.2)' }}>
-                Usuń
+                {t('settings.friends.remove')}
               </button>
             </div>
           ))}
@@ -1254,7 +1255,7 @@ function TabFriends() {
         <div className="flex flex-col gap-3">
           {incoming.length > 0 && (
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--eb-text3)' }}>Przychodzące</p>
+              <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--eb-text3)' }}>{t('settings.friends.incoming')}</p>
               {incoming.map(r => (
                 <div key={r.id} className="flex items-center gap-3 p-3 rounded-xl mb-2"
                   style={{ background: 'rgba(255,255,255,0.03)', border: '0.5px solid var(--eb-border)' }}>
@@ -1267,10 +1268,10 @@ function TabFriends() {
                     <p className="text-xs" style={{ color: 'var(--eb-text3)' }}>@{r.username}</p>
                   </div>
                   <div className="flex gap-1.5">
-                    <button onClick={() => accept(r.id)} className="ember-btn px-3 py-1 text-xs">Akceptuj</button>
+                    <button onClick={() => accept(r.id)} className="ember-btn px-3 py-1 text-xs">{t('settings.friends.accept')}</button>
                     <button onClick={() => decline(r.id)} className="px-3 py-1 text-xs rounded-lg"
                       style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--eb-text2)', border: '0.5px solid var(--eb-border)' }}>
-                      Odrzuć
+                      {t('settings.friends.decline')}
                     </button>
                   </div>
                 </div>
@@ -1279,24 +1280,24 @@ function TabFriends() {
           )}
           {outgoing.length > 0 && (
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--eb-text3)' }}>Wysłane</p>
+              <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--eb-text3)' }}>{t('settings.friends.outgoing')}</p>
               {outgoing.map(r => (
                 <div key={r.id} className="flex items-center gap-3 p-3 rounded-xl mb-2"
                   style={{ background: 'rgba(255,255,255,0.03)', border: '0.5px solid var(--eb-border)' }}>
                   <div className="flex-1">
                     <p className="text-sm" style={{ color: 'var(--eb-text1)' }}>{r.display_name}</p>
-                    <p className="text-xs" style={{ color: 'var(--eb-text3)' }}>@{r.username} · oczekuje</p>
+                    <p className="text-xs" style={{ color: 'var(--eb-text3)' }}>@{r.username} · {t('settings.friends.pending')}</p>
                   </div>
                   <button onClick={() => decline(r.id)} className="px-3 py-1 text-xs rounded-lg"
                     style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--eb-text2)', border: '0.5px solid var(--eb-border)' }}>
-                    Cofnij
+                    {t('settings.friends.cancelRequest')}
                   </button>
                 </div>
               ))}
             </div>
           )}
           {incoming.length === 0 && outgoing.length === 0 && (
-            <p className="text-sm text-center py-6" style={{ color: 'var(--eb-text3)' }}>Brak zaproszeń</p>
+            <p className="text-sm text-center py-6" style={{ color: 'var(--eb-text3)' }}>{t('settings.friends.noRequests')}</p>
           )}
         </div>
       )}
@@ -1304,9 +1305,9 @@ function TabFriends() {
       {tab === 'add' && (
         <div className="flex flex-col gap-3">
           <input type="text" value={search} onChange={e => searchUsers(e.target.value)}
-            placeholder="Szukaj po nazwie użytkownika..."
+            placeholder={t('settings.friends.searchPlaceholder')}
             className="ember-input w-full px-4 py-2.5 text-sm" />
-          {searching && <p className="text-xs" style={{ color: 'var(--eb-text3)' }}>Szukam...</p>}
+          {searching && <p className="text-xs" style={{ color: 'var(--eb-text3)' }}>{t('settings.friends.searching')}</p>}
           <div className="flex flex-col gap-2">
             {searchRes.map(u => (
               <div key={u.id} className="flex items-center gap-3 p-3 rounded-xl"
@@ -1320,7 +1321,7 @@ function TabFriends() {
                   <p className="text-xs" style={{ color: 'var(--eb-text3)' }}>@{u.username}</p>
                 </div>
                 <button onClick={() => sendRequest(u.id)} className="ember-btn px-3 py-1 text-xs">
-                  Dodaj
+                  {t('settings.friends.add')}
                 </button>
               </div>
             ))}
@@ -1336,12 +1337,13 @@ interface Props { onClose: () => void }
 export function UserSettings({ onClose }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>('audio')
   const t = useT()
+  const lang = useStore(s => s.userSettings.language ?? 'pl')
 
   const TABS: { id: Tab; label: string; icon: string }[] = [
     { id: 'profil',   label: t('settings.tab.profile'),    icon: '👤' },
     { id: 'audio',   label: t('settings.tab.audio'),      icon: '🎤' },
     { id: 'wygląd',  label: t('settings.tab.appearance'), icon: '🎨' },
-    { id: 'znajomi', label: 'Znajomi',                    icon: '👥' },
+    { id: 'znajomi', label: t('settings.tab.friends'),     icon: '👥' },
     { id: 'konto',   label: t('settings.tab.account'),    icon: '🔐' },
   ]
 
@@ -1374,13 +1376,13 @@ export function UserSettings({ onClose }: Props) {
 
           <div className="px-2 pt-2 border-t mt-2" style={{ borderColor: 'var(--eb-border)' }}>
             <div className="px-3 pb-2 flex gap-3">
-              <a href="/terms" target="_blank" rel="noreferrer"
+              <a href={`/terms?lang=${lang}`} target="_blank" rel="noreferrer"
                 className="text-[10px] hover:underline" style={{ color: 'var(--eb-text3)' }}>
-                Regulamin
+                {t('settings.link.terms')}
               </a>
-              <a href="/privacy" target="_blank" rel="noreferrer"
+              <a href={`/privacy?lang=${lang}`} target="_blank" rel="noreferrer"
                 className="text-[10px] hover:underline" style={{ color: 'var(--eb-text3)' }}>
-                Prywatność
+                {t('settings.link.privacy')}
               </a>
             </div>
             <button onClick={onClose}

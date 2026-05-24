@@ -1,10 +1,12 @@
 'use client'
 import { useState, FormEvent } from 'react'
 import Link from 'next/link'
+import { useT } from '@/lib/i18n'
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
 export default function ForgotPasswordPage() {
+  const t = useT()
   const [email,   setEmail]   = useState('')
   const [loading, setLoading] = useState(false)
   const [sent,    setSent]    = useState(false)
@@ -21,10 +23,10 @@ export default function ForgotPasswordPage() {
         body: JSON.stringify({ email }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Błąd serwera')
+      if (!res.ok) throw new Error(data.error ?? t('common.serverError'))
       setSent(true)
     } catch (err: any) {
-      setError(err.message ?? 'Błąd serwera')
+      setError(err.message ?? t('common.serverError'))
     } finally {
       setLoading(false)
     }
@@ -36,12 +38,10 @@ export default function ForgotPasswordPage() {
         <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-bold text-2xl mb-4"
           style={{ background: 'linear-gradient(135deg,#dc2626,#f59e0b)' }}>N</div>
         <h1 className="text-2xl font-semibold" style={{ color: 'var(--eb-text1)' }}>
-          {sent ? 'Sprawdź email' : 'Resetowanie hasła'}
+          {sent ? t('auth.forgot.titleSent') : t('auth.forgot.title')}
         </h1>
         <p className="text-sm mt-1 text-center" style={{ color: 'var(--eb-text2)' }}>
-          {sent
-            ? 'Jeśli konto istnieje, wysłaliśmy link resetujący'
-            : 'Podaj adres email powiązany z kontem'}
+          {sent ? t('auth.forgot.subtitleSent') : t('auth.forgot.subtitle')}
         </p>
       </div>
 
@@ -58,20 +58,19 @@ export default function ForgotPasswordPage() {
               </svg>
             </div>
             <p className="text-sm" style={{ color: 'var(--eb-text2)' }}>
-              Jeśli podany adres <strong style={{ color: 'var(--eb-text1)' }}>{email}</strong> jest zarejestrowany,
-              otrzymasz wiadomość z linkiem do resetowania hasła. Link wygaśnie po <strong style={{ color: 'var(--eb-text1)' }}>30 minutach</strong>.
+              {t('auth.forgot.sentMsg', { email })}
             </p>
-            <p className="text-xs" style={{ color: 'var(--eb-text3)' }}>Nie widzisz emaila? Sprawdź folder spam.</p>
+            <p className="text-xs" style={{ color: 'var(--eb-text3)' }}>{t('auth.forgot.spamHint')}</p>
           </div>
         ) : (
           <form onSubmit={onSubmit} className="flex flex-col gap-5">
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold tracking-wide uppercase" style={{ color: 'var(--eb-text2)' }}>
-                Adres email
+                {t('auth.forgot.emailLabel')}
               </label>
               <input
                 type="email" value={email} onChange={e => setEmail(e.target.value)}
-                required autoFocus placeholder="twoj@email.com"
+                required autoFocus placeholder="you@example.com"
                 className="ember-input w-full px-4 py-3" style={{ fontSize: 16 }}
               />
             </div>
@@ -88,14 +87,14 @@ export default function ForgotPasswordPage() {
 
             <button type="submit" disabled={loading} className="ember-btn w-full mt-1"
               style={{ minHeight: 44, fontSize: 14, fontWeight: 600, opacity: loading ? 0.7 : 1 }}>
-              {loading ? 'Wysyłanie...' : 'Wyślij link resetujący'}
+              {loading ? t('auth.forgot.submitting') : t('auth.forgot.submit')}
             </button>
           </form>
         )}
 
         <p className="text-center text-sm mt-6" style={{ color: 'var(--eb-text2)' }}>
           <Link href="/auth/login" className="font-semibold hover:underline" style={{ color: 'var(--eb-accent)' }}>
-            ← Wróć do logowania
+            {t('auth.forgot.backToLogin')}
           </Link>
         </p>
       </div>

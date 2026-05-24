@@ -3,10 +3,12 @@ import { useState, FormEvent, useEffect, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useStore } from '@/lib/store'
 import { tokenStore } from '@/lib/api'
+import { useT } from '@/lib/i18n'
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
 function TwoFAForm() {
+  const t = useT()
   const searchParams = useSearchParams()
   const router = useRouter()
   const { setAuth } = useStore()
@@ -31,7 +33,7 @@ function TwoFAForm() {
         body: JSON.stringify({ tempToken, code: code.replace(/\s/g, '') }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Nieprawidłowy kod')
+      if (!res.ok) throw new Error(data.error ?? t('common.error'))
       tokenStore.set(data.token)
       setAuth(data.token, data.user)
       router.push('/')
@@ -48,9 +50,9 @@ function TwoFAForm() {
       <div className="flex flex-col items-center mb-8">
         <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-bold text-2xl mb-4"
           style={{ background: 'linear-gradient(135deg,#dc2626,#f59e0b)' }}>N</div>
-        <h1 className="text-2xl font-semibold" style={{ color: 'var(--eb-text1)' }}>Weryfikacja dwuskładnikowa</h1>
+        <h1 className="text-2xl font-semibold" style={{ color: 'var(--eb-text1)' }}>{t('auth.2fa.title')}</h1>
         <p className="text-sm mt-1 text-center" style={{ color: 'var(--eb-text2)' }}>
-          Podaj 6-cyfrowy kod z aplikacji uwierzytelniającej
+          {t('auth.2fa.subtitle')}
         </p>
       </div>
 
@@ -59,7 +61,7 @@ function TwoFAForm() {
         <form onSubmit={onSubmit} className="flex flex-col gap-5">
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-semibold tracking-wide uppercase" style={{ color: 'var(--eb-text2)' }}>
-              Kod 2FA
+              {t('auth.2fa.label')}
             </label>
             <input
               type="text" inputMode="numeric" pattern="[0-9 ]*" maxLength={7}
@@ -81,7 +83,7 @@ function TwoFAForm() {
 
           <button type="submit" disabled={loading || code.replace(/\s/g,'').length !== 6}
             className="ember-btn w-full" style={{ minHeight: 44, fontSize: 14, fontWeight: 600, opacity: loading ? 0.7 : 1 }}>
-            {loading ? 'Weryfikowanie...' : 'Potwierdź'}
+            {loading ? t('auth.2fa.verifying') : t('auth.2fa.submit')}
           </button>
         </form>
       </div>
