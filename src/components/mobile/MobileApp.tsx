@@ -582,38 +582,87 @@ function ChatScreen() {
 }
 
 /* ─── Members Screen ────────────────────────────────────────────── */
+const ROLE_META: Record<string, { color: string; icon: string }> = {
+  'Administrator': { color: '#f87171', icon: '👑' },
+  'Moderator':     { color: '#fb923c', icon: '🛡' },
+  'Członek':       { color: '#60a5fa', icon: '✅' },
+  'Do Weryfikacji':{ color: '#94a3b8', icon: '⏳' },
+}
+const ROLE_ORDER = ['Administrator', 'Moderator', 'Członek', 'Do Weryfikacji']
+
 function MembersScreen() {
   const members          = useStore(s => s.members)
+  const token            = useStore(s => s.token)
   const currentServerId  = useStore(s => s.currentServerId)
   const serverMembers    = currentServerId ? (members[currentServerId] ?? []) : []
-  const online           = serverMembers.filter(m => m.status === 'online' || m.status === 'idle' || m.status === 'dnd')
-  const offline          = serverMembers.filter(m => !['online', 'idle', 'dnd'].includes(m.status))
+  const [memberRoles, setMemberRoles] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    if (!token || !currentServerId || serverMembers.length === 0) return
+    let cancelled = false
+    const fetchRoles = async () => {
+      const result: Record<string, string> = {}
+      await Promise.all(serverMembers.map(async m => {
+        try {
+          const res = await fetch(`${BASE}/api/servers/${currentServerId}/members/${m.user_id}/roles`, {
+            headers: { Authorization: `Bearer ${token}` },
+          })
+          const data = await res.json()
+          const roles: any[] = data.roles ?? []
+          const top = roles.filter(r => ROLE_META[r.name]).sort((a, b) => b.position - a.position)[0]
+          if (top) result[m.user_id] = top.name
+        } catch {}
+      }))
+      if (!cancelled) setMemberRoles(result)
+    }
+    fetchRoles()
+    return () => { cancelled = true }
+  }, [token, currentServerId, serverMembers.length])
+
+  const sorted = [...serverMembers].sort((a, b) => {
+    const ia = ROLE_ORDER.indexOf(memberRoles[a.user_id] ?? '')
+    const ib = ROLE_ORDER.indexOf(memberRoles[b.user_id] ?? '')
+    if (ia === -1 && ib === -1) return 0
+    if (ia === -1) return 1
+    if (ib === -1) return -1
+    return ia - ib
+  })
+
+  const online  = sorted.filter(m => m.status !== 'offline')
+  const offline = sorted.filter(m => m.status === 'offline')
 
   const statusColor = (s: string) => s === 'online' ? 'var(--eb-online)' : s === 'idle' ? 'var(--eb-accent)' : s === 'dnd' ? 'var(--eb-accent2)' : 'var(--eb-text3)'
 
-  const Row = ({ m, dim = false }: { m: any; dim?: boolean }) => (
+  const Row = ({ m, dim = false }: { m: any; dim?: boolean }) => {
+    const roleName = memberRoles[m.user_id]
+    const roleMeta = roleName ? ROLE_META[roleName] : null
+    return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', borderBottom: '0.5px solid var(--eb-border)', opacity: dim ? 0.45 : 1 }}>
       <div style={{ position: 'relative', flexShrink: 0 }}>
         <Av url={m.avatar_url} color={m.avatar_color} name={m.display_name || m.username} size={38} />
         <div style={{ position: 'absolute', bottom: 0, right: 0, width: 10, height: 10, borderRadius: '50%', background: statusColor(m.status), border: '2px solid var(--eb-bg1)' }} />
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--eb-text1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {m.display_name || m.username}
+        <div style={{ fontSize: 14, fontWeight: 500, color: roleMeta ? roleMeta.color : 'var(--eb-text1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {m.nickname || m.display_name || m.username}
         </div>
         {m.custom_status && <div style={{ fontSize: 12, color: 'var(--eb-text3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.custom_status}</div>}
       </div>
-      {Boolean(m.is_dev || m.is_mod) ? (
-        <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 8, background: m.is_dev ? 'rgba(168,85,247,0.15)' : 'rgba(245,158,11,0.12)', color: m.is_dev ? 'var(--eb-purple)' : 'var(--eb-accent)' }}>
-          {m.is_dev ? 'DEV' : 'MOD'}
-        </span>
-      ) : m.roles?.length > 0 ? (
-        <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 8, background: m.roles[0].color ? `${m.roles[0].color}26` : 'rgba(255,255,255,0.06)', color: m.roles[0].color || 'var(--eb-text3)', maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {m.roles[0].name}
-        </span>
-      ) : null}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3, flexShrink: 0 }}>
+        {roleMeta && (
+          <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 20, background: `${roleMeta.color}18`, color: roleMeta.color, border: `0.5px solid ${roleMeta.color}40`, whiteSpace: 'nowrap' }}>
+            {roleMeta.icon} {roleName}
+          </span>
+        )}
+        {Boolean(m.is_dev || m.is_mod) && (
+          <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 20, background: m.is_dev ? 'rgba(168,85,247,0.15)' : 'rgba(245,158,11,0.12)', color: m.is_dev ? 'var(--eb-purple)' : 'var(--eb-accent)' }}>
+            {m.is_dev ? 'DEV' : 'MOD'}
+          </span>
+        )}
+      </div>
     </div>
-  )
+    )
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
