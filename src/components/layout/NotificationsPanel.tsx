@@ -32,10 +32,23 @@ interface PatchRelease { version: string; date: string; labelPl: string; labelEn
 
 const PATCH_NOTES: PatchRelease[] = [
   {
-    version: '0.7.0',
+    version: '0.7.1',
     date: '2026-05-24',
     labelPl: 'Najnowsza',
     labelEn: 'Latest',
+    entries: [
+      { type: 'new', pl: 'Opóźnienie na kanałach głosowych — wskaźnik ping w ms obok statusu połączenia; kolor zmienia się w zależności od jakości (zielony / żółty / pomarańczowy / czerwony)', en: 'Voice channel latency — ping indicator in ms next to connection status; colour changes based on quality (green / yellow / orange / red)' },
+      { type: 'fix', pl: 'Logowanie — naprawiono błąd uniemożliwiający zalogowanie się w przeglądarce (nieprawidłowy zakres cookie między subdomenami)', en: 'Login — fixed an issue that prevented signing in via the browser (incorrect cookie scope across subdomains)' },
+      { type: 'fix', pl: 'Czcionki — naprawiono blokowanie fontów Google przez politykę CSP; interfejs wyświetla się poprawnie na wszystkich przeglądarkach', en: 'Fonts — fixed Google Fonts being blocked by CSP policy; interface now renders correctly on all browsers' },
+      { type: 'fix', pl: 'Powiadomienia i wiadomości — naprawiono błąd serwera (HTTP 500) przy ładowaniu historii', en: 'Notifications and messages — fixed server error (HTTP 500) when loading history' },
+      { type: 'imp', pl: 'Bezpieczeństwo — wzmocniona ochrona konta: blokada po nieudanych próbach logowania działa nawet po restarcie serwera; dodano limit prób weryfikacji 2FA', en: 'Security — strengthened account protection: login lockout after failed attempts now persists through server restarts; 2FA verification attempt limit added' },
+    ],
+  },
+  {
+    version: '0.7.0',
+    date: '2026-05-24',
+    labelPl: '',
+    labelEn: '',
     entries: [
       { type: 'new', pl: 'Znajomi — wysyłanie/akceptowanie/odrzucanie zaproszeń, usuwanie znajomych, wyszukiwanie użytkowników', en: 'Friends — send/accept/decline requests, remove friends, search for users' },
       { type: 'new', pl: 'Weryfikacja dwuskładnikowa (2FA) — konfiguracja przez aplikację TOTP (Google Authenticator, Authy itp.)', en: 'Two-factor authentication (2FA) — setup via TOTP app (Google Authenticator, Authy, etc.)' },
