@@ -8,6 +8,7 @@ import { useMessages } from '@/hooks/useMessages'
 import { ReportModal } from '@/components/chat/ReportModal'
 import { UserSettings } from '@/components/settings/UserSettings'
 import { EmojiPicker } from '@/components/chat/EmojiPicker'
+import { ForumView } from '@/components/forum/ForumView'
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
@@ -310,12 +311,24 @@ function ChatScreen() {
         )
       })()}
 
-      {/* Messages */}
+      {/* Forum channel */}
+      {currentChannel?.type === 'forum' && (
+        <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+          <ForumView
+            channelId={currentChannel.id}
+            channelName={currentChannel.name}
+            channelTopic={(currentChannel as any).topic ?? ''}
+          />
+        </div>
+      )}
+
+      {/* Messages + Input (text/announcement channels only) */}
+      {currentChannel?.type !== 'forum' && (<>
       <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '4px 0' }}
         onClick={() => setCtxMenu(null)}>
         {!currentChannel ? (
           <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--eb-text3)', fontSize: 13 }}>
-            Wybierz serwer i kanał z menu ☰
+            Wybierz kanał
           </div>
         ) : loading ? (
           <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--eb-text3)', fontSize: 13 }}>Ładowanie...</div>
@@ -418,6 +431,7 @@ function ChatScreen() {
           </button>
         </div>
       </div>
+      </>)}
 
       {showEmoji && currentChannelId && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 400, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
