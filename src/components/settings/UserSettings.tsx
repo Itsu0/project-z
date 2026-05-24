@@ -763,10 +763,13 @@ function TabAccount() {
     }
   }
 
-  function logout() {
+  async function logout() {
+    try {
+      await fetch(`${BASE}/api/auth/logout`, { method: 'POST', credentials: 'include' })
+    } catch {}
     clearAuth()
     tokenStore.clear()
-    router.push('/auth/login')
+    window.location.href = '/auth/login'
   }
 
   function changeLanguage(lang: 'pl' | 'en') {

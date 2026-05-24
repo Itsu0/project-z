@@ -286,7 +286,7 @@ router.get('/me', requireAuth, async (req: Request, res: Response) => {
 router.post('/logout', requireAuth, async (req: Request, res: Response) => {
   try {
     await userQueries.updateStatus(req.user!.userId, 'offline')
-    res.clearCookie(AUTH_COOKIE, { path: '/' })
+    res.clearCookie(AUTH_COOKIE, { path: '/', ...(process.env.COOKIE_DOMAIN ? { domain: process.env.COOKIE_DOMAIN } : {}) })
     return res.json({ ok: true })
   } catch (err) {
     console.error('[auth/logout]', err)
