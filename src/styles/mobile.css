@@ -5,7 +5,11 @@
 /* ─── Shared mobile base ─────────────────────────────────────────── */
 @media (max-width: 767px) {
   html, body { overscroll-behavior:none; -webkit-overflow-scrolling:touch; }
+  .hide-scrollbar { scrollbar-width:none; }
+  .hide-scrollbar::-webkit-scrollbar { display:none; }
 }
+[data-platform="mobile"] .hide-scrollbar { scrollbar-width:none; }
+[data-platform="mobile"] .hide-scrollbar::-webkit-scrollbar { display:none; }
 [data-platform="mobile"] html,
 [data-platform="mobile"] body { overscroll-behavior:none; -webkit-overflow-scrolling:touch; }
 
@@ -45,6 +49,16 @@
 [data-platform="mobile"] .mobile-drawer.open { transform:translateX(0); }
 [data-platform="mobile"] .mobile-drawer-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:190; opacity:0; pointer-events:none; transition:opacity 0.28s; }
 [data-platform="mobile"] .mobile-drawer-overlay.open { opacity:1; pointer-events:auto; }
+
+/* ─── Mobile channel tab strip (matches desktop server-tab) ─────── */
+@media (max-width: 767px) {
+  .server-tab { @apply flex items-center gap-1 rounded-[9px] cursor-pointer transition-all duration-150 whitespace-nowrap; flex-shrink:0; padding:5px 10px; font-size:12px; color:var(--eb-text2); background:none; border:none; -webkit-tap-highlight-color:transparent; }
+  .server-tab:active { color:var(--eb-text1); background:rgba(255,255,255,0.04); }
+  .server-tab.active { background:var(--eb-gradient); color:#fff; font-weight:500; }
+}
+[data-platform="mobile"] .server-tab { @apply flex items-center gap-1 rounded-[9px] cursor-pointer transition-all duration-150 whitespace-nowrap; flex-shrink:0; padding:5px 10px; font-size:12px; color:var(--eb-text2); background:none; border:none; -webkit-tap-highlight-color:transparent; }
+[data-platform="mobile"] .server-tab:active { color:var(--eb-text1); background:rgba(255,255,255,0.04); }
+[data-platform="mobile"] .server-tab.active { background:var(--eb-gradient); color:#fff; font-weight:500; }
 
 /* ─── Mobile server + channel lists ──────────────────────────────── */
 @media (max-width: 767px) {
