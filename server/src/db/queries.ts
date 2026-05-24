@@ -127,7 +127,7 @@ export const userQueries = {
     const row = await queryOne<Omit<DbUser, 'password_hash' | 'email'>>(
       `SELECT id, username, display_name,
               CASE WHEN LENGTH(avatar_url) > 512 THEN avatar_url ELSE NULL END AS avatar_url,
-              avatar_color, status, custom_status, is_dev, is_mod, created_at
+              avatar_color, status, custom_status, is_dev, is_mod, totp_enabled, created_at
        FROM users WHERE id = ?`,
       [id]
     )
