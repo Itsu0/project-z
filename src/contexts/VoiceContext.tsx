@@ -74,6 +74,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   const roomRef           = useRef<any>(null)
   const pendingChannelId  = useRef<string | null>(null)
   const rttIntervalRef    = useRef<ReturnType<typeof setInterval> | null>(null)
+  const rttInitRef        = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const sendToOverlay = useCallback((parts: VoiceParticipant[]) => {
     try { (window as any).electronPZ?.updateOverlayParticipants?.(parts) } catch {}
@@ -270,26 +271,39 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   const vadCleanupRef      = useRef<(() => void) | null>(null)
   const lastDisconnectRef  = useRef<number>(0)
 
+  const measureRtt = useCallback(async () => {
+    const room = roomRef.current
+    if (!room) return
+    try {
+      const engine = (room as any).engine
+      const pcs: RTCPeerConnection[] = []
+      for (const key of ['publisher', '_publisher', 'subscriber', '_subscriber']) {
+        const pc = engine?.[key]?.pc
+        if (pc && typeof pc.getStats === 'function') pcs.push(pc)
+      }
+      if (pcs.length === 0) return
+      let best: number | null = null
+      for (const pc of pcs) {
+        try {
+          const stats = await pc.getStats()
+          stats.forEach((r: any) => {
+            if (r.type === 'candidate-pair' && r.currentRoundTripTime != null) {
+              const ms = Math.round(r.currentRoundTripTime * 1000)
+              if (best === null || ms < best) best = ms
+            }
+          })
+        } catch {}
+      }
+      if (best !== null) setLatency(best)
+    } catch {}
+  }, [])
+
   const startRttMeasurement = useCallback(() => {
     if (rttIntervalRef.current) clearInterval(rttIntervalRef.current)
-    rttIntervalRef.current = setInterval(async () => {
-      const room = roomRef.current
-      if (!room) return
-      try {
-        const pc = (room.engine as any)?.subscriber?.pc
-               ?? (room.engine as any)?.publisher?.pc
-        if (!pc) return
-        const stats: RTCStatsReport = await pc.getStats()
-        let rtt: number | null = null
-        stats.forEach((r: any) => {
-          if (r.type === 'candidate-pair' && r.nominated && r.currentRoundTripTime != null) {
-            rtt = Math.round(r.currentRoundTripTime * 1000)
-          }
-        })
-        if (rtt !== null) setLatency(rtt)
-      } catch {}
-    }, 3000)
-  }, [])
+    if (rttInitRef.current) clearTimeout(rttInitRef.current)
+    rttInitRef.current = setTimeout(measureRtt, 1500)
+    rttIntervalRef.current = setInterval(measureRtt, 3000)
+  }, [measureRtt])
 
   const connectWithDevices = useCallback(async (overrides?: { profile?: string; input?: string; output?: string }) => {
     const channelId = pendingChannelId.current
@@ -389,6 +403,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           document.querySelectorAll('video').forEach(e => e.remove())
           vadCleanupRef.current?.(); vadCleanupRef.current = null
           if (rttIntervalRef.current) { clearInterval(rttIntervalRef.current); rttIntervalRef.current = null }
+          if (rttInitRef.current) { clearTimeout(rttInitRef.current); rttInitRef.current = null }
           setParticipants([]); setMuted(false); setDeafened(false)
           setScreenSharing(false); setScreenTracks([]); setShowStream(false)
           setWatchingIdentity(null); setAudioBlocked(false); setLatency(null); leaveVoice()
@@ -637,6 +652,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     lastDisconnectRef.current = Date.now()
     vadCleanupRef.current?.(); vadCleanupRef.current = null
     if (rttIntervalRef.current) { clearInterval(rttIntervalRef.current); rttIntervalRef.current = null }
+    if (rttInitRef.current) { clearTimeout(rttInitRef.current); rttInitRef.current = null }
     setParticipants([]); setMuted(false); setDeafened(false); setScreenSharing(false); setLatency(null); leaveVoice()
 
     try { (window as any).electronPZ?.updateOverlayParticipants?.([]) } catch {}
