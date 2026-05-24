@@ -7,6 +7,7 @@ import { useSocket }  from '@/hooks/useSocket'
 import { useMessages } from '@/hooks/useMessages'
 import { ReportModal } from '@/components/chat/ReportModal'
 import { UserSettings } from '@/components/settings/UserSettings'
+import { EmojiPicker } from '@/components/chat/EmojiPicker'
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
@@ -91,20 +92,110 @@ function Av({ url, color, name, size = 36 }: { url?: string | null; color: strin
   )
 }
 
+/* ─── Mobile GIF picker (bottom sheet) ─────────────────────────── */
+interface GifItem { id: string; url: string; preview: string; title: string }
+
+function MobileGifPicker({ onSelect, onClose }: { onSelect: (url: string) => void; onClose: () => void }) {
+  const token = useStore(s => s.token)
+  const [query, setQuery]     = useState('')
+  const [gifs, setGifs]       = useState<GifItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const debounce = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const fetchGifs = useCallback(async (q: string) => {
+    setLoading(true)
+    try {
+      const url = q.trim()
+        ? `${BASE}/api/gifs/search?q=${encodeURIComponent(q)}`
+        : `${BASE}/api/gifs/trending`
+      const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+      const d = await r.json()
+      setGifs((d.gifs ?? []) as GifItem[])
+    } catch { setGifs([]) }
+    finally { setLoading(false) }
+  }, [token])
+
+  useEffect(() => { fetchGifs('') }, [fetchGifs])
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 400, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+      <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)' }} onClick={onClose} />
+      <div style={{ position: 'relative', background: 'var(--eb-bg1)', borderRadius: '20px 20px 0 0', border: '0.5px solid var(--eb-border2)', display: 'flex', flexDirection: 'column', maxHeight: '70vh', zIndex: 1 }}>
+        <div style={{ padding: '12px 16px 8px', display: 'flex', gap: 8, alignItems: 'center', borderBottom: '0.5px solid var(--eb-border)', flexShrink: 0 }}>
+          <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--eb-border2)', margin: '0 auto', position: 'absolute', top: 8, left: '50%', transform: 'translateX(-50%)' }} />
+          <input
+            autoFocus
+            value={query}
+            onChange={e => {
+              setQuery(e.target.value)
+              if (debounce.current) clearTimeout(debounce.current)
+              debounce.current = setTimeout(() => fetchGifs(e.target.value), 350)
+            }}
+            placeholder="Szukaj GIF-ów..."
+            style={{ flex: 1, background: 'rgba(255,255,255,0.06)', border: '0.5px solid var(--eb-border2)', borderRadius: 12, padding: '8px 12px', color: 'var(--eb-text1)', fontSize: 14, outline: 'none', marginTop: 8 }}
+          />
+        </div>
+        <div style={{ flex: 1, overflowY: 'auto', padding: 8, WebkitOverflowScrolling: 'touch' }}>
+          {loading ? (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 120 }}>
+              <svg className="animate-spin" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--eb-text3)" strokeWidth="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+            </div>
+          ) : gifs.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: 32, color: 'var(--eb-text3)', fontSize: 13 }}>Brak wyników</div>
+          ) : (
+            <div style={{ columns: 2, gap: 6 }}>
+              {gifs.map(g => (
+                <button key={g.id} onClick={() => { onSelect(g.url); onClose() }}
+                  style={{ width: '100%', marginBottom: 6, borderRadius: 10, overflow: 'hidden', display: 'block', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}>
+                  <img src={g.preview} alt={g.title} style={{ width: '100%', height: 'auto', display: 'block', borderRadius: 10 }} loading="lazy" />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        <div style={{ padding: '6px 16px', borderTop: '0.5px solid var(--eb-border)', flexShrink: 0 }}>
+          <span style={{ fontSize: 10, color: 'var(--eb-text3)' }}>Powered by Tenor</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 /* ─── Chat Screen ───────────────────────────────────────────────── */
 function ChatScreen() {
-  const { servers, channels, currentServerId, currentChannelId, setCurrentServer, setCurrentChannel, currentUser, voice } = useStore()
+  const { servers, channels, currentServerId, currentChannelId, setCurrentServer, setCurrentChannel, currentUser, voice, token } = useStore()
   const { sendMessage }  = useSocket()
   const { openDevicePicker, disconnect, toggleMute, muted, participants } = useVoice()
   const currentChannelIdSafe = currentChannelId ?? ''
   const { messages, loading } = useMessages(currentChannelIdSafe)
-  const [drawerOpen, setDrawerOpen]   = useState(false)
-  const [text, setText]               = useState('')
-  const [reportMsg, setReportMsg]     = useState<null | { id: string; content: string; author: string }>(null)
-  const [ctxMenu, setCtxMenu]         = useState<null | { msgId: string; content: string; author: string; y: number }>(null)
-  const endRef    = useRef<HTMLDivElement>(null)
-  const inputRef  = useRef<HTMLTextAreaElement>(null)
+  const [drawerOpen, setDrawerOpen]         = useState(false)
+  const [text, setText]                     = useState('')
+  const [reportMsg, setReportMsg]           = useState<null | { id: string; content: string; author: string }>(null)
+  const [ctxMenu, setCtxMenu]               = useState<null | { msgId: string; content: string; author: string; y: number }>(null)
+  const [showEmoji, setShowEmoji]           = useState(false)
+  const [showGif, setShowGif]               = useState(false)
+  const [showVoicePanel, setShowVoicePanel] = useState(false)
+  const [uploadingFile, setUploadingFile]   = useState(false)
+  const [pendingAttachment, setPendingAttachment] = useState<{ id: string; url: string; filename: string; contentType: string; previewUrl?: string } | null>(null)
+  const endRef     = useRef<HTMLDivElement>(null)
+  const inputRef   = useRef<HTMLTextAreaElement>(null)
+  const fileRef    = useRef<HTMLInputElement>(null)
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const uploadFile = useCallback(async (file: File) => {
+    if (!token || !currentChannelId) return
+    setUploadingFile(true)
+    try {
+      const previewUrl = file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined
+      const fd = new FormData()
+      fd.append('file', file)
+      const res = await fetch(`${BASE}/api/channels/${currentChannelId}/attachments`, {
+        method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: fd,
+      })
+      if (!res.ok) return
+      setPendingAttachment({ ...(await res.json()), previewUrl })
+    } catch {} finally { setUploadingFile(false) }
+  }, [token, currentChannelId])
 
   const currentServer  = servers.find(s => s.id === currentServerId)
   const serverChannels = currentServerId ? (channels[currentServerId] ?? []) : []
@@ -116,10 +207,16 @@ function ChatScreen() {
 
   function send() {
     const t = text.trim()
-    if (!t || !currentChannelId || !currentServerId) return
-    sendMessage(currentChannelId, currentServerId, t)
+    if ((!t && !pendingAttachment) || !currentChannelId || !currentServerId) return
+    sendMessage(currentChannelId, currentServerId, t, undefined, undefined, pendingAttachment ? [pendingAttachment.id] : undefined)
     setText('')
+    setPendingAttachment(null)
     inputRef.current?.focus()
+  }
+
+  function sendGif(url: string) {
+    if (!currentChannelId || !currentServerId) return
+    sendMessage(currentChannelId, currentServerId, url)
   }
 
   function onLongPressStart(msgId: string, content: string, author: string, clientY: number) {
@@ -152,30 +249,22 @@ function ChatScreen() {
         const voiceCh = serverChannels.find(c => c.id === voice.channelId)
         return (
           <div style={{ background: 'rgba(34,197,94,0.07)', borderBottom: '0.5px solid rgba(34,197,94,0.18)', padding: '0 12px', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, minHeight: 40 }}>
-            <div style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--eb-online)', flexShrink: 0, animation: 'pulse 2s infinite' }} />
-            <span style={{ fontSize: 12, color: 'var(--eb-online)', fontWeight: 500, flex: 1 }}>
-              {voiceCh ? voiceCh.name : 'Głos'}
+            <button onClick={() => setShowVoicePanel(true)}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0', minWidth: 0 }}>
+              <div style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--eb-online)', flexShrink: 0 }} />
+              <span style={{ fontSize: 12, color: 'var(--eb-online)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {voiceCh ? voiceCh.name : 'Głos'}
+              </span>
               {participants.length > 0 && (
-                <span style={{ color: 'var(--eb-text3)', fontWeight: 400 }}> · {participants.length} os.</span>
+                <span style={{ fontSize: 11, color: 'var(--eb-text3)', fontWeight: 400, flexShrink: 0 }}>{participants.length} os. ›</span>
               )}
-            </span>
-            <button
-              onClick={() => toggleMute()}
-              style={{
-                background: muted ? 'rgba(239,68,68,0.15)' : 'rgba(34,197,94,0.12)',
-                border: `0.5px solid ${muted ? 'rgba(239,68,68,0.3)' : 'rgba(34,197,94,0.3)'}`,
-                borderRadius: 20, padding: '4px 11px',
-                fontSize: 12, fontWeight: 500,
-                color: muted ? '#ef4444' : 'var(--eb-online)',
-                cursor: 'pointer',
-              }}
-            >
-              {muted ? '🔇 Wyciszony' : '🎤 Aktywny'}
             </button>
-            <button
-              onClick={() => disconnect()}
-              style={{ background: 'rgba(239,68,68,0.1)', border: '0.5px solid rgba(239,68,68,0.25)', borderRadius: 20, padding: '4px 11px', fontSize: 12, fontWeight: 500, color: '#ef4444', cursor: 'pointer' }}
-            >
+            <button onClick={() => toggleMute()}
+              style={{ background: muted ? 'rgba(239,68,68,0.15)' : 'rgba(34,197,94,0.12)', border: `0.5px solid ${muted ? 'rgba(239,68,68,0.3)' : 'rgba(34,197,94,0.3)'}`, borderRadius: 20, padding: '4px 11px', fontSize: 12, fontWeight: 500, color: muted ? '#ef4444' : 'var(--eb-online)', cursor: 'pointer', flexShrink: 0 }}>
+              {muted ? '🔇' : '🎤'}
+            </button>
+            <button onClick={() => disconnect()}
+              style={{ background: 'rgba(239,68,68,0.1)', border: '0.5px solid rgba(239,68,68,0.25)', borderRadius: 20, padding: '4px 11px', fontSize: 12, fontWeight: 500, color: '#ef4444', cursor: 'pointer', flexShrink: 0 }}>
               Rozłącz
             </button>
           </div>
@@ -241,27 +330,125 @@ function ChatScreen() {
       </div>
 
       {/* Input */}
-      <div style={{ background: 'var(--eb-bg1)', borderTop: '0.5px solid var(--eb-border)', padding: '8px 12px', paddingBottom: 'calc(8px + env(safe-area-inset-bottom, 0px))', display: 'flex', alignItems: 'flex-end', gap: 10 }}>
-        <textarea
-          ref={inputRef}
-          className="mobile-input"
-          placeholder={currentChannel ? `Wiadomość do #${currentChannel.name}` : 'Wybierz kanał...'}
-          value={text}
-          rows={1}
-          onChange={e => { setText(e.target.value); e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 100) + 'px' }}
-          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
-          disabled={!currentChannelId}
-          style={{ resize: 'none', overflowY: 'auto', minHeight: 38, maxHeight: 100 }}
-        />
-        <button
-          className="mobile-send-btn"
-          onClick={send}
-          disabled={!text.trim() || !currentChannelId}
-          style={{ opacity: !text.trim() || !currentChannel ? 0.4 : 1, flexShrink: 0 }}
-        >
-          <IC.Send />
-        </button>
+      <div style={{ background: 'var(--eb-bg1)', borderTop: '0.5px solid var(--eb-border)', paddingBottom: 'env(safe-area-inset-bottom, 0px)', flexShrink: 0 }}>
+        {pendingAttachment && (
+          <div style={{ padding: '8px 12px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
+            {pendingAttachment.previewUrl
+              ? <img src={pendingAttachment.previewUrl} alt="" style={{ height: 56, maxWidth: 100, borderRadius: 8, objectFit: 'cover' }} />
+              : <div style={{ height: 36, padding: '0 10px', borderRadius: 8, background: 'var(--eb-bg3)', display: 'flex', alignItems: 'center', fontSize: 12, color: 'var(--eb-text2)', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📎 {pendingAttachment.filename}</div>
+            }
+            <button onClick={() => { if (pendingAttachment.previewUrl) URL.revokeObjectURL(pendingAttachment.previewUrl); setPendingAttachment(null) }}
+              style={{ background: 'rgba(239,68,68,0.12)', border: 'none', borderRadius: '50%', width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
+              <IC.X />
+            </button>
+          </div>
+        )}
+        <div style={{ padding: '8px 12px', display: 'flex', alignItems: 'flex-end', gap: 6 }}>
+          <input ref={fileRef} type="file" accept="image/*,video/*,application/pdf" style={{ display: 'none' }}
+            onChange={e => { if (e.target.files?.[0]) uploadFile(e.target.files[0]); e.target.value = '' }} />
+          <button onClick={() => fileRef.current?.click()} disabled={!currentChannelId}
+            style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(255,255,255,0.05)', border: '0.5px solid var(--eb-border2)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, color: uploadingFile ? 'var(--eb-accent)' : 'var(--eb-text3)', opacity: !currentChannelId ? 0.4 : 1 }}>
+            {uploadingFile
+              ? <svg className="animate-spin" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+              : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="15" height="15"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"/></svg>
+            }
+          </button>
+          <textarea
+            ref={inputRef}
+            className="mobile-input"
+            placeholder={currentChannel ? `Wiadomość do #${currentChannel.name}` : 'Wybierz kanał...'}
+            value={text}
+            rows={1}
+            onChange={e => { setText(e.target.value); e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 100) + 'px' }}
+            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
+            disabled={!currentChannelId}
+            style={{ resize: 'none', overflowY: 'auto', minHeight: 34, maxHeight: 100, flex: 1 }}
+          />
+          <button onClick={() => { setShowGif(false); setShowEmoji(s => !s) }} disabled={!currentChannelId}
+            style={{ width: 34, height: 34, borderRadius: 10, background: showEmoji ? 'rgba(245,158,11,0.15)' : 'rgba(255,255,255,0.05)', border: '0.5px solid var(--eb-border2)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, fontSize: 16, opacity: !currentChannelId ? 0.4 : 1 }}>
+            😊
+          </button>
+          <button onClick={() => { setShowEmoji(false); setShowGif(s => !s) }} disabled={!currentChannelId}
+            style={{ width: 34, height: 34, borderRadius: 10, background: showGif ? 'rgba(245,158,11,0.15)' : 'rgba(255,255,255,0.05)', border: '0.5px solid var(--eb-border2)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, fontSize: 10, fontWeight: 700, color: showGif ? 'var(--eb-accent)' : 'var(--eb-text2)', opacity: !currentChannelId ? 0.4 : 1 }}>
+            GIF
+          </button>
+          <button className="mobile-send-btn" onClick={send}
+            disabled={(!text.trim() && !pendingAttachment) || !currentChannelId}
+            style={{ opacity: ((!text.trim() && !pendingAttachment) || !currentChannelId) ? 0.4 : 1, flexShrink: 0, width: 34, height: 34 }}>
+            <IC.Send />
+          </button>
+        </div>
       </div>
+
+      {showEmoji && currentChannelId && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 400, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)' }} onClick={() => setShowEmoji(false)} />
+          <div style={{ position: 'relative', zIndex: 1, maxHeight: '65vh', overflow: 'hidden', borderRadius: '20px 20px 0 0' }}>
+            <EmojiPicker
+              serverId={currentServerId ?? undefined}
+              onSelect={(val) => { setText(t => t + val); setShowEmoji(false); inputRef.current?.focus() }}
+            />
+          </div>
+        </div>
+      )}
+
+      {showGif && currentChannelId && (
+        <MobileGifPicker
+          onSelect={(url) => { sendGif(url); setShowGif(false) }}
+          onClose={() => setShowGif(false)}
+        />
+      )}
+
+      {showVoicePanel && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 400, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)' }} onClick={() => setShowVoicePanel(false)} />
+          <div style={{ position: 'relative', background: 'var(--eb-bg1)', borderRadius: '20px 20px 0 0', border: '0.5px solid var(--eb-border2)', zIndex: 1, paddingBottom: 'env(safe-area-inset-bottom, 0px)', maxHeight: '75vh', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ padding: '16px 16px 12px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: '0.5px solid var(--eb-border)', flexShrink: 0 }}>
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--eb-online)' }} />
+              <span style={{ flex: 1, fontSize: 15, fontWeight: 600, color: 'var(--eb-text1)' }}>
+                {serverChannels.find(c => c.id === voice.channelId)?.name ?? 'Kanał głosowy'}
+              </span>
+              <button onClick={() => toggleMute()}
+                style={{ background: muted ? 'rgba(239,68,68,0.15)' : 'rgba(34,197,94,0.12)', border: 'none', borderRadius: 20, padding: '6px 14px', fontSize: 13, fontWeight: 500, color: muted ? '#ef4444' : 'var(--eb-online)', cursor: 'pointer' }}>
+                {muted ? '🔇 Wyciszony' : '🎤 Aktywny'}
+              </button>
+              <button onClick={() => { disconnect(); setShowVoicePanel(false) }}
+                style={{ background: 'rgba(239,68,68,0.12)', border: 'none', borderRadius: 20, padding: '6px 14px', fontSize: 13, fontWeight: 500, color: '#ef4444', cursor: 'pointer' }}>
+                Rozłącz
+              </button>
+            </div>
+            <div style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
+              {participants.length === 0
+                ? <div style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--eb-text3)', fontSize: 13 }}>Tylko Ty jesteś na kanale</div>
+                : participants.map(p => (
+                  <div key={p.identity} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderBottom: '0.5px solid var(--eb-border)' }}>
+                    <div style={{ position: 'relative', flexShrink: 0 }}>
+                      <Av url={null} color="#f59e0b" name={p.name} size={42} />
+                      {p.isSpeaking && !p.isMuted && (
+                        <div style={{ position: 'absolute', inset: -2, borderRadius: '50%', border: '2px solid var(--eb-online)' }} />
+                      )}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--eb-text1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {p.name}{p.isLocal && <span style={{ fontSize: 11, color: 'var(--eb-text3)' }}> (Ty)</span>}
+                      </div>
+                      <div style={{ fontSize: 12, color: p.isSpeaking && !p.isMuted ? 'var(--eb-online)' : 'var(--eb-text3)' }}>
+                        {p.isMuted ? '🔇 Wyciszony' : p.isSpeaking ? '🎙 Mówi...' : 'Słucha'}
+                      </div>
+                    </div>
+                    {p.isMuted && (
+                      <svg viewBox="0 0 24 24" fill="none" stroke="var(--eb-text3)" strokeWidth="2" width="18" height="18">
+                        <line x1="1" y1="1" x2="23" y2="23"/>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 9v3a3 3 0 005.12 2.12M15 9.34V4a3 3 0 00-5.94-.6M12 19v3M8 23h8"/>
+                      </svg>
+                    )}
+                  </div>
+                ))
+              }
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Context menu (long press) */}
       {ctxMenu && (
