@@ -224,8 +224,8 @@ router.get('/ghost/:serverId/messages/:channelId', requireAuth, async (req: Requ
        WHERE m.channel_id = ?
        ${beforeDate ? 'AND m.created_at < ?' : ''}
        ORDER BY m.created_at DESC
-       LIMIT ?`,
-      beforeDate ? [channelId, beforeDate, limit] : [channelId, limit]
+       LIMIT ${limit}`,
+      beforeDate ? [channelId, beforeDate] : [channelId]
     )
 
     return res.json({ messages: messages.reverse(), hasMore: messages.length === limit })

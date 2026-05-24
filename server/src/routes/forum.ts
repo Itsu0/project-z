@@ -37,8 +37,8 @@ router.get('/:channelId/posts', requireAuth, async (req: Request, res: Response)
        INNER JOIN users u ON u.id = fp.author_id
        WHERE fp.channel_id = ?
        ORDER BY fp.pinned DESC, COALESCE(fp.last_reply_at, fp.created_at) DESC
-       LIMIT ? OFFSET ?`,
-      [channelId, limit, offset]
+       LIMIT ${limit} OFFSET ${offset}`,
+      [channelId]
     )
     return res.json({ posts })
   } catch (err: any) {
