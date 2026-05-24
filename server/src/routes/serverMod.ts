@@ -454,8 +454,8 @@ router.get('/:serverId/mod-log', requireAuth, async (req: Request, res: Response
        LEFT JOIN users tu ON tu.id = l.target_id
        WHERE l.server_id = ?
        ORDER BY l.created_at DESC
-       LIMIT ${limit}`,
-      [serverId]
+       LIMIT ?`,
+      [serverId, limit]
     )
     return res.json({ logs })
   } catch { return res.status(500).json({ error: 'Błąd serwera' }) }

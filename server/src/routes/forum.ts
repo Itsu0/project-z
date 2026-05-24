@@ -37,13 +37,13 @@ router.get('/:channelId/posts', requireAuth, async (req: Request, res: Response)
        INNER JOIN users u ON u.id = fp.author_id
        WHERE fp.channel_id = ?
        ORDER BY fp.pinned DESC, COALESCE(fp.last_reply_at, fp.created_at) DESC
-       LIMIT ${limit} OFFSET ${offset}`,
-      [channelId]
+       LIMIT ? OFFSET ?`,
+      [channelId, limit, offset]
     )
     return res.json({ posts })
   } catch (err: any) {
     console.error('[forum/list]', err)
-    return res.status(500).json({ error: 'Błąd serwera', detail: err?.message ?? String(err) })
+    return res.status(500).json({ error: 'Błąd serwera' })
   }
 })
 
