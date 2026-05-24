@@ -95,7 +95,7 @@ function Av({ url, color, name, size = 36 }: { url?: string | null; color: strin
 function ChatScreen() {
   const { servers, channels, currentServerId, currentChannelId, setCurrentServer, setCurrentChannel, currentUser, voice } = useStore()
   const { sendMessage }  = useSocket()
-  const { openDevicePicker } = useVoice()
+  const { openDevicePicker, disconnect } = useVoice()
   const currentChannelIdSafe = currentChannelId ?? ''
   const { messages, loading } = useMessages(currentChannelIdSafe)
   const [drawerOpen, setDrawerOpen]   = useState(false)
@@ -278,7 +278,23 @@ function ChatScreen() {
       <div className={`mobile-drawer-overlay${drawerOpen ? ' open' : ''}`} onClick={() => setDrawerOpen(false)} />
 
       {/* Drawer */}
-      <div className={`mobile-drawer${drawerOpen ? ' open' : ''}`} style={{ flexDirection: 'row' }}>
+      <div className={`mobile-drawer${drawerOpen ? ' open' : ''}`} style={{ flexDirection: 'column' }}>
+        {/* Voice status bar */}
+        {voice.connected && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'rgba(34,197,94,0.07)', borderBottom: '0.5px solid rgba(34,197,94,0.18)', flexShrink: 0 }}>
+            <div style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--eb-online)', flexShrink: 0 }} />
+            <span style={{ flex: 1, fontSize: 12, color: 'var(--eb-online)', fontWeight: 500 }}>
+              Połączono z głosem
+            </span>
+            <button
+              onClick={() => { disconnect(); setDrawerOpen(false) }}
+              style={{ fontSize: 11, color: 'var(--eb-accent2)', background: 'rgba(239,68,68,0.1)', border: 'none', borderRadius: 8, padding: '3px 8px', cursor: 'pointer' }}
+            >
+              Rozłącz
+            </button>
+          </div>
+        )}
+        <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         <div className="mobile-server-list">
           {servers.map(srv => (
             <button
@@ -305,14 +321,21 @@ function ChatScreen() {
             </div>
           ))}
           {voiceChannels.length > 0 && <div style={{ padding: '10px 16px 4px', fontSize: 11, fontWeight: 600, color: 'var(--eb-text3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Głosowe</div>}
-          {voiceChannels.map(ch => (
-            <div key={ch.id} className="mobile-channel-item"
-              onClick={() => { openDevicePicker(ch.id); setDrawerOpen(false) }}>
-              <IC.Volume />
-              <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ch.name}</span>
-              <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--eb-online)', flexShrink: 0 }}>Dołącz</span>
-            </div>
-          ))}
+          {voiceChannels.map(ch => {
+            const isHere = voice.channelId === ch.id
+            return (
+              <div key={ch.id}
+                className={`mobile-channel-item${isHere ? ' voice-active' : ''}`}
+                onClick={() => { isHere ? disconnect() : openDevicePicker(ch.id); setDrawerOpen(false) }}>
+                <IC.Volume />
+                <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ch.name}</span>
+                <span style={{ fontSize: 11, flexShrink: 0, color: isHere ? 'var(--eb-online)' : 'var(--eb-text3)' }}>
+                  {isHere ? '● Ty' : 'Dołącz'}
+                </span>
+              </div>
+            )
+          })}
+        </div>
         </div>
       </div>
     </div>
@@ -341,11 +364,15 @@ function MembersScreen() {
         </div>
         {m.custom_status && <div style={{ fontSize: 12, color: 'var(--eb-text3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.custom_status}</div>}
       </div>
-      {(m.is_dev || m.is_mod) && (
+      {Boolean(m.is_dev || m.is_mod) ? (
         <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 8, background: m.is_dev ? 'rgba(168,85,247,0.15)' : 'rgba(245,158,11,0.12)', color: m.is_dev ? 'var(--eb-purple)' : 'var(--eb-accent)' }}>
           {m.is_dev ? 'DEV' : 'MOD'}
         </span>
-      )}
+      ) : m.roles?.length > 0 ? (
+        <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 8, background: m.roles[0].color ? `${m.roles[0].color}26` : 'rgba(255,255,255,0.06)', color: m.roles[0].color || 'var(--eb-text3)', maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {m.roles[0].name}
+        </span>
+      ) : null}
     </div>
   )
 
