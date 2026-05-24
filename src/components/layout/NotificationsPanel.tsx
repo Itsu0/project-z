@@ -32,10 +32,19 @@ interface PatchRelease { version: string; date: string; labelPl: string; labelEn
 
 const PATCH_NOTES: PatchRelease[] = [
   {
-    version: '0.7.2',
+    version: '0.7.3',
     date: '2026-05-24',
     labelPl: 'Najnowsza',
     labelEn: 'Latest',
+    entries: [
+      { type: 'fix', pl: 'Poprawki wizualne', en: 'Visual fixes' },
+    ],
+  },
+  {
+    version: '0.7.2',
+    date: '2026-05-24',
+    labelPl: '',
+    labelEn: '',
     entries: [
       { type: 'fix', pl: 'Nakładka głosowa — naprawiono błąd uniemożliwiający wyświetlanie uczestników kanału (nakładka zawsze pokazywała "Brak aktywnego kanału głosowego")', en: 'Voice overlay — fixed a bug preventing channel participants from being displayed (overlay always showed "No active voice channel")' },
     ],

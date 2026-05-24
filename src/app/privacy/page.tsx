@@ -95,11 +95,9 @@ function PrivacyContent() {
               <h2 style={h2}>7. Desktop application — additional data</h2>
               <p style={p}>The Nexus desktop application may collect additional data locally on your device:</p>
               <ul style={ul}>
-                <li style={li}><strong style={{ color: '#f1f5f9' }}>PTT (Push-to-Talk) consent</strong> — your response to the global keyboard/mouse hook consent dialog is saved locally in the <code style={{ background: 'rgba(255,255,255,0.07)', padding: '1px 4px', borderRadius: 3, fontSize: 12 }}>ptt_consent.json</code> file. This file is stored on your device and is not sent to our servers.</li>
-                <li style={li}><strong style={{ color: '#f1f5f9' }}>PTT key assignment</strong> — the key you assign for PTT is stored locally and is not sent to the server.</li>
-                <li style={li}><strong style={{ color: '#f1f5f9' }}>Global keyboard/mouse hooks</strong> — if you grant consent, the application uses the uiohook library to detect the assigned PTT key being pressed globally (outside the app window). The library does not log or transmit keystrokes — it only checks whether the specific assigned key was pressed at the moment of detection.</li>
+                <li style={li}><strong style={{ color: '#f1f5f9' }}>PTT key assignment</strong> — the key you assign for PTT is stored locally on your device and is not sent to our servers.</li>
+                <li style={li}><strong style={{ color: '#f1f5f9' }}>Global keyboard/mouse hooks</strong> — the application uses the uiohook library to detect the assigned PTT key being pressed globally (outside the app window). The library does not log or transmit keystrokes — it only checks whether the specific assigned key was pressed at the moment of detection.</li>
               </ul>
-              <p style={p}>You can revoke PTT consent at any time in the application settings. After revoking, global hooks are immediately disabled.</p>
             </section>
             <section>
               <h2 style={h2}>8. Your rights (GDPR)</h2>
@@ -240,11 +238,9 @@ function PrivacyContent() {
             <h2 style={h2}>7. Aplikacja desktopowa — dodatkowe dane</h2>
             <p style={p}>Aplikacja desktopowa Nexus może zbierać dodatkowe dane lokalnie na Twoim urządzeniu:</p>
             <ul style={ul}>
-              <li style={li}><strong style={{ color: '#f1f5f9' }}>Zgoda na PTT (Push-to-Talk)</strong> — odpowiedź na dialog zgody na globalne hooki klawiatury/myszy jest zapisywana lokalnie w pliku <code style={{ background: 'rgba(255,255,255,0.07)', padding: '1px 4px', borderRadius: 3, fontSize: 12 }}>ptt_consent.json</code>. Plik jest przechowywany na Twoim urządzeniu i nie jest przesyłany na nasze serwery.</li>
-              <li style={li}><strong style={{ color: '#f1f5f9' }}>Przypisanie klawisza PTT</strong> — klawisz przypisany do PTT jest przechowywany lokalnie i nie jest wysyłany na serwer.</li>
-              <li style={li}><strong style={{ color: '#f1f5f9' }}>Globalne hooki klawiatury i myszy</strong> — jeśli udzielisz zgody, aplikacja używa biblioteki uiohook do wykrywania wciśnięcia przypisanego klawisza PTT globalnie (poza oknem aplikacji). Biblioteka nie rejestruje ani nie przesyła naciśnięć klawiszy — sprawdza wyłącznie, czy w chwili wykrycia został wciśnięty konkretny, przypisany klawisz.</li>
+              <li style={li}><strong style={{ color: '#f1f5f9' }}>Przypisanie klawisza PTT</strong> — klawisz przypisany do PTT jest przechowywany lokalnie na Twoim urządzeniu i nie jest wysyłany na nasze serwery.</li>
+              <li style={li}><strong style={{ color: '#f1f5f9' }}>Globalne hooki klawiatury i myszy</strong> — aplikacja używa biblioteki uiohook do wykrywania wciśnięcia przypisanego klawisza PTT globalnie (poza oknem aplikacji). Biblioteka nie rejestruje ani nie przesyła naciśnięć klawiszy — sprawdza wyłącznie, czy w chwili wykrycia został wciśnięty konkretny, przypisany klawisz.</li>
             </ul>
-            <p style={p}>Zgodę na PTT możesz cofnąć w dowolnym momencie w ustawieniach aplikacji. Po cofnięciu zgody globalne hooki są natychmiast wyłączane.</p>
           </section>
           <section>
             <h2 style={h2}>8. Twoje prawa (RODO)</h2>
