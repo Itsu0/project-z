@@ -38,8 +38,6 @@ const PATCH_NOTES: PatchRelease[] = [
     labelEn: 'Latest',
     entries: [
       { type: 'fix', pl: 'Nakładka głosowa — naprawiono błąd uniemożliwiający wyświetlanie uczestników kanału (nakładka zawsze pokazywała "Brak aktywnego kanału głosowego")', en: 'Voice overlay — fixed a bug preventing channel participants from being displayed (overlay always showed "No active voice channel")' },
-      { type: 'fix', pl: 'Nakładka głosowa — zmieniono nazwę panelu z "NEXUS VOICE" na "PROJECT-Z VOICE"', en: 'Voice overlay — panel label renamed from "NEXUS VOICE" to "PROJECT-Z VOICE"' },
-      { type: 'imp', pl: 'Regulamin i Polityka prywatności — zaktualizowano dokumenty: dodano sekcję zgłaszania nielegalnych treści (narkotyki, CSAM) z linkami do Policji, Dyżurnet.pl i CERT Polska; poprawiono opis przechowywania sesji (HttpOnly cookie zamiast localStorage); dodano informacje o aplikacji desktopowej i hookach PTT', en: 'Terms of Service and Privacy Policy — updated documents: added illegal content reporting section (drugs, CSAM) with links to Police, Dyżurnet.pl and CERT Polska; corrected session storage description (HttpOnly cookie instead of localStorage); added desktop app and PTT hooks disclosure' },
     ],
   },
   {
