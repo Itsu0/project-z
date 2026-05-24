@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express'
 import { requireAuth } from '../middleware/auth'
-import { execute, queryMany, queryOne } from '../db/pool'
+import { execute, queryMany, queryOne, withTransaction, pool } from '../db/pool'
 import { v4 as uuidv4 } from 'uuid'
 import { getSocketInstance } from '../socket'
 
@@ -168,17 +168,22 @@ router.post('/:channelId/polls', requireAuth, async (req: Request, res: Response
       ? expiresAt.toISOString().replace('T', ' ').replace('Z', '')
       : null
 
-    await execute(
-      'INSERT INTO polls (id, message_id, channel_id, server_id, created_by, question, multi_choice, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [pollId, messageId, channelId, serverId, req.user!.userId, question.trim(), multiChoice ? 1 : 0, expiresAtMysql]
-    )
-
-    for (let i = 0; i < options.length; i++) {
-      await execute(
-        'INSERT INTO poll_options (id, poll_id, text, position) VALUES (?, ?, ?, ?)',
-        [uuidv4(), pollId, String(options[i]).trim(), i]
+    await withTransaction(async (conn) => {
+      await conn.execute(
+        'INSERT INTO polls (id, message_id, channel_id, server_id, created_by, question, multi_choice, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [pollId, messageId, channelId, serverId, req.user!.userId, question.trim(), multiChoice ? 1 : 0, expiresAtMysql]
       )
-    }
+      for (let i = 0; i < options.length; i++) {
+        await conn.execute(
+          'INSERT INTO poll_options (id, poll_id, text, position) VALUES (?, ?, ?, ?)',
+          [uuidv4(), pollId, String(options[i]).trim(), i]
+        )
+      }
+      await conn.execute(
+        'INSERT INTO messages (id, channel_id, server_id, author_id, content, type) VALUES (?, ?, ?, ?, ?, ?)',
+        [messageId, channelId, serverId, req.user!.userId, question.trim(), 'POLL']
+      )
+    })
 
     const profile = await queryOne<any>(
       'SELECT display_name, username, avatar_color, avatar_url FROM users WHERE id = ?',
@@ -186,11 +191,6 @@ router.post('/:channelId/polls', requireAuth, async (req: Request, res: Response
     )
 
     const now = new Date().toISOString()
-
-    await execute(
-      'INSERT INTO messages (id, channel_id, server_id, author_id, content, type) VALUES (?, ?, ?, ?, ?, ?)',
-      [messageId, channelId, serverId, req.user!.userId, question.trim(), 'POLL']
-    )
 
     const pollData = await getPollData(pollId, req.user!.userId)
 
@@ -250,28 +250,28 @@ router.post('/:pollId/vote', requireAuth, async (req: Request, res: Response) =>
       [optionId, req.user!.userId]
     )
 
-    if (existing) {
-
-      await execute(
-        'DELETE FROM poll_votes WHERE poll_option_id = ? AND user_id = ?',
-        [optionId, req.user!.userId]
-      )
-    } else {
-
-      if (!poll.multi_choice) {
-        const allOptions = await queryMany<any>('SELECT id FROM poll_options WHERE poll_id = ?', [pollId])
-        for (const opt of allOptions) {
-          await execute(
-            'DELETE FROM poll_votes WHERE poll_option_id = ? AND user_id = ?',
-            [opt.id, req.user!.userId]
-          )
+    await withTransaction(async (conn) => {
+      if (existing) {
+        await conn.execute(
+          'DELETE FROM poll_votes WHERE poll_option_id = ? AND user_id = ?',
+          [optionId, req.user!.userId]
+        )
+      } else {
+        if (!poll.multi_choice) {
+          const [allOpts] = await conn.execute<any[]>('SELECT id FROM poll_options WHERE poll_id = ?', [pollId])
+          for (const opt of allOpts) {
+            await conn.execute(
+              'DELETE FROM poll_votes WHERE poll_option_id = ? AND user_id = ?',
+              [opt.id, req.user!.userId]
+            )
+          }
         }
+        await conn.execute(
+          'INSERT INTO poll_votes (poll_option_id, user_id) VALUES (?, ?)',
+          [optionId, req.user!.userId]
+        )
       }
-      await execute(
-        'INSERT INTO poll_votes (poll_option_id, user_id) VALUES (?, ?)',
-        [optionId, req.user!.userId]
-      )
-    }
+    })
 
     const pollData = await getPollData(pollId, req.user!.userId)
 

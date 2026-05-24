@@ -50,6 +50,10 @@ app.use((_req, res, next) => {
   res.set('X-XSS-Protection', '1; mode=block')
   res.set('Referrer-Policy', 'strict-origin-when-cross-origin')
   res.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
+  res.set('X-Download-Options', 'noopen')
+  res.set('X-Permitted-Cross-Domain-Policies', 'none')
+  res.set('Cross-Origin-Resource-Policy', 'same-origin')
+  res.set('Cross-Origin-Opener-Policy', 'same-origin')
   if (process.env.NODE_ENV === 'production') {
     res.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
   }
@@ -99,7 +103,7 @@ const messageLimiter = rateLimit({
 
 app.use(globalLimiter)
 app.use('/api/livekit/webhook', express.raw({ type: '*/*' }))
-app.use(express.json({ limit: '10mb' }))
+app.use(express.json({ limit: '2mb' }))
 app.use(express.urlencoded({ extended: true }))
 
 app.use('/uploads', express.static(process.env.UPLOAD_DIR ?? './uploads'))
@@ -144,11 +148,13 @@ const io = new SocketIO(httpServer, {
   perMessageDeflate: {
     threshold: 1024,
   },
+  maxHttpBufferSize: 1e6,
 })
 
 setupSocket(io)
 
 async function start() {
+  httpServer.timeout = 30000
   await new Promise<void>(resolve => {
     httpServer.listen(PORT, () => {
       console.log(`🚀 Nexus Backend nasłuchuje na porcie ${PORT}`)

@@ -116,6 +116,8 @@ export function kickUserFromServer(userId: string, serverId: string, eventName: 
   }
 }
 
+const msgRateMap = new Map<string, number[]>()
+
 export function setupSocket(io: SocketIO) {
   _io = io
 
@@ -197,6 +199,14 @@ export function setupSocket(io: SocketIO) {
         if ((data.content?.length ?? 0) > 2000) return
 
         if (!data.content?.trim() && !data.attachmentIds?.length) return
+
+        const rateNow = Date.now()
+        const timestamps = (msgRateMap.get(userId) ?? []).filter(t => rateNow - t < 5000)
+        if (timestamps.length >= 10) {
+          socket.emit('ERROR', { code: 'RATE_LIMIT', message: 'Wysyłasz za dużo wiadomości' })
+          return
+        }
+        msgRateMap.set(userId, [...timestamps, rateNow])
 
         const banCheck = await queryOne<{ reason: string }>(
           'SELECT reason FROM server_bans WHERE user_id = ? AND server_id = ?',
@@ -298,7 +308,7 @@ export function setupSocket(io: SocketIO) {
         if (data.attachmentIds?.length) {
           for (const attId of data.attachmentIds) {
             await execute(
-              'UPDATE message_attachments SET message_id = ? WHERE id = ? AND uploader_id = ?',
+              'UPDATE message_attachments SET message_id = ? WHERE id = ? AND uploader_id = ? AND message_id IS NULL',
               [messageId, attId, userId]
             )
           }

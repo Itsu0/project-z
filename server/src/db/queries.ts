@@ -308,7 +308,7 @@ export const messageQueries = {
     ),
 
   forChannel: (channelId: string, limit = 50, beforeId?: string) => {
-    const lim = String(Math.max(1, Math.min(100, Math.floor(Number(limit)) || 50)))
+    const lim = Math.max(1, Math.min(100, Math.floor(Number(limit)) || 50))
     if (beforeId) {
       return queryMany<DbMessage>(
         `SELECT m.*, u.username as author_username, u.display_name as author_display_name,
@@ -323,8 +323,8 @@ export const messageQueries = {
          WHERE m.channel_id = ?
            AND m.created_at < (SELECT created_at FROM messages WHERE id = ?)
          ORDER BY m.created_at DESC
-         LIMIT ${lim}`,
-        [channelId, beforeId]
+         LIMIT ?`,
+        [channelId, beforeId, lim]
       )
     }
     return queryMany<DbMessage>(
@@ -339,8 +339,8 @@ export const messageQueries = {
        LEFT JOIN users ru ON ru.id = rm.author_id
        WHERE m.channel_id = ?
        ORDER BY m.created_at DESC
-       LIMIT ${lim}`,
-      [channelId]
+       LIMIT ?`,
+      [channelId, lim]
     )
   },
 

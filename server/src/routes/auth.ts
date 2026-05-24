@@ -9,6 +9,20 @@ import { generateSecret, verify as totpVerify, generateURI } from 'otplib'
 
 const router = Router()
 
+// ── Helpers bezpieczeństwa ────────────────────────────────────────────────────
+function isStrongPassword(p: string): boolean {
+  let cats = 0
+  if (/[a-z]/.test(p)) cats++
+  if (/[A-Z]/.test(p)) cats++
+  if (/[0-9]/.test(p)) cats++
+  if (/[^a-zA-Z0-9]/.test(p)) cats++
+  return cats >= 3
+}
+
+const loginAttempts = new Map<string, { count: number; lockedUntil: number }>()
+const resendCooldown = new Map<string, number>()
+const avatarRateMap  = new Map<string, number>()
+
 const AUTH_COOKIE = 'pz_token'
 const cookieOpts = {
   httpOnly: true,
@@ -34,8 +48,8 @@ router.post('/register', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Hasło musi mieć minimum 8 znaków' })
     }
 
-    if (/^\d+$/.test(password)) {
-      return res.status(400).json({ error: 'Hasło nie może składać się wyłącznie z cyfr' })
+    if (!isStrongPassword(password)) {
+      return res.status(400).json({ error: 'Hasło musi zawierać znaki z co najmniej 3 kategorii: małe litery, wielkie litery, cyfry, znaki specjalne' })
     }
 
     if (!birthDate) {
@@ -148,6 +162,12 @@ router.post('/resend-verification', async (req: Request, res: Response) => {
     const { email } = req.body
     if (!email) return res.status(400).json({ error: 'Wymagany email' })
 
+    const lastSent = resendCooldown.get(String(email).toLowerCase()) ?? 0
+    if (Date.now() - lastSent < 5 * 60_000) {
+      return res.status(429).json({ error: 'Poczekaj 5 minut przed ponownym wysłaniem' })
+    }
+    resendCooldown.set(String(email).toLowerCase(), Date.now())
+
     const user = await userQueries.findByEmail(email)
     if (!user) return res.status(200).json({ ok: true })
 
@@ -183,11 +203,29 @@ router.post('/login', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Wymagane pola: email, password' })
     }
 
+    const attemptKey = String(email).toLowerCase()
+    const attempt = loginAttempts.get(attemptKey)
+    if (attempt?.lockedUntil && attempt.lockedUntil > Date.now()) {
+      const remaining = Math.ceil((attempt.lockedUntil - Date.now()) / 60000)
+      return res.status(429).json({ error: `Konto zablokowane na ${remaining} min z powodu zbyt wielu nieudanych prób` })
+    }
+
     const user = await userQueries.findByEmail(email)
-    if (!user) return res.status(401).json({ error: 'Nieprawidłowy email lub hasło' })
+    if (!user) {
+      const rec = loginAttempts.get(attemptKey) ?? { count: 0, lockedUntil: 0 }
+      const n = rec.count + 1
+      loginAttempts.set(attemptKey, { count: n, lockedUntil: n >= 5 ? Date.now() + 15 * 60_000 : 0 })
+      return res.status(401).json({ error: 'Nieprawidłowy email lub hasło' })
+    }
 
     const valid = await bcrypt.compare(password, user.password_hash)
-    if (!valid) return res.status(401).json({ error: 'Nieprawidłowy email lub hasło' })
+    if (!valid) {
+      const rec = loginAttempts.get(attemptKey) ?? { count: 0, lockedUntil: 0 }
+      const n = rec.count + 1
+      loginAttempts.set(attemptKey, { count: n, lockedUntil: n >= 5 ? Date.now() + 15 * 60_000 : 0 })
+      return res.status(401).json({ error: 'Nieprawidłowy email lub hasło' })
+    }
+    loginAttempts.delete(attemptKey)
 
     const verCheck = await queryOne<{ email_verified: number }>(
       'SELECT email_verified FROM users WHERE id = ?', [user.id]
@@ -286,7 +324,7 @@ router.patch('/password', requireAuth, async (req: Request, res: Response) => {
     const { oldPassword, newPassword } = req.body
     if (!oldPassword || !newPassword) return res.status(400).json({ error: 'Wymagane: oldPassword, newPassword' })
     if (newPassword.length < 8) return res.status(400).json({ error: 'Nowe hasło musi mieć min. 8 znaków' })
-    if (/^\d+$/.test(newPassword)) return res.status(400).json({ error: 'Hasło nie może składać się wyłącznie z cyfr' })
+    if (!isStrongPassword(newPassword)) return res.status(400).json({ error: 'Hasło musi zawierać znaki z co najmniej 3 kategorii: małe litery, wielkie litery, cyfry, znaki specjalne' })
 
     const user = await userQueries.findById(req.user!.userId)
     if (!user) return res.status(404).json({ error: 'Użytkownik nie znaleziony' })
@@ -331,7 +369,7 @@ router.post('/reset-password', async (req: Request, res: Response) => {
     const { token, password } = req.body
     if (!token || !password) return res.status(400).json({ error: 'Wymagane: token, password' })
     if (password.length < 8) return res.status(400).json({ error: 'Hasło musi mieć min. 8 znaków' })
-    if (/^\d+$/.test(password)) return res.status(400).json({ error: 'Hasło nie może składać się wyłącznie z cyfr' })
+    if (!isStrongPassword(password)) return res.status(400).json({ error: 'Hasło musi zawierać znaki z co najmniej 3 kategorii: małe litery, wielkie litery, cyfry, znaki specjalne' })
 
     const row = await queryOne<{ id: string; user_id: string; expires_at: string }>(
       'SELECT id, user_id, expires_at FROM password_reset_tokens WHERE token = ? LIMIT 1', [token]
@@ -486,6 +524,12 @@ router.post('/avatar', requireAuth, async (req: Request, res: Response) => {
     if (!avatar?.startsWith('data:image/')) return res.status(400).json({ error: 'Nieprawidłowy format' })
 
     if (avatar.length > 700000) return res.status(400).json({ error: 'Avatar za duży (maks. 500KB)' })
+
+    const lastChange = avatarRateMap.get(req.user!.userId) ?? 0
+    if (Date.now() - lastChange < 60_000) {
+      return res.status(429).json({ error: 'Możesz zmieniać avatar raz na minutę' })
+    }
+    avatarRateMap.set(req.user!.userId, Date.now())
     await execute('UPDATE users SET avatar_url = ? WHERE id = ?', [avatar, req.user!.userId])
 
     const { invalidateUserProfile } = await import('../socket')
