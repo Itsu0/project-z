@@ -44,6 +44,7 @@ function PrivacyContent() {
               <ul style={ul}>
                 <li style={li}><strong style={{ color: '#f1f5f9' }}>Registration data</strong> — email address, username, password (stored only as a bcrypt hash, never in plaintext), display name, avatar color. <br/><span style={{ fontSize: 12, color: '#64748b' }}>Legal basis: Art. 6(1)(b) GDPR (performance of a contract).</span></li>
                 <li style={li}><strong style={{ color: '#f1f5f9' }}>Profile data</strong> — custom status, avatar image (optional, uploaded voluntarily), interface preferences. <br/><span style={{ fontSize: 12, color: '#64748b' }}>Legal basis: Art. 6(1)(b) GDPR.</span></li>
+                <li style={li}><strong style={{ color: '#f1f5f9' }}>Two-factor authentication (2FA) data</strong> — if you enable 2FA, the TOTP secret key is stored in encrypted form in the database. The secret is used solely for login verification and is never shared with third parties. <br/><span style={{ fontSize: 12, color: '#64748b' }}>Legal basis: Art. 6(1)(b) GDPR.</span></li>
                 <li style={li}><strong style={{ color: '#f1f5f9' }}>User content</strong> — messages, files, reactions sent on the Platform. <br/><span style={{ fontSize: 12, color: '#64748b' }}>Legal basis: Art. 6(1)(b) GDPR.</span></li>
                 <li style={li}><strong style={{ color: '#f1f5f9' }}>IP address and technical data</strong> — IP address at login and registration, server error logs. Used to detect abuse, attacks, and unauthorized access. <br/><span style={{ fontSize: 12, color: '#64748b' }}>Legal basis: Art. 6(1)(f) GDPR (legitimate interests — system security). Retention: 12 months.</span></li>
                 <li style={li}><strong style={{ color: '#f1f5f9' }}>Activity data</strong> — last login time, online/offline status, voice session history (duration only, no recordings). <br/><span style={{ fontSize: 12, color: '#64748b' }}>Legal basis: Art. 6(1)(b) GDPR.</span></li>
@@ -63,6 +64,7 @@ function PrivacyContent() {
                 <li style={li}><strong style={{ color: '#f1f5f9' }}>IP addresses and security logs</strong> — maximum 12 months.</li>
                 <li style={li}><strong style={{ color: '#f1f5f9' }}>Email verification tokens</strong> — 24 hours, then automatically deleted.</li>
                 <li style={li}><strong style={{ color: '#f1f5f9' }}>Moderation logs</strong> — 90 days, unless needed for ongoing proceedings.</li>
+                <li style={li}><strong style={{ color: '#f1f5f9' }}>Login lockout records</strong> — automatically removed upon successful login. Maximum 24 hours.</li>
               </ul>
               <p style={{ ...p, color: '#64748b', fontSize: 13 }}>The Platform is in beta. Data may be reset for technical reasons with prior notice.</p>
             </section>
@@ -73,17 +75,34 @@ function PrivacyContent() {
                 <li style={li}><strong style={{ color: '#f1f5f9' }}>OVH SAS</strong> (France, EEA) — VPS server provider. Data processed within the EU.</li>
                 <li style={li}><strong style={{ color: '#f1f5f9' }}>Vercel Inc.</strong> (USA, outside EEA) — frontend hosting. Transfer is based on Standard Contractual Clauses (SCCs) approved by the European Commission (Art. 46(2)(c) GDPR). Vercel privacy policy: <a href="https://vercel.com/legal/privacy-policy" target="_blank" rel="noreferrer" style={link}>vercel.com/legal/privacy-policy</a>.</li>
                 <li style={li}><strong style={{ color: '#f1f5f9' }}>SMTP provider</strong> — email service used only for transactional messages (account verification, system notifications). No user message content is shared.</li>
-                <li style={li}><strong style={{ color: '#f1f5f9' }}>Public authorities</strong> — when required by applicable law.</li>
+                <li style={li}><strong style={{ color: '#f1f5f9' }}>Public authorities and law enforcement</strong> — when required by applicable law or when there are reasonable grounds to suspect the commission of a criminal offence. Such disclosure may occur without prior notice to the user.</li>
               </ul>
               <p style={p}>No data is transferred to third countries beyond the scope described above.</p>
             </section>
             <section>
-              <h2 style={h2}>6. Cookies and local storage</h2>
-              <p style={p}>The Platform <strong>does not use cookies</strong> for tracking or advertising. The session token (JWT) is stored only in your browser's <strong>localStorage</strong> — it is not sent automatically with each HTTP request like a cookie, but attached deliberately by the application.</p>
-              <p style={p}>We do not use analytics trackers (e.g. Google Analytics), advertising pixels, or browser fingerprinting tools.</p>
+              <h2 style={h2}>6. Session cookie and local storage</h2>
+              <p style={p}>After logging in, the Platform sets a session cookie named <strong>pz_token</strong> in your browser. This cookie is:</p>
+              <ul style={ul}>
+                <li style={li}><strong style={{ color: '#f1f5f9' }}>HttpOnly</strong> — not accessible to JavaScript, which protects against XSS token theft;</li>
+                <li style={li}><strong style={{ color: '#f1f5f9' }}>Secure</strong> — sent only over HTTPS connections;</li>
+                <li style={li}><strong style={{ color: '#f1f5f9' }}>SameSite=Lax</strong> — limits cross-site sending, protecting against CSRF attacks;</li>
+                <li style={li}>valid for the duration of the session and deleted upon logout.</li>
+              </ul>
+              <p style={p}>The <strong>desktop application (Nexus)</strong> stores the session token in <strong>sessionStorage</strong> — deleted when the application window is closed.</p>
+              <p style={p}>We do not use analytics trackers (e.g. Google Analytics), advertising pixels, or browser fingerprinting tools. We do not set any tracking or advertising cookies.</p>
             </section>
             <section>
-              <h2 style={h2}>7. Your rights (GDPR)</h2>
+              <h2 style={h2}>7. Desktop application — additional data</h2>
+              <p style={p}>The Nexus desktop application may collect additional data locally on your device:</p>
+              <ul style={ul}>
+                <li style={li}><strong style={{ color: '#f1f5f9' }}>PTT (Push-to-Talk) consent</strong> — your response to the global keyboard/mouse hook consent dialog is saved locally in the <code style={{ background: 'rgba(255,255,255,0.07)', padding: '1px 4px', borderRadius: 3, fontSize: 12 }}>ptt_consent.json</code> file. This file is stored on your device and is not sent to our servers.</li>
+                <li style={li}><strong style={{ color: '#f1f5f9' }}>PTT key assignment</strong> — the key you assign for PTT is stored locally and is not sent to the server.</li>
+                <li style={li}><strong style={{ color: '#f1f5f9' }}>Global keyboard/mouse hooks</strong> — if you grant consent, the application uses the uiohook library to detect the assigned PTT key being pressed globally (outside the app window). The library does not log or transmit keystrokes — it only checks whether the specific assigned key was pressed at the moment of detection.</li>
+              </ul>
+              <p style={p}>You can revoke PTT consent at any time in the application settings. After revoking, global hooks are immediately disabled.</p>
+            </section>
+            <section>
+              <h2 style={h2}>8. Your rights (GDPR)</h2>
               <p style={p}>Under GDPR you have the following rights. To exercise them, write to <a href="mailto:kontakt@project-z.cloud" style={link}>kontakt@project-z.cloud</a>. We will respond within 30 days:</p>
               <ul style={ul}>
                 <li style={li}><strong style={{ color: '#f1f5f9' }}>Access (Art. 15)</strong> — right to obtain a copy of processed data and information about processing.</li>
@@ -96,28 +115,31 @@ function PrivacyContent() {
               </ul>
             </section>
             <section>
-              <h2 style={h2}>8. Data security</h2>
+              <h2 style={h2}>9. Data security</h2>
               <p style={p}>We apply the following security measures:</p>
               <ul style={ul}>
                 <li style={li}>Passwords stored only as bcrypt hashes (cost 12) — never in plaintext.</li>
                 <li style={li}>All communication encrypted with TLS 1.2+/HTTPS.</li>
+                <li style={li}>Session token stored in an HttpOnly cookie — inaccessible to JavaScript.</li>
                 <li style={li}>JWT tokens signed with HMAC-SHA256 with limited validity.</li>
                 <li style={li}>Database access restricted to application server IP addresses.</li>
+                <li style={li}>Account lockout after 5 failed login attempts (15 minutes) — stored in the database, persists through server restarts.</li>
                 <li style={li}>Suspicious activity monitoring: IP ban, rate limiting, flood detection.</li>
                 <li style={li}>Single-use email verification tokens, valid for 24 hours.</li>
+                <li style={li}>Security headers: HSTS, X-Frame-Options, X-Content-Type-Options, CORP, COOP.</li>
               </ul>
             </section>
             <section>
-              <h2 style={h2}>9. Minors</h2>
+              <h2 style={h2}>10. Minors</h2>
               <p style={p}>The Platform is not intended for individuals under 13 years of age. Users aged 13–15 may use the Platform only with parental or guardian consent, in accordance with Art. 8 GDPR.</p>
               <p style={p}>If you believe a child under 13 has an account, contact us at <a href="mailto:kontakt@project-z.cloud" style={link}>kontakt@project-z.cloud</a> — we will remove the account immediately.</p>
             </section>
             <section>
-              <h2 style={h2}>10. Changes to this Policy</h2>
+              <h2 style={h2}>11. Changes to this Policy</h2>
               <p style={p}>We will notify you of material changes to this Policy via email or in-app message at least <strong>14 days</strong> before they take effect. The date of last update is shown at the top of the page.</p>
             </section>
             <section>
-              <h2 style={h2}>11. Right to lodge a complaint</h2>
+              <h2 style={h2}>12. Right to lodge a complaint</h2>
               <p style={p}>If you believe we are processing your data unlawfully, you have the right to lodge a complaint with your national data protection authority. In Poland, this is the President of the Personal Data Protection Office (UODO):</p>
               <ul style={ul}>
                 <li style={li}>Address: ul. Stawki 2, 00-193 Warsaw, Poland</li>
@@ -167,6 +189,7 @@ function PrivacyContent() {
             <ul style={ul}>
               <li style={li}><strong style={{ color: '#f1f5f9' }}>Dane rejestracyjne</strong> — adres e-mail, nazwa użytkownika, hasło (przechowywane wyłącznie jako skrót bcrypt, nigdy w postaci jawnej), wyświetlana nazwa, kolor avatara.<br/><span style={{ fontSize: 12, color: '#64748b' }}>Podstawa: art. 6 ust. 1 lit. b RODO (wykonanie umowy).</span></li>
               <li style={li}><strong style={{ color: '#f1f5f9' }}>Dane profilu</strong> — własny status, zdjęcie avatara (opcjonalnie, przesyłane dobrowolnie), preferencje interfejsu.<br/><span style={{ fontSize: 12, color: '#64748b' }}>Podstawa: art. 6 ust. 1 lit. b RODO.</span></li>
+              <li style={li}><strong style={{ color: '#f1f5f9' }}>Dane weryfikacji dwuetapowej (2FA)</strong> — jeśli włączysz 2FA, klucz tajny TOTP jest przechowywany w zaszyfrowanej formie w bazie danych. Klucz służy wyłącznie do weryfikacji logowania i nie jest udostępniany podmiotom trzecim.<br/><span style={{ fontSize: 12, color: '#64748b' }}>Podstawa: art. 6 ust. 1 lit. b RODO.</span></li>
               <li style={li}><strong style={{ color: '#f1f5f9' }}>Treści użytkownika</strong> — wiadomości, pliki, reakcje wysyłane na Platformie.<br/><span style={{ fontSize: 12, color: '#64748b' }}>Podstawa: art. 6 ust. 1 lit. b RODO.</span></li>
               <li style={li}><strong style={{ color: '#f1f5f9' }}>Adres IP i dane techniczne</strong> — adres IP przy logowaniu i rejestracji, logi błędów serwera. Dane służą do wykrywania nadużyć i nieautoryzowanego dostępu.<br/><span style={{ fontSize: 12, color: '#64748b' }}>Podstawa: art. 6 ust. 1 lit. f RODO (uzasadniony interes — bezpieczeństwo). Retencja: 12 miesięcy.</span></li>
               <li style={li}><strong style={{ color: '#f1f5f9' }}>Dane aktywności</strong> — czas ostatniego logowania, status online/offline, historia połączeń głosowych (tylko czas trwania, bez nagrań).<br/><span style={{ fontSize: 12, color: '#64748b' }}>Podstawa: art. 6 ust. 1 lit. b RODO.</span></li>
@@ -186,6 +209,7 @@ function PrivacyContent() {
               <li style={li}><strong style={{ color: '#f1f5f9' }}>Adresy IP i logi bezpieczeństwa</strong> — maksymalnie 12 miesięcy.</li>
               <li style={li}><strong style={{ color: '#f1f5f9' }}>Tokeny weryfikacji e-mail</strong> — 24 godziny, następnie automatycznie usuwane.</li>
               <li style={li}><strong style={{ color: '#f1f5f9' }}>Logi moderacyjne</strong> — 90 dni, chyba że są potrzebne w związku z toczącym się postępowaniem.</li>
+              <li style={li}><strong style={{ color: '#f1f5f9' }}>Rekordy blokady logowania</strong> — usuwane automatycznie po pomyślnym zalogowaniu. Maksymalnie 24 godziny.</li>
             </ul>
             <p style={{ ...p, color: '#64748b', fontSize: 13 }}>Platforma jest w fazie testów beta. Dane mogą zostać zresetowane z powodów technicznych po uprzednim powiadomieniu.</p>
           </section>
@@ -196,17 +220,34 @@ function PrivacyContent() {
               <li style={li}><strong style={{ color: '#f1f5f9' }}>OVH SAS</strong> (Francja, EOG) — dostawca serwera VPS. Dane przetwarzane w UE.</li>
               <li style={li}><strong style={{ color: '#f1f5f9' }}>Vercel Inc.</strong> (USA, poza EOG) — hosting frontendowy. Transfer na podstawie standardowych klauzul umownych (SCC) zatwierdzonych przez KE (art. 46 ust. 2 lit. c RODO). Polityka prywatności Vercel: <a href="https://vercel.com/legal/privacy-policy" target="_blank" rel="noreferrer" style={link}>vercel.com/legal/privacy-policy</a>.</li>
               <li style={li}><strong style={{ color: '#f1f5f9' }}>Dostawca SMTP</strong> — usługa e-mail używana wyłącznie do wysyłania wiadomości transakcyjnych. Żadne treści wiadomości użytkowników nie są przekazywane dostawcy SMTP.</li>
-              <li style={li}><strong style={{ color: '#f1f5f9' }}>Organy publiczne</strong> — gdy jest to wymagane przez obowiązujące przepisy prawa.</li>
+              <li style={li}><strong style={{ color: '#f1f5f9' }}>Organy publiczne i organy ścigania</strong> — gdy jest to wymagane przez obowiązujące przepisy prawa lub gdy istnieją uzasadnione podstawy do podejrzenia popełnienia przestępstwa. Przekazanie może nastąpić bez uprzedniego powiadomienia użytkownika.</li>
             </ul>
             <p style={p}>Żadne dane nie są przekazywane do krajów trzecich poza zakresem opisanym powyżej.</p>
           </section>
           <section>
-            <h2 style={h2}>6. Pliki cookies i dane lokalne</h2>
-            <p style={p}>Platforma <strong>nie używa plików cookies</strong> do śledzenia ani celów reklamowych. Token sesji (JWT) przechowywany jest wyłącznie w <strong>localStorage</strong> Twojej przeglądarki — nie jest wysyłany automatycznie przy każdym żądaniu HTTP, lecz dołączany świadomie przez aplikację.</p>
-            <p style={p}>Nie stosujemy trackerów analitycznych (np. Google Analytics), pikseli reklamowych ani narzędzi do fingerprintingu przeglądarki.</p>
+            <h2 style={h2}>6. Cookie sesyjne i dane lokalne</h2>
+            <p style={p}>Po zalogowaniu Platforma ustawia w Twojej przeglądarce cookie sesyjne o nazwie <strong>pz_token</strong>. Cookie to jest:</p>
+            <ul style={ul}>
+              <li style={li}><strong style={{ color: '#f1f5f9' }}>HttpOnly</strong> — niedostępne dla JavaScript, co chroni przed kradzieżą tokena przez ataki XSS;</li>
+              <li style={li}><strong style={{ color: '#f1f5f9' }}>Secure</strong> — przesyłane wyłącznie przez połączenia HTTPS;</li>
+              <li style={li}><strong style={{ color: '#f1f5f9' }}>SameSite=Lax</strong> — ogranicza wysyłanie w kontekście cross-site, chroniąc przed atakami CSRF;</li>
+              <li style={li}>ważne przez czas sesji, usuwane przy wylogowaniu.</li>
+            </ul>
+            <p style={p}><strong>Aplikacja desktopowa (Nexus)</strong> przechowuje token sesji w <strong>sessionStorage</strong> — jest usuwany po zamknięciu okna aplikacji.</p>
+            <p style={p}>Nie stosujemy trackerów analitycznych (np. Google Analytics), pikseli reklamowych ani narzędzi do fingerprintingu przeglądarki. Nie ustawiamy żadnych cookies śledzących ani reklamowych.</p>
           </section>
           <section>
-            <h2 style={h2}>7. Twoje prawa (RODO)</h2>
+            <h2 style={h2}>7. Aplikacja desktopowa — dodatkowe dane</h2>
+            <p style={p}>Aplikacja desktopowa Nexus może zbierać dodatkowe dane lokalnie na Twoim urządzeniu:</p>
+            <ul style={ul}>
+              <li style={li}><strong style={{ color: '#f1f5f9' }}>Zgoda na PTT (Push-to-Talk)</strong> — odpowiedź na dialog zgody na globalne hooki klawiatury/myszy jest zapisywana lokalnie w pliku <code style={{ background: 'rgba(255,255,255,0.07)', padding: '1px 4px', borderRadius: 3, fontSize: 12 }}>ptt_consent.json</code>. Plik jest przechowywany na Twoim urządzeniu i nie jest przesyłany na nasze serwery.</li>
+              <li style={li}><strong style={{ color: '#f1f5f9' }}>Przypisanie klawisza PTT</strong> — klawisz przypisany do PTT jest przechowywany lokalnie i nie jest wysyłany na serwer.</li>
+              <li style={li}><strong style={{ color: '#f1f5f9' }}>Globalne hooki klawiatury i myszy</strong> — jeśli udzielisz zgody, aplikacja używa biblioteki uiohook do wykrywania wciśnięcia przypisanego klawisza PTT globalnie (poza oknem aplikacji). Biblioteka nie rejestruje ani nie przesyła naciśnięć klawiszy — sprawdza wyłącznie, czy w chwili wykrycia został wciśnięty konkretny, przypisany klawisz.</li>
+            </ul>
+            <p style={p}>Zgodę na PTT możesz cofnąć w dowolnym momencie w ustawieniach aplikacji. Po cofnięciu zgody globalne hooki są natychmiast wyłączane.</p>
+          </section>
+          <section>
+            <h2 style={h2}>8. Twoje prawa (RODO)</h2>
             <p style={p}>Zgodnie z RODO przysługują Ci następujące prawa. Aby z nich skorzystać, napisz na <a href="mailto:kontakt@project-z.cloud" style={link}>kontakt@project-z.cloud</a>. Odpowiemy w ciągu 30 dni:</p>
             <ul style={ul}>
               <li style={li}><strong style={{ color: '#f1f5f9' }}>Dostęp (art. 15)</strong> — prawo do uzyskania kopii przetwarzanych danych i informacji o przetwarzaniu.</li>
@@ -219,28 +260,31 @@ function PrivacyContent() {
             </ul>
           </section>
           <section>
-            <h2 style={h2}>8. Bezpieczeństwo danych</h2>
+            <h2 style={h2}>9. Bezpieczeństwo danych</h2>
             <p style={p}>Stosujemy następujące środki ochrony danych:</p>
             <ul style={ul}>
               <li style={li}>Hasła przechowywane wyłącznie jako skróty bcrypt (koszt 12) — nigdy w formie jawnej.</li>
               <li style={li}>Cała komunikacja szyfrowana TLS 1.2+/HTTPS.</li>
+              <li style={li}>Token sesji przechowywany w cookie HttpOnly — niedostępny dla JavaScript.</li>
               <li style={li}>Tokeny JWT podpisane kluczem HMAC-SHA256 z ograniczonym czasem ważności.</li>
               <li style={li}>Dostęp do bazy danych ograniczony do adresów IP serwerów aplikacji.</li>
+              <li style={li}>Blokada konta po 5 nieudanych próbach logowania (15 minut) — zapisywana w bazie danych, odporna na restarty serwera.</li>
               <li style={li}>Monitorowanie podejrzanej aktywności: ban IP, rate limiting, detekcja flood.</li>
               <li style={li}>Tokeny weryfikacji e-mail jednorazowego użytku, ważne 24 godziny.</li>
+              <li style={li}>Nagłówki bezpieczeństwa: HSTS, X-Frame-Options, X-Content-Type-Options, CORP, COOP.</li>
             </ul>
           </section>
           <section>
-            <h2 style={h2}>9. Osoby niepełnoletnie</h2>
+            <h2 style={h2}>10. Osoby niepełnoletnie</h2>
             <p style={p}>Platforma nie jest przeznaczona dla osób poniżej 13 roku życia. Osoby w wieku 13–15 lat mogą korzystać z Platformy wyłącznie za zgodą rodzica lub opiekuna prawnego, zgodnie z art. 8 RODO.</p>
             <p style={p}>Jeśli masz podstawy sądzić, że dziecko poniżej 13 lat posiada konto, skontaktuj się z nami pod adresem <a href="mailto:kontakt@project-z.cloud" style={link}>kontakt@project-z.cloud</a> — usuniemy konto niezwłocznie.</p>
           </section>
           <section>
-            <h2 style={h2}>10. Zmiany Polityki prywatności</h2>
+            <h2 style={h2}>11. Zmiany Polityki prywatności</h2>
             <p style={p}>O istotnych zmianach tej Polityki poinformujemy e-mailem lub komunikatem w aplikacji z wyprzedzeniem co najmniej <strong>14 dni</strong> przed ich wejściem w życie.</p>
           </section>
           <section>
-            <h2 style={h2}>11. Skarga do organu nadzorczego</h2>
+            <h2 style={h2}>12. Skarga do organu nadzorczego</h2>
             <p style={p}>Jeśli uważasz, że przetwarzamy Twoje dane niezgodnie z prawem, masz prawo wnieść skargę do Prezesa UODO:</p>
             <ul style={ul}>
               <li style={li}>Adres: ul. Stawki 2, 00-193 Warszawa</li>

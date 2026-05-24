@@ -32,10 +32,21 @@ interface PatchRelease { version: string; date: string; labelPl: string; labelEn
 
 const PATCH_NOTES: PatchRelease[] = [
   {
-    version: '0.7.1',
+    version: '0.7.2',
     date: '2026-05-24',
     labelPl: 'Najnowsza',
     labelEn: 'Latest',
+    entries: [
+      { type: 'fix', pl: 'Nakładka głosowa — naprawiono błąd uniemożliwiający wyświetlanie uczestników kanału (nakładka zawsze pokazywała "Brak aktywnego kanału głosowego")', en: 'Voice overlay — fixed a bug preventing channel participants from being displayed (overlay always showed "No active voice channel")' },
+      { type: 'fix', pl: 'Nakładka głosowa — zmieniono nazwę panelu z "NEXUS VOICE" na "PROJECT-Z VOICE"', en: 'Voice overlay — panel label renamed from "NEXUS VOICE" to "PROJECT-Z VOICE"' },
+      { type: 'imp', pl: 'Regulamin i Polityka prywatności — zaktualizowano dokumenty: dodano sekcję zgłaszania nielegalnych treści (narkotyki, CSAM) z linkami do Policji, Dyżurnet.pl i CERT Polska; poprawiono opis przechowywania sesji (HttpOnly cookie zamiast localStorage); dodano informacje o aplikacji desktopowej i hookach PTT', en: 'Terms of Service and Privacy Policy — updated documents: added illegal content reporting section (drugs, CSAM) with links to Police, Dyżurnet.pl and CERT Polska; corrected session storage description (HttpOnly cookie instead of localStorage); added desktop app and PTT hooks disclosure' },
+    ],
+  },
+  {
+    version: '0.7.1',
+    date: '2026-05-24',
+    labelPl: '',
+    labelEn: '',
     entries: [
       { type: 'new', pl: 'Opóźnienie na kanałach głosowych — wskaźnik ping w ms obok statusu połączenia; kolor zmienia się w zależności od jakości (zielony / żółty / pomarańczowy / czerwony)', en: 'Voice channel latency — ping indicator in ms next to connection status; colour changes based on quality (green / yellow / orange / red)' },
       { type: 'fix', pl: 'Logowanie — naprawiono błąd uniemożliwiający zalogowanie się w przeglądarce (nieprawidłowy zakres cookie między subdomenami)', en: 'Login — fixed an issue that prevented signing in via the browser (incorrect cookie scope across subdomains)' },
