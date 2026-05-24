@@ -24,6 +24,8 @@ try {
   console.warn('[uiohook] Nie udało się załadować uiohook-napi:', e.message)
 }
 
+const fs = require('fs')
+
 const APP_URL      = 'https://project-z.cloud'
 const APP_NAME     = 'Project-Z'
 
@@ -507,6 +509,30 @@ ipcMain.handle('select-desktop-source', (_, sourceId) => {
   pendingScreenShareSourceId = sourceId
 })
 
+async function checkUiohookConsent() {
+  const consentFile = path.join(app.getPath('userData'), 'ptt_consent.json')
+  try {
+    const data = JSON.parse(fs.readFileSync(consentFile, 'utf8'))
+    if (data.accepted === true) return true
+  } catch {}
+
+  const { response } = await dialog.showMessageBox({
+    type: 'info',
+    title: 'Push-to-Talk — uprawnienia',
+    message: 'Nexus używa globalnych hooków klawiatury i myszy',
+    detail: 'Funkcja Push-to-Talk wymaga nasłuchiwania naciśnięć klawiszy i przycisków myszy w tle, nawet gdy aplikacja nie jest aktywna.\n\nTe zdarzenia są używane wyłącznie do aktywacji mikrofonu PTT i nie są nigdzie rejestrowane ani przesyłane.\n\nCzy chcesz włączyć Push-to-Talk?',
+    buttons: ['Włącz PTT', 'Nie, rezygnuję'],
+    defaultId: 0,
+    cancelId: 1,
+  })
+
+  const accepted = response === 0
+  try {
+    fs.writeFileSync(consentFile, JSON.stringify({ accepted, date: new Date().toISOString() }))
+  } catch {}
+  return accepted
+}
+
 app.whenReady().then(async () => {
 
   await session.defaultSession.clearCache()
@@ -551,7 +577,8 @@ app.whenReady().then(async () => {
   })
 
   createTray()
-  setupUiohook()
+  const pttConsented = await checkUiohookConsent()
+  if (pttConsented) setupUiohook()
 
   registerOverlayShortcut()
   setupAutoUpdater()
