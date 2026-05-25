@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express'
 import multer from 'multer'
 import { requireAuth } from '../middleware/auth'
 import { execute, queryOne } from '../db/pool'
+import { hasPermission } from '../middleware/permissions'
 import { v4 as uuidv4 } from 'uuid'
 
 const router = Router()
@@ -94,11 +95,18 @@ router.post('/:channelId/attachments', requireAuth, (req: Request, res: Response
 
 router.get('/:id', requireAuth, async (req: Request, res: Response) => {
   try {
-    const row = await queryOne<{ data: Buffer; content_type: string; filename: string }>(
-      'SELECT data, content_type, filename FROM message_attachments WHERE id = ?',
+    const row = await queryOne<{ data: Buffer; content_type: string; filename: string; server_id: string }>(
+      `SELECT ma.data, ma.content_type, ma.filename, c.server_id
+       FROM message_attachments ma
+       INNER JOIN channels c ON c.id = ma.channel_id
+       WHERE ma.id = ?`,
       [req.params.id]
     )
     if (!row) return res.status(404).json({ error: 'Nie znaleziono' })
+
+    if (!await hasPermission(req.user!.userId, row.server_id, 'VIEW_CHANNELS')) {
+      return res.status(403).json({ error: 'Brak dostępu' })
+    }
 
     const safeContentType = ALLOWED_MIME_TYPES.has(row.content_type)
       ? row.content_type

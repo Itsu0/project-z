@@ -69,7 +69,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     const user = await userQueries.findById(payload.userId)
     if (!user) return res.status(401).json({ error: 'Użytkownik nie istnieje' })
 
-    const clientIp = getClientIp(req)
+    const clientIp = req.ip ?? req.socket?.remoteAddress ?? '0.0.0.0'
     const ipBan = await queryOne<{ reason: string }>(
       'SELECT reason FROM banned_ips WHERE ip = ? LIMIT 1', [clientIp]
     )

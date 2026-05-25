@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express'
 import { requireAuth } from '../middleware/auth'
 import { queryMany, execute } from '../db/pool'
+import { canModerate } from '../middleware/permissions'
 
 const router = Router()
 
@@ -73,6 +74,9 @@ router.delete('/', requireAuth, async (req: Request, res: Response) => {
 router.get('/mutes/:serverId', requireAuth, async (req: Request, res: Response) => {
   try {
     const { serverId } = req.params
+    if (!await canModerate(req.user!.userId, serverId, 'MUTE_MEMBERS')) {
+      return res.status(403).json({ error: 'Brak uprawnień' })
+    }
     const mutes = await queryMany(
       `SELECT sm.user_id, sm.expires_at, sm.reason, sm.created_at,
         u.display_name, u.username, u.avatar_color

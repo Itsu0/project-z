@@ -249,7 +249,7 @@ router.post('/login', async (req: Request, res: Response) => {
       const jwt = await import('jsonwebtoken')
       const tempToken = jwt.sign(
         { userId: user.id, twoFaPending: true },
-        process.env.JWT_SECRET ?? 'nexus_jwt_super_secret_2026_vps',
+        process.env.JWT_SECRET!,
         { expiresIn: '5m' }
       )
       recordIp(user.id, getClientIp(req)).catch(() => {})
@@ -491,7 +491,7 @@ router.post('/2fa/verify-login', async (req: Request, res: Response) => {
     let payload: { userId: string; twoFaPending: boolean }
     try {
       const jwt = await import('jsonwebtoken')
-      payload = jwt.verify(tempToken, process.env.JWT_SECRET ?? 'nexus_jwt_super_secret_2026_vps') as any
+      payload = jwt.verify(tempToken, process.env.JWT_SECRET!) as any
     } catch {
       return res.status(401).json({ error: 'Nieprawidłowy token' })
     }

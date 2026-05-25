@@ -14,7 +14,12 @@ router.get('/:channelId/messages', requireAuth, async (req: Request, res: Respon
     const before = req.query.before as string | undefined
     const serverId = req.query.serverId as string | undefined
 
-    if (serverId && !await hasPermission(req.user!.userId, serverId, 'VIEW_CHANNELS')) {
+    const channelRow = await queryOne<{ server_id: string }>(
+      'SELECT server_id FROM channels WHERE id = ?', [channelId]
+    )
+    if (!channelRow) return res.status(404).json({ error: 'Kanał nie istnieje' })
+    const effectiveServerId = serverId ?? channelRow.server_id
+    if (!await hasPermission(req.user!.userId, effectiveServerId, 'VIEW_CHANNELS')) {
       return res.status(403).json({ error: 'Nie masz dostępu do tego kanału' })
     }
 
@@ -173,7 +178,13 @@ router.post('/:channelId/messages', requireAuth, async (req: Request, res: Respo
       return res.status(400).json({ error: 'Wiadomość może mieć maksymalnie 2000 znaków' })
     }
 
-    if (serverId && await isMuted(req.user!.userId, serverId)) {
+    const postChannelRow = await queryOne<{ server_id: string }>(
+      'SELECT server_id FROM channels WHERE id = ?', [channelId]
+    )
+    if (!postChannelRow) return res.status(404).json({ error: 'Kanał nie istnieje' })
+    const postServerId = serverId ?? postChannelRow.server_id
+
+    if (await isMuted(req.user!.userId, postServerId)) {
       const mute = await queryOne<{ expires_at: string }>(
         'SELECT expires_at FROM server_mutes WHERE user_id = ? AND server_id = ?',
         [req.user!.userId, serverId]
@@ -183,13 +194,13 @@ router.post('/:channelId/messages', requireAuth, async (req: Request, res: Respo
       return res.status(403).json({ error: `Jesteś wyciszony jeszcze przez ${mins} min` })
     }
 
-    if (serverId && !await hasPermission(req.user!.userId, serverId, 'SEND_MESSAGES')) {
+    if (!await hasPermission(req.user!.userId, postServerId, 'SEND_MESSAGES')) {
       return res.status(403).json({ error: 'Nie masz uprawnień do wysyłania wiadomości na tym serwerze' })
     }
 
     const messageId = await messageQueries.create({
       channelId,
-      serverId,
+      serverId: postServerId,
       authorId: req.user!.userId,
       content: content.trim(),
     })
@@ -295,6 +306,8 @@ router.put('/:channelId/pins/:messageId', requireAuth, async (req: Request, res:
     const { channelId, messageId } = req.params
     const msg = await queryOne<any>('SELECT * FROM messages WHERE id = ? AND channel_id = ?', [messageId, channelId])
     if (!msg) return res.status(404).json({ error: 'Nie znaleziono wiadomości' })
+    const isMember = await memberQueries.isMember(req.user!.userId, msg.server_id)
+    if (!isMember) return res.status(403).json({ error: 'Brak dostępu' })
     const isMod = await canModerate(req.user!.userId, msg.server_id, 'MANAGE_MESSAGES')
     if (msg.author_id !== req.user!.userId && !isMod) {
       return res.status(403).json({ error: 'Brak uprawnień' })
@@ -314,6 +327,8 @@ router.delete('/:channelId/pins/:messageId', requireAuth, async (req: Request, r
     const { channelId, messageId } = req.params
     const msg = await queryOne<any>('SELECT * FROM messages WHERE id = ? AND channel_id = ?', [messageId, channelId])
     if (!msg) return res.status(404).json({ error: 'Nie znaleziono wiadomości' })
+    const isMemberDel = await memberQueries.isMember(req.user!.userId, msg.server_id)
+    if (!isMemberDel) return res.status(403).json({ error: 'Brak dostępu' })
     const isMod = await canModerate(req.user!.userId, msg.server_id, 'MANAGE_MESSAGES')
     if (msg.author_id !== req.user!.userId && !isMod) {
       return res.status(403).json({ error: 'Brak uprawnień' })

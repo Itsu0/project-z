@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express'
 import { requireAuth } from '../middleware/auth'
 import { serverQueries, memberQueries, channelQueries, roleQueries } from '../db/queries'
-import { canModerate } from '../middleware/permissions'
+import { canModerate, getUserPermissions } from '../middleware/permissions'
 import { v4 as uuidv4 } from 'uuid'
 import { execute, queryMany } from '../db/pool'
 
@@ -52,6 +52,14 @@ router.post('/:serverId/roles', requireAuth, async (req: Request, res: Response)
 
     const canManageRoles = await canModerate(req.user!.userId, serverId, 'MANAGE_ROLES')
     if (!canManageRoles) return res.status(403).json({ error: 'Wymagane uprawnienie: Zarządzaj rolami' })
+
+    const requesterIsAdmin = await canModerate(req.user!.userId, serverId, 'ADMINISTRATOR')
+    if (!requesterIsAdmin && Array.isArray(permissions)) {
+      const blocked = ['ADMINISTRATOR', 'MANAGE_ROLES']
+      if (permissions.some((p: string) => blocked.includes(p))) {
+        return res.status(403).json({ error: 'Tylko administrator może tworzyć role z takimi uprawnieniami' })
+      }
+    }
 
     const id = await roleQueries.create({ serverId, name: name.trim(), color, permissions, hoist, mentionable })
     const roles = await roleQueries.forServer(serverId)
@@ -209,9 +217,18 @@ router.post('/:serverId/members/:userId/roles/:roleId', requireAuth, async (req:
     const requesterIsAdmin = await canModerate(req.user!.userId, serverId, 'ADMINISTRATOR')
     if (!requesterIsAdmin) {
       const { queryOne: qOne } = await import('../db/pool')
-      const role = await qOne<{ name: string }>('SELECT name FROM roles WHERE id = ?', [roleId])
-      if (role?.name === 'Administrator' || role?.name === 'Moderator') {
-        return res.status(403).json({ error: 'Tylko administrator może nadawać tę rangę' })
+      const role = await qOne<{ permissions: string }>('SELECT permissions FROM roles WHERE id = ?', [roleId])
+      if (role) {
+        let rolePerms: string[] = []
+        const raw = String(role.permissions ?? '')
+        if (raw.startsWith('[')) {
+          try { rolePerms = JSON.parse(raw) } catch {}
+        } else {
+          rolePerms = raw.split(',').map(s => s.trim()).filter(Boolean)
+        }
+        if (rolePerms.includes('ADMINISTRATOR') || rolePerms.includes('MANAGE_ROLES')) {
+          return res.status(403).json({ error: 'Tylko administrator może nadawać tę rangę' })
+        }
       }
     }
     await memberQueries.assignRole(userId, serverId, roleId)
