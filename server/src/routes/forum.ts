@@ -155,8 +155,11 @@ router.post('/:channelId/posts/:postId/replies', requireAuth, async (req: Reques
 
 router.delete('/:channelId/posts/:postId', requireAuth, async (req: Request, res: Response) => {
   try {
-    const { postId } = req.params
-    const post = await queryOne<{ author_id: string }>('SELECT author_id FROM forum_posts WHERE id = ?', [postId])
+    const { channelId, postId } = req.params
+    const delChannel = await queryOne<{ server_id: string }>('SELECT server_id FROM channels WHERE id = ?', [channelId])
+    if (!delChannel) return res.status(404).json({ error: 'Kanał nie istnieje' })
+    if (!await assertMember(req.user!.userId, delChannel.server_id, res)) return
+    const post = await queryOne<{ author_id: string }>('SELECT author_id FROM forum_posts WHERE id = ? AND channel_id = ?', [postId, channelId])
     if (!post) return res.status(404).json({ error: 'Post nie istnieje' })
     if (post.author_id !== req.user!.userId) return res.status(403).json({ error: 'Możesz usuwać tylko swoje posty' })
     await execute('DELETE FROM forum_posts WHERE id = ?', [postId])
@@ -169,7 +172,10 @@ router.delete('/:channelId/posts/:postId', requireAuth, async (req: Request, res
 
 router.delete('/:channelId/posts/:postId/replies/:replyId', requireAuth, async (req: Request, res: Response) => {
   try {
-    const { postId, replyId } = req.params
+    const { channelId, postId, replyId } = req.params
+    const delReplyCh = await queryOne<{ server_id: string }>('SELECT server_id FROM channels WHERE id = ?', [channelId])
+    if (!delReplyCh) return res.status(404).json({ error: 'Kanał nie istnieje' })
+    if (!await assertMember(req.user!.userId, delReplyCh.server_id, res)) return
     const reply = await queryOne<{ author_id: string }>('SELECT author_id FROM forum_replies WHERE id = ?', [replyId])
     if (!reply) return res.status(404).json({ error: 'Odpowiedź nie istnieje' })
     if (reply.author_id !== req.user!.userId) return res.status(403).json({ error: 'Możesz usuwać tylko swoje odpowiedzi' })
