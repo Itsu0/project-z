@@ -408,8 +408,10 @@ export function setupSocket(io: SocketIO) {
       } catch (err) { console.error('[socket/REACTION_REMOVE]', err) }
     })
 
-    socket.on('TYPING_START', (data: { channelId: string }) => {
+    socket.on('TYPING_START', async (data: { channelId: string }) => {
       const { channelId } = data
+      const typingCh = await queryOne<{ server_id: string }>('SELECT server_id FROM channels WHERE id = ?', [channelId])
+      if (!typingCh || !await memberQueries.isMember(userId, typingCh.server_id)) return
       if (!typingUsers.has(channelId)) typingUsers.set(channelId, new Set())
       typingUsers.get(channelId)!.add(userId)
       socket.to(`channel:${channelId}`).emit('TYPING_START', { userId, username, channelId })
@@ -464,6 +466,9 @@ export function setupSocket(io: SocketIO) {
 
     socket.on('VOICE_LEAVE', async (data: { channelId: string; serverId: string }) => {
       try {
+        const vlCh = await queryOne<{ server_id: string }>('SELECT server_id FROM channels WHERE id = ?', [data.channelId])
+        if (!vlCh || vlCh.server_id !== data.serverId) return
+        if (!await memberQueries.isMember(userId, data.serverId)) return
         await execute('DELETE FROM voice_states WHERE user_id = ? AND channel_id = ?', [userId, data.channelId])
         io.to(`server:${data.serverId}`).emit('VOICE_LEAVE', { channelId: data.channelId, userId })
       } catch {}

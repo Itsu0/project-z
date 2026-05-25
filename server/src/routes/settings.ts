@@ -76,7 +76,7 @@ router.delete('/:serverId/roles/:roleId', requireAuth, async (req: Request, res:
     const { serverId, roleId } = req.params
     const server = await serverQueries.findById(serverId)
     if (server?.owner_id !== req.user!.userId) return res.status(403).json({ error: 'Tylko właściciel może usuwać role' })
-    await roleQueries.delete(roleId)
+    await roleQueries.delete(roleId, serverId)
     return res.json({ ok: true })
   } catch (err) {
     console.error('[settings/delete-role]', err)
@@ -187,7 +187,8 @@ router.patch('/:serverId/roles/:roleId', requireAuth, async (req: Request, res: 
 
     if (fields.length) {
       values.push(roleId)
-      await execute(`UPDATE roles SET ${fields.join(', ')} WHERE id = ?`, values)
+      values.push(serverId)
+      await execute(`UPDATE roles SET ${fields.join(', ')} WHERE id = ? AND server_id = ?`, values)
     }
     const roles = await roleQueries.forServer(serverId)
     return res.json({ role: roles.find(r => r.id === roleId) })
@@ -200,6 +201,9 @@ router.patch('/:serverId/roles/:roleId', requireAuth, async (req: Request, res: 
 router.get('/:serverId/members/:userId/roles', requireAuth, async (req: Request, res: Response) => {
   try {
     const { serverId, userId } = req.params
+    if (!await memberQueries.isMember(req.user!.userId, serverId)) {
+      return res.status(403).json({ error: 'Brak dostępu' })
+    }
     const roles = await memberQueries.roles(userId, serverId)
     return res.json({ roles })
   } catch (err) {
@@ -261,6 +265,9 @@ router.delete('/:serverId/members/:userId/roles/:roleId', requireAuth, async (re
 router.get('/:serverId/emoji', requireAuth, async (req: Request, res: Response) => {
   try {
     const { serverId } = req.params
+    if (!await memberQueries.isMember(req.user!.userId, serverId)) {
+      return res.status(403).json({ error: 'Brak dostępu' })
+    }
     const emoji = await queryMany('SELECT * FROM custom_emoji WHERE server_id = ? ORDER BY created_at ASC', [serverId])
     return res.json({ emoji })
   } catch (err) {

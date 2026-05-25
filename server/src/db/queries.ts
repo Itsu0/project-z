@@ -469,6 +469,6 @@ export const roleQueries = {
     return id
   },
 
-  delete: (id: string) =>
-    execute('DELETE FROM roles WHERE id = ?', [id]),
+  delete: (id: string, serverId: string) =>
+    execute('DELETE FROM roles WHERE id = ? AND server_id = ?', [id, serverId]),
 }

@@ -267,6 +267,21 @@ router.get('/invite/:code', requireAuth, async (req: Request, res: Response) => 
     const server = await serverQueries.findById(invite.server_id)
     if (!server) return res.status(404).json({ error: 'Serwer nie istnieje' })
     const alreadyMember = await memberQueries.isMember(req.user!.userId, invite.server_id)
+    return res.json({ server, alreadyMember })
+  } catch (err) { return res.status(500).json({ error: 'Błąd serwera' }) }
+})
+
+router.post('/invite/:code/join', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { code } = req.params
+    const invite = await queryOne<{ server_id: string; expires_at: string }>(
+      'SELECT server_id, expires_at FROM invites WHERE code = ? AND expires_at > UTC_TIMESTAMP()',
+      [code]
+    )
+    if (!invite) return res.status(404).json({ error: 'Link zaproszenia wygasł lub jest nieprawidłowy' })
+    const server = await serverQueries.findById(invite.server_id)
+    if (!server) return res.status(404).json({ error: 'Serwer nie istnieje' })
+    const alreadyMember = await memberQueries.isMember(req.user!.userId, invite.server_id)
     if (alreadyMember) return res.json({ server, alreadyMember: true })
 
     const inviteBan = await queryOne<{ reason: string }>(

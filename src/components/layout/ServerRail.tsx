@@ -132,7 +132,8 @@ function JoinServerModal({
     setLoading(true); setError('')
     try {
 
-      let res = await fetch(`${BASE}/api/servers/invite/${inviteCode}`, {
+      let res = await fetch(`${BASE}/api/servers/invite/${inviteCode}/join`, {
+        method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
       })
 

@@ -10,6 +10,9 @@ const router = Router()
 router.get('/:serverId/moderation/status/:userId', requireAuth, async (req: Request, res: Response) => {
   try {
     const { serverId, userId } = req.params
+    if (!await canModerate(req.user!.userId, serverId, 'MUTE_MEMBERS')) {
+      return res.status(403).json({ error: 'Brak uprawnień' })
+    }
     const mute = await queryOne<{ expires_at: string; reason: string }>(
       'SELECT expires_at, reason FROM server_mutes WHERE user_id = ? AND server_id = ? AND expires_at > UTC_TIMESTAMP()',
       [userId, serverId]
