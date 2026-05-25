@@ -2,7 +2,7 @@ import { Server as SocketIO, Socket } from 'socket.io'
 import { verifySocketToken } from '../middleware/auth'
 import { messageQueries, userQueries, reactionQueries, memberQueries } from '../db/queries'
 import { execute, queryMany, queryOne } from '../db/pool'
-import { isMuted } from '../middleware/permissions'
+import { isMuted, hasPermission } from '../middleware/permissions'
 import { v4 as uuidv4 } from 'uuid'
 import { invalidateChannel } from '../cache/messages'
 import { checkAutoMod, addStrike, logModAction, isRaidLocked } from '../routes/serverMod'
@@ -183,7 +183,13 @@ export function setupSocket(io: SocketIO) {
       console.log(`📡 ${username} dołączył do server:${serverId}`)
     })
 
-    socket.on('join_channel',  (channelId: string) => socket.join(`channel:${channelId}`))
+    socket.on('join_channel', async (channelId: string) => {
+      const ch = await queryOne<{ server_id: string }>('SELECT server_id FROM channels WHERE id = ?', [channelId])
+      if (!ch) return
+      const memberOk = await memberQueries.isMember(userId, ch.server_id)
+      if (!memberOk) return
+      socket.join(`channel:${channelId}`)
+    })
     socket.on('leave_channel', (channelId: string) => socket.leave(`channel:${channelId}`))
     socket.on('leave_server',  (serverId: string)  => socket.leave(`server:${serverId}`))
 
@@ -213,6 +219,8 @@ export function setupSocket(io: SocketIO) {
           [userId, data.serverId]
         )
         if (banCheck) return
+
+        if (!await hasPermission(userId, data.serverId, 'SEND_MESSAGES')) return
 
         if (await isMuted(userId, data.serverId)) {
           const mute = await queryOne<{ expires_at: string }>(
