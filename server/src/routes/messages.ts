@@ -184,6 +184,10 @@ router.post('/:channelId/messages', requireAuth, async (req: Request, res: Respo
     if (!postChannelRow) return res.status(404).json({ error: 'Kanał nie istnieje' })
     const postServerId = serverId ?? postChannelRow.server_id
 
+    if (!await memberQueries.isMember(req.user!.userId, postServerId)) {
+      return res.status(403).json({ error: 'Nie jesteś członkiem tego serwera' })
+    }
+
     if (await isMuted(req.user!.userId, postServerId)) {
       const mute = await queryOne<{ expires_at: string }>(
         'SELECT expires_at FROM server_mutes WHERE user_id = ? AND server_id = ?',
@@ -261,7 +265,10 @@ router.delete('/:channelId/messages/:messageId', requireAuth, async (req: Reques
 
 router.put('/:channelId/messages/:messageId/reactions/:emoji', requireAuth, async (req: Request, res: Response) => {
   try {
-    const { messageId, emoji } = req.params
+    const { channelId, messageId, emoji } = req.params
+    const rxCh = await queryOne<{ server_id: string }>('SELECT server_id FROM channels WHERE id = ?', [channelId])
+    if (!rxCh) return res.status(404).json({ error: 'Kanał nie istnieje' })
+    if (!await memberQueries.isMember(req.user!.userId, rxCh.server_id)) return res.status(403).json({ error: 'Brak dostępu' })
     await reactionQueries.add(messageId, req.user!.userId, decodeURIComponent(emoji))
     return res.json({ ok: true })
   } catch (err) {
@@ -272,7 +279,10 @@ router.put('/:channelId/messages/:messageId/reactions/:emoji', requireAuth, asyn
 
 router.delete('/:channelId/messages/:messageId/reactions/:emoji', requireAuth, async (req: Request, res: Response) => {
   try {
-    const { messageId, emoji } = req.params
+    const { channelId, messageId, emoji } = req.params
+    const rxChDel = await queryOne<{ server_id: string }>('SELECT server_id FROM channels WHERE id = ?', [channelId])
+    if (!rxChDel) return res.status(404).json({ error: 'Kanał nie istnieje' })
+    if (!await memberQueries.isMember(req.user!.userId, rxChDel.server_id)) return res.status(403).json({ error: 'Brak dostępu' })
     await reactionQueries.remove(messageId, req.user!.userId, decodeURIComponent(emoji))
     return res.json({ ok: true })
   } catch (err) {
@@ -284,6 +294,11 @@ router.delete('/:channelId/messages/:messageId/reactions/:emoji', requireAuth, a
 router.get('/:channelId/pins', requireAuth, async (req: Request, res: Response) => {
   try {
     const { channelId } = req.params
+    const pinsCh = await queryOne<{ server_id: string }>('SELECT server_id FROM channels WHERE id = ?', [channelId])
+    if (!pinsCh) return res.status(404).json({ error: 'Kanał nie istnieje' })
+    if (!await hasPermission(req.user!.userId, pinsCh.server_id, 'VIEW_CHANNELS')) {
+      return res.status(403).json({ error: 'Brak dostępu' })
+    }
     const msgs = await queryMany<any>(
       `SELECT m.id, m.channel_id, m.server_id, m.author_id, m.content, m.type, m.pinned, m.edited_at, m.created_at,
               u.username AS author_username, u.display_name AS author_display_name,

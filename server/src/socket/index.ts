@@ -155,6 +155,9 @@ export function setupSocket(io: SocketIO) {
     onlineUsers.set(userId, socket.id)
 
     socket.on('join_server', async (serverId: string) => {
+      const isMem = await memberQueries.isMember(userId, serverId)
+      if (!isMem) return
+
       const ban = await queryOne<{ reason: string }>(
         'SELECT reason FROM server_bans WHERE user_id = ? AND server_id = ?',
         [userId, serverId]
@@ -375,6 +378,8 @@ export function setupSocket(io: SocketIO) {
 
     socket.on('REACTION_ADD', async (data: { messageId: string; channelId: string; emoji: string }) => {
       try {
+        const rxAddCh = await queryOne<{ server_id: string }>('SELECT server_id FROM channels WHERE id = ?', [data.channelId])
+        if (!rxAddCh || !await memberQueries.isMember(userId, rxAddCh.server_id)) return
         await reactionQueries.add(data.messageId, userId, data.emoji)
         const reactions = await reactionQueries.forMessage(data.messageId, userId)
 
@@ -395,6 +400,8 @@ export function setupSocket(io: SocketIO) {
 
     socket.on('REACTION_REMOVE', async (data: { messageId: string; channelId: string; emoji: string }) => {
       try {
+        const rxRemCh = await queryOne<{ server_id: string }>('SELECT server_id FROM channels WHERE id = ?', [data.channelId])
+        if (!rxRemCh || !await memberQueries.isMember(userId, rxRemCh.server_id)) return
         await reactionQueries.remove(data.messageId, userId, data.emoji)
         const reactions = await reactionQueries.forMessage(data.messageId, userId)
         io.to(`channel:${data.channelId}`).emit('REACTION_UPDATE', { messageId: data.messageId, reactions })
@@ -436,6 +443,7 @@ export function setupSocket(io: SocketIO) {
     })
 
     socket.on('MUTE_APPLY', async (data: { targetUserId: string; serverId: string }) => {
+      if (!await hasPermission(userId, data.serverId, 'MUTE_MEMBERS')) return
 
       const mute = await queryOne<any>(
         `SELECT sm.*, u.display_name, u.username FROM server_mutes sm

@@ -1,6 +1,8 @@
 import { Router, Request, Response } from 'express'
 import { requireAuth } from '../middleware/auth'
 import { execute, queryMany, queryOne, withTransaction, pool } from '../db/pool'
+import { memberQueries } from '../db/queries'
+import { hasPermission } from '../middleware/permissions'
 import { v4 as uuidv4 } from 'uuid'
 import { getSocketInstance } from '../socket'
 
@@ -149,7 +151,7 @@ export async function restorePollTimers() {
 router.post('/:channelId/polls', requireAuth, async (req: Request, res: Response) => {
   try {
     const { channelId }                                           = req.params
-    const { question, options, serverId, multiChoice, expiresMinutes } = req.body
+    const { question, options, multiChoice, expiresMinutes } = req.body
 
     if (!question?.trim())
       return res.status(400).json({ error: 'Pytanie jest wymagane' })
@@ -157,6 +159,13 @@ router.post('/:channelId/polls', requireAuth, async (req: Request, res: Response
       return res.status(400).json({ error: 'Min. 2 opcje' })
     if (options.length > 8)
       return res.status(400).json({ error: 'Maks. 8 opcji' })
+
+    const pollChannel = await queryOne<{ server_id: string }>('SELECT server_id FROM channels WHERE id = ?', [channelId])
+    if (!pollChannel) return res.status(404).json({ error: 'Kanał nie istnieje' })
+    const realServerId = pollChannel.server_id
+    if (!await hasPermission(req.user!.userId, realServerId, 'SEND_MESSAGES')) {
+      return res.status(403).json({ error: 'Brak dostępu' })
+    }
 
     const pollId    = uuidv4()
     const messageId = uuidv4()
@@ -171,7 +180,7 @@ router.post('/:channelId/polls', requireAuth, async (req: Request, res: Response
     await withTransaction(async (conn) => {
       await conn.execute(
         'INSERT INTO polls (id, message_id, channel_id, server_id, created_by, question, multi_choice, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        [pollId, messageId, channelId, serverId, req.user!.userId, question.trim(), multiChoice ? 1 : 0, expiresAtMysql]
+        [pollId, messageId, channelId, realServerId, req.user!.userId, question.trim(), multiChoice ? 1 : 0, expiresAtMysql]
       )
       for (let i = 0; i < options.length; i++) {
         await conn.execute(
@@ -181,7 +190,7 @@ router.post('/:channelId/polls', requireAuth, async (req: Request, res: Response
       }
       await conn.execute(
         'INSERT INTO messages (id, channel_id, server_id, author_id, content, type) VALUES (?, ?, ?, ?, ?, ?)',
-        [messageId, channelId, serverId, req.user!.userId, question.trim(), 'POLL']
+        [messageId, channelId, realServerId, req.user!.userId, question.trim(), 'POLL']
       )
     })
 
@@ -197,7 +206,7 @@ router.post('/:channelId/polls', requireAuth, async (req: Request, res: Response
     const enriched = {
       id:                   messageId,
       channel_id:           channelId,
-      server_id:            serverId,
+      server_id:            realServerId,
       author_id:            req.user!.userId,
       author_username:      profile?.username      ?? '',
       author_display_name:  profile?.display_name  ?? '',
@@ -233,6 +242,10 @@ router.post('/:pollId/vote', requireAuth, async (req: Request, res: Response) =>
 
     const poll = await queryOne<any>('SELECT * FROM polls WHERE id = ?', [pollId])
     if (!poll) return res.status(404).json({ error: 'Ankieta nie znaleziona' })
+
+    if (!await memberQueries.isMember(req.user!.userId, poll.server_id)) {
+      return res.status(403).json({ error: 'Brak dostępu' })
+    }
 
     const expired = poll.expires_at ? new Date(poll.expires_at + 'Z') < new Date() : false
     if (poll.closed || expired) {
@@ -292,6 +305,11 @@ router.post('/:pollId/vote', requireAuth, async (req: Request, res: Response) =>
 
 router.get('/:pollId', requireAuth, async (req: Request, res: Response) => {
   try {
+    const pollRow = await queryOne<{ server_id: string }>('SELECT server_id FROM polls WHERE id = ?', [req.params.pollId])
+    if (!pollRow) return res.status(404).json({ error: 'Nie znaleziono' })
+    if (!await memberQueries.isMember(req.user!.userId, pollRow.server_id)) {
+      return res.status(403).json({ error: 'Brak dostępu' })
+    }
     const data = await getPollData(req.params.pollId, req.user!.userId)
     if (!data) return res.status(404).json({ error: 'Nie znaleziono' })
     return res.json({ poll: data })

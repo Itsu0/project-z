@@ -404,6 +404,12 @@ router.delete('/account', requireAuth, async (req: Request, res: Response) => {
     if (!password) return res.status(400).json({ error: 'Wymagane hasło' })
     const user = await userQueries.findById(req.user!.userId)
     if (!user) return res.status(404).json({ error: 'Użytkownik nie znaleziony' })
+    const devOrCreator = await queryOne<{ is_dev: number; is_creator: number }>(
+      'SELECT is_dev, COALESCE(is_creator, 0) AS is_creator FROM users WHERE id = ?', [req.user!.userId]
+    )
+    if (devOrCreator?.is_dev || devOrCreator?.is_creator) {
+      return res.status(403).json({ error: 'Konto założyciela platformy nie może zostać usunięte' })
+    }
     const valid = await bcrypt.compare(password, user.password_hash)
     if (!valid) return res.status(401).json({ error: 'Nieprawidłowe hasło' })
     await execute('DELETE FROM users WHERE id = ?', [req.user!.userId])

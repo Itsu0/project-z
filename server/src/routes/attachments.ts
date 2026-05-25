@@ -46,6 +46,11 @@ router.post('/:channelId/attachments', requireAuth, (req: Request, res: Response
   try {
     if (!req.file) return res.status(400).json({ error: 'Brak pliku' })
     const { channelId } = req.params
+    const uploadChannel = await queryOne<{ server_id: string }>('SELECT server_id FROM channels WHERE id = ?', [channelId])
+    if (!uploadChannel) return res.status(404).json({ error: 'Kanał nie istnieje' })
+    if (!await hasPermission(req.user!.userId, uploadChannel.server_id, 'SEND_MESSAGES')) {
+      return res.status(403).json({ error: 'Brak dostępu' })
+    }
     const id = uuidv4()
     let width: number | null = null
     let height: number | null = null

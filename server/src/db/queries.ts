@@ -193,8 +193,10 @@ export const memberQueries = {
       [userId, serverId]
     ),
 
-  remove: (userId: string, serverId: string) =>
-    execute('DELETE FROM server_members WHERE user_id = ? AND server_id = ?', [userId, serverId]),
+  remove: async (userId: string, serverId: string) => {
+    await execute('DELETE FROM member_roles WHERE user_id = ? AND server_id = ?', [userId, serverId])
+    await execute('DELETE FROM server_members WHERE user_id = ? AND server_id = ?', [userId, serverId])
+  },
 
   isMember: async (userId: string, serverId: string): Promise<boolean> => {
     const row = await queryOne(
