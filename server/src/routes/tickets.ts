@@ -43,8 +43,9 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Nieprawidłowa kategoria' })
     if (subject.length > 200)
       return res.status(400).json({ error: 'Temat za długi (maks. 200 znaków)' })
-    if (screenshot && !screenshot.startsWith('data:image/'))
-      return res.status(400).json({ error: 'Nieprawidłowy format zrzutu ekranu' })
+    const ALLOWED_SS = ['data:image/jpeg;', 'data:image/jpg;', 'data:image/png;', 'data:image/gif;', 'data:image/webp;']
+    if (screenshot && !ALLOWED_SS.some(p => screenshot.startsWith(p)))
+      return res.status(400).json({ error: 'Nieprawidłowy format zrzutu ekranu (dozwolone: jpeg, png, gif, webp)' })
     if (screenshot && screenshot.length > 4_000_000)
       return res.status(400).json({ error: 'Zrzut ekranu za duży (maks. ~3 MB)' })
 
