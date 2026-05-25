@@ -6,10 +6,18 @@ import { queryOne, queryMany, execute } from '../db/pool'
 const router = Router()
 
 async function isCreator(userId: string): Promise<boolean> {
-  const dev = await queryOne<{ id: string }>('SELECT id FROM users WHERE id = ? AND is_dev = 1', [userId])
-  if (dev) return true
+  const row = await queryOne<{ is_dev: number; is_creator: number }>(
+    'SELECT is_dev, COALESCE(is_creator, 0) AS is_creator FROM users WHERE id = ?', [userId]
+  )
+  if (!row) return false
+  if (row.is_dev) return true
+  if (row.is_creator) return true
   const first = await queryOne<{ id: string }>('SELECT id FROM users ORDER BY created_at ASC LIMIT 1')
-  return first?.id === userId
+  if (first?.id === userId) {
+    await queryOne('UPDATE users SET is_creator = 1 WHERE id = ?', [userId]).catch(() => {})
+    return true
+  }
+  return false
 }
 
 async function isStaff(userId: string): Promise<boolean> {

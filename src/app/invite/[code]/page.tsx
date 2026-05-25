@@ -18,7 +18,8 @@ export default function InvitePage() {
     const t = token ?? tokenStore.get()
     if (!t) { router.push(`/auth/login?redirect=/invite/${code}`); return }
 
-    fetch(`${BASE}/api/servers/invite/${code}`, {
+    fetch(`${BASE}/api/servers/invite/${code}/join`, {
+      method: 'POST',
       headers: { Authorization: `Bearer ${t}` },
     })
       .then(r => r.json())
@@ -27,7 +28,6 @@ export default function InvitePage() {
         setServer(data.server)
         setStatus(data.alreadyMember ? 'already' : 'success')
         if (!data.alreadyMember) {
-
           fetch(`${BASE}/api/servers`, { headers: { Authorization: `Bearer ${t}` } })
             .then(r => r.json())
             .then(d => setServers(d.servers ?? []))

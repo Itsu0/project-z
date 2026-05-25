@@ -67,6 +67,13 @@ router.post('/bans', requireAuth, async (req: Request, res: Response) => {
     if (!userId || !reason?.trim())
       return res.status(400).json({ error: 'Wymagane: userId, reason' })
 
+    const banTarget = await queryOne<{ is_dev: number; is_creator: number }>(
+      'SELECT is_dev, COALESCE(is_creator, 0) AS is_creator FROM users WHERE id = ?', [userId]
+    )
+    if (banTarget?.is_dev || banTarget?.is_creator) {
+      return res.status(403).json({ error: 'Nie można zbanować administratora platformy' })
+    }
+
     await execute('DELETE FROM user_bans WHERE user_id = ?', [userId])
 
     const expiresAt = days ? new Date(Date.now() + days * 86400_000) : null
