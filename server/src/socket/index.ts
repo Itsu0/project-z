@@ -355,12 +355,19 @@ export function setupSocket(io: SocketIO) {
       try {
         const existing = await messageQueries.findById(data.messageId)
         if (!existing || existing.author_id !== userId) return
-        await messageQueries.update(data.messageId, data.content.trim())
+        if (existing.channel_id !== data.channelId) return
+        const updCh = await queryOne<{ server_id: string }>('SELECT server_id FROM channels WHERE id = ?', [data.channelId])
+        if (!updCh || !await memberQueries.isMember(userId, updCh.server_id)) return
+        const updBanned = await queryOne<{ id: string }>('SELECT id FROM server_bans WHERE user_id = ? AND server_id = ?', [userId, updCh.server_id])
+        if (updBanned) return
+        const trimmed = data.content.trim().slice(0, 2000)
+        if (!trimmed) return
+        await messageQueries.update(data.messageId, trimmed)
         invalidateChannel(data.channelId)
         io.to(`channel:${data.channelId}`).emit('MESSAGE_UPDATE', {
           id: data.messageId,
           channel_id: data.channelId,
-          content: data.content.trim(),
+          content: trimmed,
           edited_at: new Date().toISOString(),
         })
       } catch (err) { console.error('[socket/MESSAGE_UPDATE]', err) }
@@ -370,6 +377,11 @@ export function setupSocket(io: SocketIO) {
       try {
         const existing = await messageQueries.findById(data.messageId)
         if (!existing || existing.author_id !== userId) return
+        if (existing.channel_id !== data.channelId) return
+        const delCh = await queryOne<{ server_id: string }>('SELECT server_id FROM channels WHERE id = ?', [data.channelId])
+        if (!delCh || !await memberQueries.isMember(userId, delCh.server_id)) return
+        const delBanned = await queryOne<{ id: string }>('SELECT id FROM server_bans WHERE user_id = ? AND server_id = ?', [userId, delCh.server_id])
+        if (delBanned) return
         await messageQueries.delete(data.messageId)
         invalidateChannel(data.channelId)
         io.to(`channel:${data.channelId}`).emit('MESSAGE_DELETE', { id: data.messageId, channelId: data.channelId })

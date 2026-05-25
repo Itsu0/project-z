@@ -547,7 +547,8 @@ router.patch('/status', requireAuth, async (req: Request, res: Response) => {
 router.post('/avatar', requireAuth, async (req: Request, res: Response) => {
   try {
     const { avatar } = req.body
-    if (!avatar?.startsWith('data:image/')) return res.status(400).json({ error: 'Nieprawidłowy format' })
+    const ALLOWED_AVATAR = ['data:image/jpeg;', 'data:image/jpg;', 'data:image/png;', 'data:image/gif;', 'data:image/webp;']
+    if (!avatar || !ALLOWED_AVATAR.some(p => avatar.startsWith(p))) return res.status(400).json({ error: 'Nieprawidłowy format (dozwolone: jpeg, png, gif, webp)' })
 
     if (avatar.length > 700000) return res.status(400).json({ error: 'Avatar za duży (maks. 500KB)' })
 

@@ -228,7 +228,8 @@ router.post('/:serverId/logo', requireAuth, async (req: Request, res: Response) 
   try {
     const { serverId } = req.params
     const { logo } = req.body
-    if (!logo?.startsWith('data:image/')) return res.status(400).json({ error: 'Nieprawidłowy format' })
+    const ALLOWED_LOGO = ['data:image/jpeg;', 'data:image/jpg;', 'data:image/png;', 'data:image/gif;', 'data:image/webp;']
+    if (!logo || !ALLOWED_LOGO.some(p => logo.startsWith(p))) return res.status(400).json({ error: 'Nieprawidłowy format (dozwolone: jpeg, png, gif, webp)' })
     if (logo.length > 700000) return res.status(400).json({ error: 'Logo za duże (maks. 500KB)' })
     const { hasPermission: hasPerm } = await import('../middleware/permissions')
     const canManage = await hasPerm(req.user!.userId, serverId, 'MANAGE_SERVER')
