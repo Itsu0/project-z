@@ -3,6 +3,7 @@ import { requireAuth } from '../middleware/auth'
 import { memberQueries } from '../db/queries'
 import { queryMany, queryOne, execute, pool } from '../db/pool'
 import { v4 as uuidv4 } from 'uuid'
+import { canModerate } from '../middleware/permissions'
 
 async function rawQuery<T>(sql: string, params: any[] = []): Promise<T[]> {
   const [rows] = await pool.query<any[]>(sql, params)
@@ -23,9 +24,10 @@ router.get('/:channelId/posts', requireAuth, async (req: Request, res: Response)
     const limit  = Math.min(parseInt(String(req.query.limit  ?? 30), 10) || 30, 50)
     const offset = parseInt(String(req.query.offset ?? 0), 10) || 0
 
-    const channel = await queryOne<{ server_id: string }>('SELECT server_id FROM channels WHERE id = ?', [channelId])
+    const channel = await queryOne<{ server_id: string; mod_only: number }>('SELECT server_id, COALESCE(mod_only,0) AS mod_only FROM channels WHERE id = ?', [channelId])
     if (!channel) return res.status(404).json({ error: 'Kanał nie istnieje' })
     if (!await memberQueries.isMember(req.user!.userId, channel.server_id)) return res.status(403).json({ error: 'Brak dostępu' })
+    if (channel.mod_only && !await canModerate(req.user!.userId, channel.server_id, 'MANAGE_MESSAGES')) return res.status(403).json({ error: 'Brak dostępu' })
 
     const posts = await rawQuery<any>(
       `SELECT fp.id, fp.channel_id, fp.title, fp.content, fp.gif_url,
@@ -56,9 +58,10 @@ router.post('/:channelId/posts', requireAuth, async (req: Request, res: Response
     if (!content?.trim()) return res.status(400).json({ error: 'Treść jest wymagana' })
     if (title.length > 256) return res.status(400).json({ error: 'Tytuł za długi (max 256 znaków)' })
 
-    const channel = await queryOne<{ server_id: string }>('SELECT server_id FROM channels WHERE id = ?', [channelId])
+    const channel = await queryOne<{ server_id: string; mod_only: number }>('SELECT server_id, COALESCE(mod_only,0) AS mod_only FROM channels WHERE id = ?', [channelId])
     if (!channel) return res.status(404).json({ error: 'Kanał nie istnieje' })
     if (!await memberQueries.isMember(req.user!.userId, channel.server_id)) return res.status(403).json({ error: 'Brak dostępu' })
+    if (channel.mod_only && !await canModerate(req.user!.userId, channel.server_id, 'MANAGE_MESSAGES')) return res.status(403).json({ error: 'Brak dostępu' })
 
     const id = uuidv4()
     await execute(
@@ -84,9 +87,10 @@ router.get('/:channelId/posts/:postId', requireAuth, async (req: Request, res: R
   try {
     const { channelId, postId } = req.params
 
-    const channel = await queryOne<{ server_id: string }>('SELECT server_id FROM channels WHERE id = ?', [channelId])
+    const channel = await queryOne<{ server_id: string; mod_only: number }>('SELECT server_id, COALESCE(mod_only,0) AS mod_only FROM channels WHERE id = ?', [channelId])
     if (!channel) return res.status(404).json({ error: 'Kanał nie istnieje' })
     if (!await memberQueries.isMember(req.user!.userId, channel.server_id)) return res.status(403).json({ error: 'Brak dostępu' })
+    if (channel.mod_only && !await canModerate(req.user!.userId, channel.server_id, 'MANAGE_MESSAGES')) return res.status(403).json({ error: 'Brak dostępu' })
 
     const postRows = await rawQuery<any>(
       `SELECT fp.*, u.display_name as author_display_name, u.username as author_username,
@@ -122,9 +126,10 @@ router.post('/:channelId/posts/:postId/replies', requireAuth, async (req: Reques
 
     if (!content?.trim() && !gifUrl) return res.status(400).json({ error: 'Treść odpowiedzi jest wymagana' })
 
-    const channel = await queryOne<{ server_id: string }>('SELECT server_id FROM channels WHERE id = ?', [channelId])
+    const channel = await queryOne<{ server_id: string; mod_only: number }>('SELECT server_id, COALESCE(mod_only,0) AS mod_only FROM channels WHERE id = ?', [channelId])
     if (!channel) return res.status(404).json({ error: 'Kanał nie istnieje' })
     if (!await memberQueries.isMember(req.user!.userId, channel.server_id)) return res.status(403).json({ error: 'Brak dostępu' })
+    if (channel.mod_only && !await canModerate(req.user!.userId, channel.server_id, 'MANAGE_MESSAGES')) return res.status(403).json({ error: 'Brak dostępu' })
 
     const post = await queryOne<{ id: string }>('SELECT id FROM forum_posts WHERE id = ? AND channel_id = ?', [postId, channelId])
     if (!post) return res.status(404).json({ error: 'Post nie istnieje' })
@@ -156,9 +161,10 @@ router.post('/:channelId/posts/:postId/replies', requireAuth, async (req: Reques
 router.delete('/:channelId/posts/:postId', requireAuth, async (req: Request, res: Response) => {
   try {
     const { channelId, postId } = req.params
-    const delChannel = await queryOne<{ server_id: string }>('SELECT server_id FROM channels WHERE id = ?', [channelId])
+    const delChannel = await queryOne<{ server_id: string; mod_only: number }>('SELECT server_id, COALESCE(mod_only,0) AS mod_only FROM channels WHERE id = ?', [channelId])
     if (!delChannel) return res.status(404).json({ error: 'Kanał nie istnieje' })
     if (!await assertMember(req.user!.userId, delChannel.server_id, res)) return
+    if (delChannel.mod_only && !await canModerate(req.user!.userId, delChannel.server_id, 'MANAGE_MESSAGES')) { res.status(403).json({ error: 'Brak dostępu' }); return }
     const post = await queryOne<{ author_id: string }>('SELECT author_id FROM forum_posts WHERE id = ? AND channel_id = ?', [postId, channelId])
     if (!post) return res.status(404).json({ error: 'Post nie istnieje' })
     if (post.author_id !== req.user!.userId) return res.status(403).json({ error: 'Możesz usuwać tylko swoje posty' })
@@ -173,9 +179,10 @@ router.delete('/:channelId/posts/:postId', requireAuth, async (req: Request, res
 router.delete('/:channelId/posts/:postId/replies/:replyId', requireAuth, async (req: Request, res: Response) => {
   try {
     const { channelId, postId, replyId } = req.params
-    const delReplyCh = await queryOne<{ server_id: string }>('SELECT server_id FROM channels WHERE id = ?', [channelId])
+    const delReplyCh = await queryOne<{ server_id: string; mod_only: number }>('SELECT server_id, COALESCE(mod_only,0) AS mod_only FROM channels WHERE id = ?', [channelId])
     if (!delReplyCh) return res.status(404).json({ error: 'Kanał nie istnieje' })
     if (!await assertMember(req.user!.userId, delReplyCh.server_id, res)) return
+    if (delReplyCh.mod_only && !await canModerate(req.user!.userId, delReplyCh.server_id, 'MANAGE_MESSAGES')) { res.status(403).json({ error: 'Brak dostępu' }); return }
     const reply = await queryOne<{ author_id: string }>('SELECT author_id FROM forum_replies WHERE id = ? AND post_id = ?', [replyId, postId])
     if (!reply) return res.status(404).json({ error: 'Odpowiedź nie istnieje' })
     if (reply.author_id !== req.user!.userId) return res.status(403).json({ error: 'Możesz usuwać tylko swoje odpowiedzi' })
