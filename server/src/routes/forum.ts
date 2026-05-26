@@ -3,7 +3,8 @@ import { requireAuth } from '../middleware/auth'
 import { memberQueries } from '../db/queries'
 import { queryMany, queryOne, execute, pool } from '../db/pool'
 import { v4 as uuidv4 } from 'uuid'
-import { canModerate } from '../middleware/permissions'
+import { canModerate, canViewChannel } from '../middleware/permissions'
+import { logModAction } from './serverMod'
 
 async function rawQuery<T>(sql: string, params: any[] = []): Promise<T[]> {
   const [rows] = await pool.query<any[]>(sql, params)
@@ -27,6 +28,7 @@ router.get('/:channelId/posts', requireAuth, async (req: Request, res: Response)
     const channel = await queryOne<{ server_id: string; mod_only: number }>('SELECT server_id, COALESCE(mod_only,0) AS mod_only FROM channels WHERE id = ?', [channelId])
     if (!channel) return res.status(404).json({ error: 'Kanał nie istnieje' })
     if (!await memberQueries.isMember(req.user!.userId, channel.server_id)) return res.status(403).json({ error: 'Brak dostępu' })
+    if (!await canViewChannel(req.user!.userId, channelId)) return res.status(403).json({ error: 'Brak dostępu do tego kanału' })
     if (channel.mod_only && !await canModerate(req.user!.userId, channel.server_id, 'MANAGE_MESSAGES')) return res.status(403).json({ error: 'Brak dostępu' })
 
     const posts = await rawQuery<any>(
@@ -165,10 +167,27 @@ router.delete('/:channelId/posts/:postId', requireAuth, async (req: Request, res
     if (!delChannel) return res.status(404).json({ error: 'Kanał nie istnieje' })
     if (!await assertMember(req.user!.userId, delChannel.server_id, res)) return
     if (delChannel.mod_only && !await canModerate(req.user!.userId, delChannel.server_id, 'MANAGE_MESSAGES')) { res.status(403).json({ error: 'Brak dostępu' }); return }
-    const post = await queryOne<{ author_id: string }>('SELECT author_id FROM forum_posts WHERE id = ? AND channel_id = ?', [postId, channelId])
+    const post = await queryOne<{ author_id: string; title: string; content: string; reply_count: number }>('SELECT author_id, title, content, reply_count FROM forum_posts WHERE id = ? AND channel_id = ?', [postId, channelId])
     if (!post) return res.status(404).json({ error: 'Post nie istnieje' })
     const isMod = await canModerate(req.user!.userId, delChannel.server_id, 'MANAGE_MESSAGES')
     if (post.author_id !== req.user!.userId && !isMod) return res.status(403).json({ error: 'Brak uprawnień do usunięcia tego posta' })
+
+    if (isMod && post.author_id !== req.user!.userId) {
+      const replies = await rawQuery<any>('SELECT id, author_id, content FROM forum_replies WHERE post_id = ?', [postId])
+      const htmlRecord = [
+        `<post id="${postId}" channel="${channelId}">`,
+        `  <title>${post.title.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</title>`,
+        `  <content>${post.content.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</content>`,
+        `  <replies count="${replies.length}">`,
+        ...replies.map((r: any) => `    <reply id="${r.id}" author="${r.author_id}">${(r.content ?? '').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</reply>`),
+        `  </replies>`,
+        `</post>`,
+      ].join('\n')
+      logModAction(delChannel.server_id, 'FORUM_POST_DELETE', req.user!.userId, post.author_id, post.title, {
+        postId, channelId, replyCount: replies.length, blockedContent: htmlRecord.slice(0, 1000),
+      })
+    }
+
     await execute('DELETE FROM forum_posts WHERE id = ?', [postId])
     return res.json({ ok: true })
   } catch (err) {

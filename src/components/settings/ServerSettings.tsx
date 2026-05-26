@@ -244,6 +244,78 @@ function TabGeneral({ server, onClose }: { server: any; onClose: () => void }) {
   )
 }
 
+function ChannelPermsPanel({ serverId, channelId, channelName, token, onClose }: {
+  serverId: string; channelId: string; channelName: string; token: string; onClose: () => void
+}) {
+  const [roles, setRoles] = useState<any[]>([])
+  const [denied, setDenied] = useState<Set<string>>(new Set())
+  const [saving, setSaving] = useState<string | null>(null)
+
+  useEffect(() => {
+    Promise.all([
+      fetch(`${BASE}/api/servers/${serverId}/roles`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
+      fetch(`${BASE}/api/servers/${serverId}/channels/${channelId}/role-permissions`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
+    ]).then(([rolesData, permsData]) => {
+      setRoles(rolesData.roles ?? [])
+      const d = new Set<string>((permsData.permissions ?? []).filter((p: any) => p.deny_view).map((p: any) => p.role_id as string))
+      setDenied(d)
+    }).catch(() => {})
+  }, [serverId, channelId, token])
+
+  async function toggleRole(roleId: string) {
+    setSaving(roleId)
+    const newDeny = !denied.has(roleId)
+    try {
+      await fetch(`${BASE}/api/servers/${serverId}/channels/${channelId}/role-permissions`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ roleId, denyView: newDeny }),
+      })
+      setDenied(prev => {
+        const next = new Set(prev)
+        if (newDeny) next.add(roleId); else next.delete(roleId)
+        return next
+      })
+    } catch {} finally { setSaving(null) }
+  }
+
+  return (
+    <div className="mt-2 p-4 rounded-xl" style={{ background: 'rgba(255,255,255,0.03)', border: '0.5px solid var(--eb-border2)' }}>
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-xs font-semibold" style={{ color: 'var(--eb-text2)' }}>🔒 Widoczność #{channelName}</span>
+        <button onClick={onClose} className="text-xs" style={{ color: 'var(--eb-text3)' }}>✕</button>
+      </div>
+      <p className="text-[11px] mb-3" style={{ color: 'var(--eb-text3)' }}>
+        Zablokuj widoczność kanału dla wybranych ról. Administratorzy zawsze mają dostęp.
+      </p>
+      <div className="flex flex-col gap-2">
+        {roles.filter((r: any) => r.name !== '@everyone').map((role: any) => {
+          const isDenied = denied.has(role.id)
+          const isLoading = saving === role.id
+          return (
+            <div key={role.id} className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg"
+              style={{ background: isDenied ? 'rgba(220,38,38,0.07)' : 'rgba(255,255,255,0.03)', border: `0.5px solid ${isDenied ? 'rgba(220,38,38,0.2)' : 'var(--eb-border)'}` }}>
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: role.color ?? '#a8a9af' }} />
+                <span className="text-xs" style={{ color: 'var(--eb-text1)' }}>{role.name}</span>
+              </div>
+              <button onClick={() => toggleRole(role.id)} disabled={!!saving}
+                className="text-[11px] px-2.5 py-1 rounded-lg transition-all disabled:opacity-50"
+                style={{
+                  background: isDenied ? 'rgba(220,38,38,0.15)' : 'rgba(34,197,94,0.1)',
+                  color: isDenied ? '#f87171' : '#4ade80',
+                  border: `0.5px solid ${isDenied ? 'rgba(220,38,38,0.3)' : 'rgba(34,197,94,0.25)'}`,
+                }}>
+                {isLoading ? '...' : isDenied ? '🚫 Zablokowany' : '✓ Widoczny'}
+              </button>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 function TabChannels({ server }: { server: any }) {
   const t = useT()
   const { token, channels, setChannels, currentChannelId, setCurrentChannel } = useStore()
@@ -253,6 +325,7 @@ function TabChannels({ server }: { server: any }) {
   const [newTopic,  setNewTopic]  = useState('')
   const [creating,  setCreating]  = useState(false)
   const [error,     setError]     = useState('')
+  const [permsChannel, setPermsChannel] = useState<string | null>(null)
 
   const textChs  = serverChannels.filter(c => c.type === 'text' || c.type === 'announcement')
   const voiceChs = serverChannels.filter(c => c.type === 'voice')
@@ -309,21 +382,41 @@ function TabChannels({ server }: { server: any }) {
           ) : (
             <div className="flex flex-col gap-1.5">
               {group.list.map(ch => (
-                <div key={ch.id}
-                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl group"
-                  style={{ background: 'rgba(255,255,255,0.03)', border: '0.5px solid var(--eb-border)' }}>
-                  <span className="text-sm flex-shrink-0" style={{ color: 'var(--eb-text3)' }}>
-                    {ch.type === 'voice' ? '🔊' : ch.type === 'forum' ? '🗂' : '#'}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium" style={{ color: 'var(--eb-text1)' }}>{ch.name}</div>
-                    {ch.topic && <div className="text-xs truncate mt-0.5" style={{ color: 'var(--eb-text3)' }}>{ch.topic}</div>}
+                <div key={ch.id}>
+                  <div
+                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl group"
+                    style={{ background: 'rgba(255,255,255,0.03)', border: '0.5px solid var(--eb-border)' }}>
+                    <span className="text-sm flex-shrink-0" style={{ color: 'var(--eb-text3)' }}>
+                      {ch.type === 'voice' ? '🔊' : ch.type === 'forum' ? '🗂' : '#'}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium" style={{ color: 'var(--eb-text1)' }}>{ch.name}</div>
+                      {ch.topic && <div className="text-xs truncate mt-0.5" style={{ color: 'var(--eb-text3)' }}>{ch.topic}</div>}
+                    </div>
+                    <button onClick={() => setPermsChannel(permsChannel === ch.id ? null : ch.id)}
+                      className="opacity-0 group-hover:opacity-100 text-xs px-2 py-1 rounded-lg transition-all"
+                      style={{
+                        background: permsChannel === ch.id ? 'rgba(245,158,11,0.15)' : 'rgba(255,255,255,0.06)',
+                        color: permsChannel === ch.id ? 'var(--eb-accent)' : 'var(--eb-text3)',
+                        border: `0.5px solid ${permsChannel === ch.id ? 'rgba(245,158,11,0.3)' : 'var(--eb-border)'}`,
+                      }}>
+                      🔒
+                    </button>
+                    <button onClick={() => deleteChannel(ch.id, ch.name)}
+                      className="opacity-0 group-hover:opacity-100 text-xs px-2 py-1 rounded-lg transition-all"
+                      style={{ background: 'rgba(220,38,38,0.12)', color: 'var(--eb-accent2)', border: '0.5px solid rgba(220,38,38,0.25)' }}>
+                      {t('serverSettings.channels.delete')}
+                    </button>
                   </div>
-                  <button onClick={() => deleteChannel(ch.id, ch.name)}
-                    className="opacity-0 group-hover:opacity-100 text-xs px-2 py-1 rounded-lg transition-all"
-                    style={{ background: 'rgba(220,38,38,0.12)', color: 'var(--eb-accent2)', border: '0.5px solid rgba(220,38,38,0.25)' }}>
-                    {t('serverSettings.channels.delete')}
-                  </button>
+                  {permsChannel === ch.id && token && (
+                    <ChannelPermsPanel
+                      serverId={server.id}
+                      channelId={ch.id}
+                      channelName={ch.name}
+                      token={token}
+                      onClose={() => setPermsChannel(null)}
+                    />
+                  )}
                 </div>
               ))}
             </div>
