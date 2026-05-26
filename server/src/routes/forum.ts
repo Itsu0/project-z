@@ -183,6 +183,8 @@ router.delete('/:channelId/posts/:postId/replies/:replyId', requireAuth, async (
     if (!delReplyCh) return res.status(404).json({ error: 'Kanał nie istnieje' })
     if (!await assertMember(req.user!.userId, delReplyCh.server_id, res)) return
     if (delReplyCh.mod_only && !await canModerate(req.user!.userId, delReplyCh.server_id, 'MANAGE_MESSAGES')) { res.status(403).json({ error: 'Brak dostępu' }); return }
+    const postCheck = await queryOne<{ id: string }>('SELECT id FROM forum_posts WHERE id = ? AND channel_id = ?', [postId, channelId])
+    if (!postCheck) return res.status(404).json({ error: 'Post nie istnieje' })
     const reply = await queryOne<{ author_id: string }>('SELECT author_id FROM forum_replies WHERE id = ? AND post_id = ?', [replyId, postId])
     if (!reply) return res.status(404).json({ error: 'Odpowiedź nie istnieje' })
     if (reply.author_id !== req.user!.userId) return res.status(403).json({ error: 'Możesz usuwać tylko swoje odpowiedzi' })
