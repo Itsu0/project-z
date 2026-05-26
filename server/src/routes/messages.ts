@@ -152,6 +152,7 @@ router.get('/:serverId/search', requireAuth, async (req: Request, res: Response)
        INNER JOIN users u ON u.id = m.author_id
        INNER JOIN channels c ON c.id = m.channel_id
        WHERE c.server_id = ?
+         AND COALESCE(c.mod_only, 0) = 0
          AND MATCH(m.content) AGAINST (? IN BOOLEAN MODE)
          AND m.type = 'DEFAULT'
        ORDER BY m.created_at DESC
@@ -182,7 +183,7 @@ router.post('/:channelId/messages', requireAuth, async (req: Request, res: Respo
       'SELECT server_id FROM channels WHERE id = ?', [channelId]
     )
     if (!postChannelRow) return res.status(404).json({ error: 'Kanał nie istnieje' })
-    const postServerId = serverId ?? postChannelRow.server_id
+    const postServerId = postChannelRow.server_id
 
     if (!await memberQueries.isMember(req.user!.userId, postServerId)) {
       return res.status(403).json({ error: 'Nie jesteś członkiem tego serwera' })
@@ -191,7 +192,7 @@ router.post('/:channelId/messages', requireAuth, async (req: Request, res: Respo
     if (await isMuted(req.user!.userId, postServerId)) {
       const mute = await queryOne<{ expires_at: string }>(
         'SELECT expires_at FROM server_mutes WHERE user_id = ? AND server_id = ?',
-        [req.user!.userId, serverId]
+        [req.user!.userId, postServerId]
       )
       const remainingMs = new Date(mute!.expires_at + 'Z').getTime() - Date.now()
       const mins = Math.ceil(remainingMs / 60000)

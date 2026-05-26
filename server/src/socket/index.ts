@@ -217,6 +217,9 @@ export function setupSocket(io: SocketIO) {
         }
         msgRateMap.set(userId, [...timestamps, rateNow])
 
+        const mcCh = await queryOne<{ server_id: string }>('SELECT server_id FROM channels WHERE id = ?', [data.channelId])
+        if (!mcCh || mcCh.server_id !== data.serverId) return
+
         const banCheck = await queryOne<{ reason: string }>(
           'SELECT reason FROM server_bans WHERE user_id = ? AND server_id = ?',
           [userId, data.serverId]
