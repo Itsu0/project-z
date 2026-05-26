@@ -7,7 +7,7 @@ import rateLimit from 'express-rate-limit'
 import dotenv from 'dotenv'
 
 import { testConnection } from './db/pool'
-import { runMigrations } from './db/init'
+import { runMigrations, startDmCron } from './db/init'
 import { setupSocket } from './socket'
 
 import authRoutes          from './routes/auth'
@@ -26,6 +26,7 @@ import attachmentsRoutes   from './routes/attachments'
 import pollsRoutes, { restorePollTimers } from './routes/polls'
 import serverModRoutes from './routes/serverMod'
 import friendsRoutes from './routes/friends'
+import dmRoutes from './routes/dm'
 
 dotenv.config()
 
@@ -116,7 +117,9 @@ app.use('/api/livekit/webhook', express.raw({ type: '*/*' }))
 app.use(express.json({ limit: '2mb' }))
 app.use(express.urlencoded({ extended: true }))
 
-app.use('/uploads', express.static(process.env.UPLOAD_DIR ?? './uploads'))
+const UPLOAD_DIR = process.env.UPLOAD_DIR ?? './uploads'
+app.use('/uploads/avatars', express.static(UPLOAD_DIR + '/avatars', { maxAge: '1y', immutable: true }))
+app.use('/uploads/icons',   express.static(UPLOAD_DIR + '/icons',   { maxAge: '1y', immutable: true }))
 
 app.use('/api/auth',          authLimiter, authRoutes)
 app.use('/api/channels',      messageLimiter, messageRoutes)
@@ -136,6 +139,7 @@ app.use('/api/channels',      pollsRoutes)
 app.use('/api/polls',         pollsRoutes)
 app.use('/api/servers',       serverModRoutes)
 app.use('/api/friends',       friendsRoutes)
+app.use('/api/dm',            messageLimiter, dmRoutes)
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', uptime: process.uptime(), timestamp: new Date().toISOString() })
@@ -176,6 +180,7 @@ async function start() {
     await testConnection()
     await runMigrations()
     await restorePollTimers()
+    startDmCron()
     console.log('')
     console.log('✅ Baza danych gotowa')
     console.log(`   REST API:  http://localhost:${PORT}/api`)

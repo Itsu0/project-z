@@ -135,6 +135,61 @@ interface Store {
   raidLockdown: { serverId: string; message: string } | null
   setRaidLockdown: (serverId: string, message: string) => void
   clearRaidLockdown: () => void
+
+  // DM
+  dmOpen: boolean
+  setDmOpen: (v: boolean) => void
+  activeDmConvId: string | null
+  setActiveDmConvId: (id: string | null) => void
+  dmConversations: DmConversation[]
+  setDmConversations: (c: DmConversation[]) => void
+  updateDmConvLastMsg: (convId: string, content: string, at: string) => void
+  dmMessages: Record<string, DmMessage[]>
+  setDmMessages: (convId: string, msgs: DmMessage[]) => void
+  prependDmMessages: (convId: string, msgs: DmMessage[]) => void
+  addDmMessage: (convId: string, msg: DmMessage) => void
+  updateDmMessage: (convId: string, msgId: string, data: Partial<DmMessage>) => void
+  deleteDmMessage: (convId: string, msgId: string) => void
+  dmUnread: Record<string, number>
+  incDmUnread: (convId: string) => void
+  clearDmUnread: (convId: string) => void
+  dmTyping: Record<string, string[]>
+  setDmTyping: (convId: string, username: string, typing: boolean) => void
+}
+
+export interface DmConversation {
+  id: string
+  other_id: string
+  username: string
+  display_name: string
+  avatar_url: string | null
+  avatar_color: string
+  status: string
+  last_content: string | null
+  last_author_id: string | null
+  last_msg_at: string | null
+  last_read_id: string | null
+}
+
+export interface DmAttachment {
+  id: string; filename: string; contentType: string
+  size: number; width: number | null; height: number | null; url: string
+}
+
+export interface DmMessage {
+  id: string
+  conversation_id: string
+  author_id: string
+  author_username: string
+  author_display_name: string
+  author_avatar_color: string
+  author_avatar_url: string | null
+  content: string
+  edited_at: string | null
+  deleted_at: string | null
+  created_at: string
+  reactions: { emoji: string; count: number; me: boolean }[]
+  attachments: DmAttachment[]
 }
 
 export const useStore = create<Store>((set, get) => ({
@@ -272,4 +327,52 @@ export const useStore = create<Store>((set, get) => ({
   raidLockdown: null,
   setRaidLockdown: (serverId, message) => set({ raidLockdown: { serverId, message } }),
   clearRaidLockdown: () => set({ raidLockdown: null }),
+
+  // DM
+  dmOpen: false,
+  setDmOpen: (v) => set({ dmOpen: v }),
+  activeDmConvId: null,
+  setActiveDmConvId: (id) => set({ activeDmConvId: id }),
+  dmConversations: [],
+  setDmConversations: (c) => set({ dmConversations: c }),
+  updateDmConvLastMsg: (convId, content, at) => set(s => ({
+    dmConversations: s.dmConversations.map(c =>
+      c.id === convId ? { ...c, last_content: content, last_msg_at: at } : c
+    ).sort((a, b) => (b.last_msg_at ?? '').localeCompare(a.last_msg_at ?? '')),
+  })),
+  dmMessages: {},
+  setDmMessages: (convId, msgs) => set(s => ({ dmMessages: { ...s.dmMessages, [convId]: msgs } })),
+  prependDmMessages: (convId, msgs) => set(s => ({
+    dmMessages: { ...s.dmMessages, [convId]: [...msgs, ...(s.dmMessages[convId] ?? [])] },
+  })),
+  addDmMessage: (convId, msg) => set(s => ({
+    dmMessages: { ...s.dmMessages, [convId]: [...(s.dmMessages[convId] ?? []), msg] },
+  })),
+  updateDmMessage: (convId, msgId, data) => set(s => ({
+    dmMessages: {
+      ...s.dmMessages,
+      [convId]: (s.dmMessages[convId] ?? []).map(m => m.id === msgId ? { ...m, ...data } : m),
+    },
+  })),
+  deleteDmMessage: (convId, msgId) => set(s => ({
+    dmMessages: {
+      ...s.dmMessages,
+      [convId]: (s.dmMessages[convId] ?? []).map(m =>
+        m.id === msgId ? { ...m, deleted_at: new Date().toISOString(), content: 'Wiadomość usunięta' } : m
+      ),
+    },
+  })),
+  dmUnread: {},
+  incDmUnread: (convId) => set(s => ({ dmUnread: { ...s.dmUnread, [convId]: (s.dmUnread[convId] ?? 0) + 1 } })),
+  clearDmUnread: (convId) => set(s => ({ dmUnread: { ...s.dmUnread, [convId]: 0 } })),
+  dmTyping: {},
+  setDmTyping: (convId, username, typing) => set(s => {
+    const cur = s.dmTyping[convId] ?? []
+    return {
+      dmTyping: {
+        ...s.dmTyping,
+        [convId]: typing ? [...cur.filter(u => u !== username), username] : cur.filter(u => u !== username),
+      },
+    }
+  }),
 }))

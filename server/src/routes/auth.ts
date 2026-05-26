@@ -548,20 +548,29 @@ router.post('/avatar', requireAuth, async (req: Request, res: Response) => {
   try {
     const { avatar } = req.body
     const ALLOWED_AVATAR = ['data:image/jpeg;', 'data:image/jpg;', 'data:image/png;', 'data:image/gif;', 'data:image/webp;']
-    if (!avatar || !ALLOWED_AVATAR.some(p => avatar.startsWith(p))) return res.status(400).json({ error: 'Nieprawidłowy format (dozwolone: jpeg, png, gif, webp)' })
-
-    if (avatar.length > 700000) return res.status(400).json({ error: 'Avatar za duży (maks. 500KB)' })
+    if (!avatar || !ALLOWED_AVATAR.some(p => avatar.startsWith(p)))
+      return res.status(400).json({ error: 'Nieprawidłowy format (dozwolone: jpeg, png, gif, webp)' })
+    if (avatar.length > 10_000_000)
+      return res.status(400).json({ error: 'Avatar za duży (maks. 8MB przed kompresją)' })
 
     const lastChange = avatarRateMap.get(req.user!.userId) ?? 0
-    if (Date.now() - lastChange < 60_000) {
+    if (Date.now() - lastChange < 60_000)
       return res.status(429).json({ error: 'Możesz zmieniać avatar raz na minutę' })
-    }
     avatarRateMap.set(req.user!.userId, Date.now())
-    await execute('UPDATE users SET avatar_url = ? WHERE id = ?', [avatar, req.user!.userId])
+
+    const { base64ToBuffer, saveAvatar, deleteUpload } = await import('../lib/fileStorage')
+    const parsed = base64ToBuffer(avatar)
+    if (!parsed) return res.status(400).json({ error: 'Nieprawidłowe dane obrazu' })
+
+    const old = await queryOne<{ avatar_url: string | null }>('SELECT avatar_url FROM users WHERE id = ?', [req.user!.userId])
+    if (old?.avatar_url && !old.avatar_url.startsWith('data:')) deleteUpload(old.avatar_url)
+
+    const url = await saveAvatar(parsed.buffer, parsed.mimeType)
+    await execute('UPDATE users SET avatar_url = ? WHERE id = ?', [url, req.user!.userId])
 
     const { invalidateUserProfile } = await import('../socket')
     invalidateUserProfile(req.user!.userId)
-    return res.json({ avatarUrl: avatar })
+    return res.json({ avatarUrl: url })
   } catch (err) { console.error('[auth/avatar]', err); return res.status(500).json({ error: 'Błąd serwera' }) }
 })
 
