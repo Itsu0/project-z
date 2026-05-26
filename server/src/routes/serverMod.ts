@@ -471,6 +471,9 @@ router.delete('/:serverId/channels/:channelId/messages/bulk', requireAuth, async
     const { serverId, channelId } = req.params
     if (!await canModerate(req.user!.userId, serverId, 'MANAGE_MESSAGES'))
       return res.status(403).json({ error: 'Brak uprawnień' })
+    const { queryOne: qOneBulk } = await import('../db/pool')
+    const bulkCh = await qOneBulk<{ id: string }>('SELECT id FROM channels WHERE id = ? AND server_id = ?', [channelId, serverId])
+    if (!bulkCh) return res.status(404).json({ error: 'Kanał nie istnieje' })
     const { messageIds } = req.body
     if (!Array.isArray(messageIds) || messageIds.length === 0)
       return res.status(400).json({ error: 'Wymagana lista ID' })
