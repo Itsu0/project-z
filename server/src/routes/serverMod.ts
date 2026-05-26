@@ -50,6 +50,8 @@ async function _postToModLog(
       KICK: '👢 Wyrzucono', WARN: '⚠️ Ostrzeżenie',
       BULK_DELETE: '🗑 Bulk delete', AUTOMOD: '🤖 AutoMod',
       RAID_LOCKDOWN: '🛡 Raid lockdown', STRIKE: '⚡ Strajk',
+      MESSAGE_DELETE: '🗑 Usunięto wiadomość',
+      FORUM_POST_DELETE: '🗑 Usunięto post forum',
     }
     let content = `${LABELS[action] ?? action}`
     if (target) content += ` · ${target.display_name}`

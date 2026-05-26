@@ -2,7 +2,7 @@ import { Server as SocketIO, Socket } from 'socket.io'
 import { verifySocketToken } from '../middleware/auth'
 import { messageQueries, userQueries, reactionQueries, memberQueries } from '../db/queries'
 import { execute, queryMany, queryOne } from '../db/pool'
-import { isMuted, hasPermission } from '../middleware/permissions'
+import { isMuted, hasPermission, canViewChannel } from '../middleware/permissions'
 import { v4 as uuidv4 } from 'uuid'
 import { invalidateChannel } from '../cache/messages'
 import { checkAutoMod, addStrike, logModAction, isRaidLocked } from '../routes/serverMod'
@@ -191,6 +191,7 @@ export function setupSocket(io: SocketIO) {
       if (!ch) return
       const memberOk = await memberQueries.isMember(userId, ch.server_id)
       if (!memberOk) return
+      if (!await canViewChannel(userId, channelId)) return
       if (ch.mod_only && !await hasPermission(userId, ch.server_id, 'MANAGE_MESSAGES')) return
       socket.join(`channel:${channelId}`)
     })

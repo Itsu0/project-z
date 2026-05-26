@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express'
 import { requireAuth } from '../middleware/auth'
 import { messageQueries, memberQueries, reactionQueries } from '../db/queries'
-import { canModerate, isMuted, hasPermission } from '../middleware/permissions'
+import { canModerate, isMuted, hasPermission, canViewChannel } from '../middleware/permissions'
 import { queryOne, queryMany, execute } from '../db/pool'
 import { getCached, setCached, invalidateChannel } from '../cache/messages'
 
@@ -18,6 +18,9 @@ router.get('/:channelId/messages', requireAuth, async (req: Request, res: Respon
     if (!channelRow) return res.status(404).json({ error: 'Kanał nie istnieje' })
     const effectiveServerId = channelRow.server_id
     if (!await hasPermission(req.user!.userId, effectiveServerId, 'VIEW_CHANNELS')) {
+      return res.status(403).json({ error: 'Nie masz dostępu do tego kanału' })
+    }
+    if (!await canViewChannel(req.user!.userId, channelId)) {
       return res.status(403).json({ error: 'Nie masz dostępu do tego kanału' })
     }
     if (channelRow.mod_only && !await canModerate(req.user!.userId, effectiveServerId, 'MANAGE_MESSAGES')) {
@@ -269,6 +272,19 @@ router.delete('/:channelId/messages/:messageId', requireAuth, async (req: Reques
       }
     }
 
+    const isModDelete = isMod && existing.author_id !== req.user!.userId
+    if (isModDelete) {
+      const { logModAction } = await import('./serverMod')
+      logModAction(
+        (existing as any).server_id,
+        'MESSAGE_DELETE',
+        req.user!.userId,
+        existing.author_id,
+        null,
+        { channelId, messageId, blockedContent: (existing as any).content?.slice(0, 500) }
+      )
+    }
+
     await messageQueries.delete(messageId)
     invalidateChannel(channelId)
     const { getSocketInstance } = await import('../socket')
@@ -345,8 +361,8 @@ router.put('/:channelId/pins/:messageId', requireAuth, async (req: Request, res:
     const isMember = await memberQueries.isMember(req.user!.userId, msg.server_id)
     if (!isMember) return res.status(403).json({ error: 'Brak dostępu' })
     const isMod = await canModerate(req.user!.userId, msg.server_id, 'MANAGE_MESSAGES')
-    if (msg.author_id !== req.user!.userId && !isMod) {
-      return res.status(403).json({ error: 'Brak uprawnień' })
+    if (!isMod) {
+      return res.status(403).json({ error: 'Brak uprawnień — tylko moderatorzy mogą przypinać wiadomości' })
     }
     await execute('UPDATE messages SET pinned = 1 WHERE id = ?', [messageId])
     const { getSocketInstance } = await import('../socket')
@@ -365,9 +381,9 @@ router.delete('/:channelId/pins/:messageId', requireAuth, async (req: Request, r
     if (!msg) return res.status(404).json({ error: 'Nie znaleziono wiadomości' })
     const isMemberDel = await memberQueries.isMember(req.user!.userId, msg.server_id)
     if (!isMemberDel) return res.status(403).json({ error: 'Brak dostępu' })
-    const isMod = await canModerate(req.user!.userId, msg.server_id, 'MANAGE_MESSAGES')
-    if (msg.author_id !== req.user!.userId && !isMod) {
-      return res.status(403).json({ error: 'Brak uprawnień' })
+    const isModDel = await canModerate(req.user!.userId, msg.server_id, 'MANAGE_MESSAGES')
+    if (!isModDel) {
+      return res.status(403).json({ error: 'Brak uprawnień — tylko moderatorzy mogą odpinać wiadomości' })
     }
     await execute('UPDATE messages SET pinned = 0 WHERE id = ?', [messageId])
     const { getSocketInstance } = await import('../socket')

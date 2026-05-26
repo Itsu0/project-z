@@ -623,6 +623,7 @@ export function ChatArea({ onOpenSettings }: { onOpenSettings?: () => void }) {
           channelId={channelId}
           channelName={currentChannel.name}
           channelTopic={currentChannel.topic}
+          canManageMessages={canManageMessages}
         />
       ) : (
         <>
@@ -703,6 +704,7 @@ export function ChatArea({ onOpenSettings }: { onOpenSettings?: () => void }) {
                       <MessageItem
                         message={msg}
                         compact={compact}
+                        canManageMessages={canManageMessages}
                         onReply={bulkMode ? undefined : info => { setReplyTo(info); setTimeout(() => document.querySelector<HTMLTextAreaElement>('textarea')?.focus(), 50) }}
                         onPin={() => {}}
                       />

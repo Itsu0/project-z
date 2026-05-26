@@ -217,10 +217,11 @@ function ReplyInput({ postId, channelId, onReplyAdded }: { postId: string; chann
   )
 }
 
-function PostView({ post, channelId, onBack }: { post: ForumPost; channelId: string; onBack: () => void }) {
+function PostView({ post, channelId, canManageMessages, onBack, onPostDeleted }: { post: ForumPost; channelId: string; canManageMessages?: boolean; onBack: () => void; onPostDeleted?: () => void }) {
   const { token, currentUser } = useStore()
   const [replies, setReplies] = useState<ForumReply[]>([])
   const [loading, setLoading] = useState(true)
+  const [deletingPost, setDeletingPost] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -247,6 +248,18 @@ function PostView({ post, channelId, onBack }: { post: ForumPost; channelId: str
     } catch {}
   }
 
+  async function deletePost() {
+    if (!confirm(`Usunąć post "${post.title}"? Wszystkie odpowiedzi zostaną usunięte.`)) return
+    setDeletingPost(true)
+    try {
+      await fetch(`${BASE}/api/forum/${channelId}/posts/${post.id}`, {
+        method: 'DELETE', headers: { Authorization: `Bearer ${token}` },
+      })
+      onPostDeleted?.()
+      onBack()
+    } catch {} finally { setDeletingPost(false) }
+  }
+
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
       {}
@@ -259,9 +272,18 @@ function PostView({ post, channelId, onBack }: { post: ForumPost; channelId: str
         </button>
         <div className="w-px h-4 flex-shrink-0" style={{ background: 'var(--eb-border)' }} />
         <h2 className="text-sm font-semibold truncate" style={{ color: 'var(--eb-text1)' }}>{post.title}</h2>
-        <span className="ml-auto text-xs flex-shrink-0 px-2 py-0.5 rounded-full" style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--eb-text3)' }}>
-          {post.reply_count} {post.reply_count === 1 ? 'odpowiedź' : post.reply_count < 5 ? 'odpowiedzi' : 'odpowiedzi'}
-        </span>
+        <div className="ml-auto flex items-center gap-2">
+          {(canManageMessages || post.author_id === currentUser?.id) && (
+            <button onClick={deletePost} disabled={deletingPost}
+              className="text-[10px] px-2.5 py-1 rounded-lg transition-all disabled:opacity-40"
+              style={{ background: 'rgba(220,38,38,0.12)', color: '#f87171', border: '0.5px solid rgba(220,38,38,0.25)' }}>
+              {deletingPost ? '...' : '🗑 Usuń post'}
+            </button>
+          )}
+          <span className="text-xs flex-shrink-0 px-2 py-0.5 rounded-full" style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--eb-text3)' }}>
+            {post.reply_count} {post.reply_count === 1 ? 'odpowiedź' : post.reply_count < 5 ? 'odpowiedzi' : 'odpowiedzi'}
+          </span>
+        </div>
       </div>
 
       {}
@@ -305,7 +327,7 @@ function PostView({ post, channelId, onBack }: { post: ForumPost; channelId: str
                   <div className="flex items-baseline gap-2 mb-1 flex-wrap">
                     <span className="text-xs font-semibold" style={{ color: 'var(--eb-text1)' }}>{reply.author_display_name}</span>
                     <span className="text-[10px]" style={{ color: 'var(--eb-text3)' }}>{timeAgo(reply.created_at)}</span>
-                    {reply.author_id === currentUser?.id && (
+                    {(reply.author_id === currentUser?.id || canManageMessages) && (
                       <button onClick={() => deleteReply(reply.id)}
                         className="ml-auto opacity-0 group-hover:opacity-100 text-[10px] px-2 py-0.5 rounded-lg transition-all"
                         style={{ background: 'rgba(220,38,38,0.12)', color: 'var(--eb-accent2)', border: '0.5px solid rgba(220,38,38,0.2)' }}>
@@ -458,10 +480,24 @@ function CreatePostModal({ channelId, onClose, onCreated }: {
   )
 }
 
-function PostCard({ post, onClick }: { post: ForumPost; onClick: () => void }) {
+function PostCard({ post, canManageMessages, currentUserId, onClick, onDeleted }: { post: ForumPost; canManageMessages?: boolean; currentUserId?: string; onClick: () => void; onDeleted?: () => void }) {
+  const { token } = useStore()
   const preview = post.content.length > 120 ? post.content.slice(0, 120) + '…' : post.content
+  const canDelete = canManageMessages || post.author_id === currentUserId
+
+  async function handleDelete(e: React.MouseEvent) {
+    e.stopPropagation()
+    if (!confirm(`Usunąć post "${post.title}"?`)) return
+    try {
+      await fetch(`${BASE}/api/forum/${post.channel_id}/posts/${post.id}`, {
+        method: 'DELETE', headers: { Authorization: `Bearer ${token}` },
+      })
+      onDeleted?.()
+    } catch {}
+  }
 
   return (
+    <div className="relative group/card">
     <button onClick={onClick}
       className="w-full text-left rounded-2xl p-4 transition-all group hover:bg-white/[0.04]"
       style={{ background: 'var(--eb-bg1)', border: '0.5px solid var(--eb-border)', outline: 'none' }}>
@@ -501,15 +537,24 @@ function PostCard({ post, onClick }: { post: ForumPost; onClick: () => void }) {
         </div>
       </div>
     </button>
+    {canDelete && (
+      <button onClick={handleDelete}
+        className="absolute top-3 right-3 opacity-0 group-hover/card:opacity-100 transition-opacity text-[10px] px-2 py-1 rounded-lg z-10"
+        style={{ background: 'rgba(220,38,38,0.15)', color: '#f87171', border: '0.5px solid rgba(220,38,38,0.3)' }}>
+        🗑
+      </button>
+    )}
+    </div>
   )
 }
 
-export function ForumView({ channelId, channelName, channelTopic }: {
+export function ForumView({ channelId, channelName, channelTopic, canManageMessages = false }: {
   channelId: string
   channelName: string
   channelTopic?: string | null
+  canManageMessages?: boolean
 }) {
-  const { token } = useStore()
+  const { token, currentUser } = useStore()
   const [posts, setPosts] = useState<ForumPost[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreate, setShowCreate] = useState(false)
@@ -547,7 +592,7 @@ export function ForumView({ channelId, channelName, channelTopic }: {
   )
 
   if (activePost) {
-    return <PostView post={activePost} channelId={channelId} onBack={() => { setActivePost(null); loadPosts() }} />
+    return <PostView post={activePost} channelId={channelId} canManageMessages={canManageMessages} onBack={() => { setActivePost(null); loadPosts() }} onPostDeleted={() => setPosts(prev => prev.filter(p => p.id !== activePost.id))} />
   }
 
   return (
@@ -619,7 +664,7 @@ export function ForumView({ channelId, channelName, channelTopic }: {
         ) : (
           <div className="flex flex-col gap-2">
             {filtered.map(post => (
-              <PostCard key={post.id} post={post} onClick={() => setActivePost(post)} />
+              <PostCard key={post.id} post={post} canManageMessages={canManageMessages} currentUserId={currentUser?.id} onClick={() => setActivePost(post)} onDeleted={() => setPosts(prev => prev.filter(p => p.id !== post.id))} />
             ))}
           </div>
         )}

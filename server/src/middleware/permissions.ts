@@ -46,6 +46,21 @@ export async function canModerate(userId: string, serverId: string, permission: 
   return (await isOwner(userId, serverId)) || (await hasPermission(userId, serverId, permission))
 }
 
+export async function canViewChannel(userId: string, channelId: string): Promise<boolean> {
+  const ch = await queryOne<{ server_id: string }>('SELECT server_id FROM channels WHERE id = ?', [channelId])
+  if (!ch) return false
+  const admin = await canModerate(userId, ch.server_id, 'ADMINISTRATOR')
+  if (admin) return true
+  const denied = await queryOne<{ id: string }>(
+    `SELECT crp.channel_id as id FROM channel_role_permissions crp
+     INNER JOIN member_roles mr ON mr.role_id = crp.role_id
+     WHERE crp.channel_id = ? AND mr.user_id = ? AND mr.server_id = ? AND crp.deny_view = 1
+     LIMIT 1`,
+    [channelId, userId, ch.server_id]
+  )
+  return !denied
+}
+
 export async function isMuted(userId: string, serverId: string): Promise<boolean> {
   const row = await queryOne<{ expires_at: string }>(
     'SELECT expires_at FROM server_mutes WHERE user_id = ? AND server_id = ? AND expires_at > UTC_TIMESTAMP()',

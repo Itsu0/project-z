@@ -372,7 +372,7 @@ export function MessageItem({ message, compact = false, canManageMessages = fals
   const isOwn      = message.author.id === currentUser?.id
   const isAdminMsg = !!message.isAdminMsg
   const canEdit = isOwn && message.type === 'DEFAULT' && !isGiphyUrl(message.content) && !isAdminMsg
-  const canPin  = isOwn || canManageMessages
+  const canPin  = canManageMessages
 
   useEffect(() => {
     if (!currentServerId || !token) return

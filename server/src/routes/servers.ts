@@ -3,6 +3,7 @@ import { randomBytes } from 'crypto'
 import { requireAuth } from '../middleware/auth'
 import { serverQueries, memberQueries, channelQueries, roleQueries } from '../db/queries'
 import { execute, queryOne, queryMany } from '../db/pool'
+import { canModerate } from '../middleware/permissions'
 import { v4 as uuidv4 } from 'uuid'
 import { checkRaid } from './serverMod'
 
@@ -134,14 +135,39 @@ router.get('/:serverId', requireAuth, async (req: Request, res: Response) => {
 
     if (!server) return res.status(404).json({ error: 'Serwer nie znaleziony' })
 
-    const { hasPermission: hasPerm } = await import('../middleware/permissions')
+    const { hasPermission: hasPerm, canModerate: canMod } = await import('../middleware/permissions')
     const canView    = await hasPerm(userId, serverId, 'VIEW_CHANNELS')
-    const canModView = await hasPerm(userId, serverId, 'MANAGE_MESSAGES')
+    const canModView = await canMod(userId, serverId, 'ADMINISTRATOR')
     const isOwner    = server.owner_id === userId
     const allVisible = canView ? allChannels : []
-    const channels   = (isOwner || canModView)
-      ? allVisible
-      : allVisible.filter((c: any) => !c.mod_only)
+    let channels: any[]
+    if (isOwner || canModView) {
+      channels = allVisible
+    } else {
+      const canManageMsgs = await hasPerm(userId, serverId, 'MANAGE_MESSAGES')
+      const visibleBase = canManageMsgs ? allVisible : allVisible.filter((c: any) => !c.mod_only)
+      if (visibleBase.length > 0) {
+        const channelIds = visibleBase.map((c: any) => c.id)
+        const ph = channelIds.map(() => '?').join(',')
+        const userRoles = await queryMany<{ role_id: string }>(
+          'SELECT role_id FROM member_roles WHERE user_id = ? AND server_id = ?', [userId, serverId]
+        )
+        let deniedChannelIds = new Set<string>()
+        if (userRoles.length > 0) {
+          const roleIds = userRoles.map(r => r.role_id)
+          const rolePh = roleIds.map(() => '?').join(',')
+          const denied = await queryMany<{ channel_id: string }>(
+            `SELECT channel_id FROM channel_role_permissions
+             WHERE channel_id IN (${ph}) AND role_id IN (${rolePh}) AND deny_view = 1`,
+            [...channelIds, ...roleIds]
+          )
+          deniedChannelIds = new Set(denied.map(d => d.channel_id))
+        }
+        channels = visibleBase.filter((c: any) => !deniedChannelIds.has(c.id))
+      } else {
+        channels = []
+      }
+    }
 
     return res.json({ server, channels, members, roles, memberCount, onlineCount })
   } catch (err: any) {
@@ -347,6 +373,54 @@ router.get('/:serverId/voice-state', requireAuth, async (req: Request, res: Resp
       })
     }
     return res.json({ voiceState })
+  } catch (err) {
+    return res.status(500).json({ error: 'Błąd serwera' })
+  }
+})
+
+router.get('/:serverId/channels/:channelId/role-permissions', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { serverId, channelId } = req.params
+    if (!await canModerate(req.user!.userId, serverId, 'MANAGE_CHANNELS')) {
+      return res.status(403).json({ error: 'Brak uprawnień' })
+    }
+    const ch = await queryOne<{ id: string }>('SELECT id FROM channels WHERE id = ? AND server_id = ?', [channelId, serverId])
+    if (!ch) return res.status(404).json({ error: 'Kanał nie istnieje' })
+    const perms = await queryMany<{ role_id: string; deny_view: number }>(
+      'SELECT role_id, deny_view FROM channel_role_permissions WHERE channel_id = ?',
+      [channelId]
+    )
+    return res.json({ permissions: perms })
+  } catch (err) {
+    return res.status(500).json({ error: 'Błąd serwera' })
+  }
+})
+
+router.put('/:serverId/channels/:channelId/role-permissions', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { serverId, channelId } = req.params
+    if (!await canModerate(req.user!.userId, serverId, 'MANAGE_CHANNELS')) {
+      return res.status(403).json({ error: 'Brak uprawnień' })
+    }
+    const ch = await queryOne<{ id: string }>('SELECT id FROM channels WHERE id = ? AND server_id = ?', [channelId, serverId])
+    if (!ch) return res.status(404).json({ error: 'Kanał nie istnieje' })
+    const { roleId, denyView } = req.body
+    if (!roleId) return res.status(400).json({ error: 'Wymagane: roleId' })
+    const roleCheck = await queryOne<{ id: string }>('SELECT id FROM roles WHERE id = ? AND server_id = ?', [roleId, serverId])
+    if (!roleCheck) return res.status(404).json({ error: 'Rola nie istnieje' })
+    if (denyView) {
+      await execute(
+        `INSERT INTO channel_role_permissions (channel_id, role_id, deny_view) VALUES (?, ?, 1)
+         ON DUPLICATE KEY UPDATE deny_view = 1`,
+        [channelId, roleId]
+      )
+    } else {
+      await execute(
+        'DELETE FROM channel_role_permissions WHERE channel_id = ? AND role_id = ?',
+        [channelId, roleId]
+      )
+    }
+    return res.json({ ok: true })
   } catch (err) {
     return res.status(500).json({ error: 'Błąd serwera' })
   }
