@@ -360,9 +360,11 @@ function CreateServerModal({
 type ModalView = 'none' | 'picker' | 'join' | 'create'
 
 export function ServerRail() {
-  const { servers, currentServerId, setCurrentServer, setChannels, setMembers, setCurrentChannel, token } = useStore()
+  const { servers, currentServerId, setCurrentServer, setChannels, setMembers, setCurrentChannel, token, dmUnread, setDmOpen } = useStore()
   const [modal, setModal]         = useState<ModalView>('none')
   const [showTickets, setShowTickets] = useState(false)
+
+  const totalDmUnread = Object.values(dmUnread).reduce((a, b) => a + b, 0)
 
   async function selectServer(serverId: string) {
     if (serverId === currentServerId) return
@@ -385,6 +387,30 @@ export function ServerRail() {
     <>
       <nav className="flex flex-col items-center py-2 gap-1 border-r"
         style={{ width: 60, background: 'var(--eb-bg0)', borderColor: 'var(--eb-border)' }}>
+
+        {}
+        <div
+          onClick={() => setDmOpen(true)}
+          className="relative w-10 h-10 flex items-center justify-center cursor-pointer rounded-2xl hover:rounded-[10px] transition-all duration-200"
+          style={{ background: 'var(--eb-bg2)', color: 'var(--eb-text2)' }}
+          onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.color = 'var(--eb-text1)' }}
+          onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.color = 'var(--eb-text2)' }}
+          title="Wiadomości prywatne"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+          {totalDmUnread > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full text-white font-bold flex items-center justify-center"
+              style={{ fontSize: 10, background: 'var(--eb-accent2)', lineHeight: 1 }}>
+              {totalDmUnread > 99 ? '99+' : totalDmUnread}
+            </span>
+          )}
+        </div>
+
+        {servers.length > 0 && (
+          <div className="w-7 h-px my-0.5" style={{ background: 'var(--eb-border2)' }} />
+        )}
 
         {servers.map((srv) => (
           <div key={srv.id} className="relative group">
@@ -410,10 +436,6 @@ export function ServerRail() {
             </div>
           </div>
         ))}
-
-        {servers.length > 0 && (
-          <div className="w-7 h-px my-0.5" style={{ background: 'var(--eb-border2)' }} />
-        )}
 
         {}
         <div

@@ -253,8 +253,132 @@ export async function runMigrations(): Promise<void> {
     }
   }
 
+  // ── Migracja message_attachments → file_path na dysku ───────────────────────
+  const attachMigrations: [string, string, string][] = [
+    ['message_attachments', 'file_path', 'VARCHAR(512) DEFAULT NULL'],
+  ]
+  for (const [table, col, def] of attachMigrations) {
+    try {
+      await conn.query(`ALTER TABLE \`${table}\` ADD COLUMN \`${col}\` ${def}`)
+      console.log(`   ↳ Dodano kolumnę ${table}.${col}`)
+    } catch (e: any) {
+      if (e.errno !== 1060) console.warn(`   ⚠ Kolumna ${table}.${col}: ${e.message}`)
+    }
+  }
+  try {
+    await conn.query(`ALTER TABLE \`message_attachments\` MODIFY COLUMN \`data\` MEDIUMBLOB DEFAULT NULL`)
+    console.log('   ↳ message_attachments.data → nullable')
+  } catch (e: any) {
+    if (e.errno !== 1060) console.warn('   ⚠ Modify data nullable:', e.message)
+  }
+
+  // ── Tabele DM ────────────────────────────────────────────────────────────────
+  const dmTablesSql = [
+    `CREATE TABLE IF NOT EXISTS \`dm_conversations\` (
+      \`id\`              CHAR(36)  NOT NULL,
+      \`user1_id\`        CHAR(36)  NOT NULL,
+      \`user2_id\`        CHAR(36)  NOT NULL,
+      \`last_message_at\` DATETIME  DEFAULT CURRENT_TIMESTAMP,
+      \`created_at\`      DATETIME  DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (\`id\`),
+      UNIQUE KEY \`uq_pair\` (\`user1_id\`, \`user2_id\`),
+      FOREIGN KEY (\`user1_id\`) REFERENCES \`users\`(\`id\`) ON DELETE CASCADE,
+      FOREIGN KEY (\`user2_id\`) REFERENCES \`users\`(\`id\`) ON DELETE CASCADE,
+      INDEX \`idx_user1\` (\`user1_id\`, \`last_message_at\` DESC),
+      INDEX \`idx_user2\` (\`user2_id\`, \`last_message_at\` DESC)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+    `CREATE TABLE IF NOT EXISTS \`dm_messages\` (
+      \`id\`              CHAR(36)  NOT NULL,
+      \`conversation_id\` CHAR(36)  NOT NULL,
+      \`author_id\`       CHAR(36)  NOT NULL,
+      \`content\`         TEXT      NOT NULL,
+      \`edited_at\`       DATETIME  DEFAULT NULL,
+      \`deleted_at\`      DATETIME  DEFAULT NULL,
+      \`created_at\`      DATETIME  DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (\`id\`),
+      FOREIGN KEY (\`conversation_id\`) REFERENCES \`dm_conversations\`(\`id\`) ON DELETE CASCADE,
+      FOREIGN KEY (\`author_id\`)       REFERENCES \`users\`(\`id\`)             ON DELETE CASCADE,
+      INDEX \`idx_conv_created\` (\`conversation_id\`, \`created_at\` DESC)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+    `CREATE TABLE IF NOT EXISTS \`dm_attachments\` (
+      \`id\`           CHAR(36)      NOT NULL,
+      \`message_id\`   CHAR(36)      NOT NULL,
+      \`filename\`     VARCHAR(255)  NOT NULL,
+      \`file_path\`    VARCHAR(512)  NOT NULL,
+      \`content_type\` VARCHAR(100)  NOT NULL,
+      \`size\`         INT           DEFAULT 0,
+      \`width\`        INT           DEFAULT NULL,
+      \`height\`       INT           DEFAULT NULL,
+      \`created_at\`   DATETIME      DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (\`id\`),
+      FOREIGN KEY (\`message_id\`) REFERENCES \`dm_messages\`(\`id\`) ON DELETE CASCADE,
+      INDEX \`idx_dm_att_msg\` (\`message_id\`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+    `CREATE TABLE IF NOT EXISTS \`dm_reactions\` (
+      \`message_id\`  CHAR(36)    NOT NULL,
+      \`user_id\`     CHAR(36)    NOT NULL,
+      \`emoji\`       VARCHAR(64) NOT NULL,
+      \`created_at\`  DATETIME    DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (\`message_id\`, \`user_id\`, \`emoji\`),
+      FOREIGN KEY (\`message_id\`) REFERENCES \`dm_messages\`(\`id\`) ON DELETE CASCADE,
+      FOREIGN KEY (\`user_id\`)    REFERENCES \`users\`(\`id\`)        ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+    `CREATE TABLE IF NOT EXISTS \`dm_reads\` (
+      \`user_id\`         CHAR(36) NOT NULL,
+      \`conversation_id\` CHAR(36) NOT NULL,
+      \`last_read_id\`    CHAR(36) DEFAULT NULL,
+      PRIMARY KEY (\`user_id\`, \`conversation_id\`),
+      FOREIGN KEY (\`user_id\`)         REFERENCES \`users\`(\`id\`)             ON DELETE CASCADE,
+      FOREIGN KEY (\`conversation_id\`) REFERENCES \`dm_conversations\`(\`id\`)  ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+    `CREATE TABLE IF NOT EXISTS \`dm_blocks\` (
+      \`blocker_id\` CHAR(36) NOT NULL,
+      \`blocked_id\` CHAR(36) NOT NULL,
+      \`created_at\` DATETIME DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (\`blocker_id\`, \`blocked_id\`),
+      FOREIGN KEY (\`blocker_id\`) REFERENCES \`users\`(\`id\`) ON DELETE CASCADE,
+      FOREIGN KEY (\`blocked_id\`) REFERENCES \`users\`(\`id\`) ON DELETE CASCADE,
+      INDEX \`idx_blocker\` (\`blocker_id\`),
+      INDEX \`idx_blocked\` (\`blocked_id\`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+  ]
+  for (const sql of dmTablesSql) {
+    try {
+      await conn.query(sql)
+    } catch (e: any) {
+      console.warn('   ⚠ Tabela DM:', e.message)
+    }
+  }
+  console.log('   ↳ Tabele DM OK')
+
   console.log('✅ Migracje zakończone pomyślnie')
   await conn.end()
+}
+
+export function startDmCron(): void {
+  setInterval(async () => {
+    const hour = new Date().getUTCHours()
+    if (hour !== 3) return
+    try {
+      const { pool } = await import('./pool')
+      // Batch delete stare wiadomości — 2000 na raz, żeby nie blokować tabeli
+      for (const sql of [
+        `DELETE FROM dm_messages WHERE deleted_at IS NOT NULL AND deleted_at < DATE_SUB(UTC_TIMESTAMP(), INTERVAL 90 DAY) LIMIT 2000`,
+        `DELETE FROM dm_messages WHERE created_at < DATE_SUB(UTC_TIMESTAMP(), INTERVAL 90 DAY) LIMIT 2000`,
+        `DELETE FROM notifications WHERE read_at IS NOT NULL AND created_at < DATE_SUB(UTC_TIMESTAMP(), INTERVAL 30 DAY) LIMIT 5000`,
+      ]) {
+        let rows = 1
+        while (rows > 0) {
+          const [r] = await pool.query(sql) as any
+          rows = (r as any).affectedRows ?? 0
+          if (rows > 0) await new Promise(r => setTimeout(r, 200))
+        }
+      }
+      console.log('[cron] Cleanup DM + notifications zakończony')
+    } catch (e) {
+      console.error('[cron] Błąd cleanup:', e)
+    }
+  }, 60 * 60 * 1000)
 }
 
 if (require.main === module) {

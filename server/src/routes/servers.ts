@@ -256,12 +256,21 @@ router.post('/:serverId/logo', requireAuth, async (req: Request, res: Response) 
     const { logo } = req.body
     const ALLOWED_LOGO = ['data:image/jpeg;', 'data:image/jpg;', 'data:image/png;', 'data:image/gif;', 'data:image/webp;']
     if (!logo || !ALLOWED_LOGO.some(p => logo.startsWith(p))) return res.status(400).json({ error: 'Nieprawidłowy format (dozwolone: jpeg, png, gif, webp)' })
-    if (logo.length > 700000) return res.status(400).json({ error: 'Logo za duże (maks. 500KB)' })
+    if (logo.length > 10_000_000) return res.status(400).json({ error: 'Logo za duże (maks. 8MB przed kompresją)' })
     const { hasPermission: hasPerm } = await import('../middleware/permissions')
     const canManage = await hasPerm(req.user!.userId, serverId, 'MANAGE_SERVER')
     if (!canManage) return res.status(403).json({ error: 'Wymagane uprawnienie: Zarządzaj serwerem' })
-    await execute('UPDATE servers SET icon_url = ? WHERE id = ?', [logo, serverId])
-    return res.json({ iconUrl: logo })
+
+    const { base64ToBuffer, saveIcon, deleteUpload } = await import('../lib/fileStorage')
+    const parsed = base64ToBuffer(logo)
+    if (!parsed) return res.status(400).json({ error: 'Nieprawidłowe dane obrazu' })
+
+    const old = await queryOne<{ icon_url: string | null }>('SELECT icon_url FROM servers WHERE id = ?', [serverId])
+    if (old?.icon_url && !old.icon_url.startsWith('data:')) deleteUpload(old.icon_url)
+
+    const url = await saveIcon(parsed.buffer, parsed.mimeType)
+    await execute('UPDATE servers SET icon_url = ? WHERE id = ?', [url, serverId])
+    return res.json({ iconUrl: url })
   } catch (err) { return res.status(500).json({ error: 'Błąd serwera' }) }
 })
 

@@ -154,6 +154,16 @@ export function setupSocket(io: SocketIO) {
 
     onlineUsers.set(userId, socket.id)
 
+    // Auto-join recent DM rooms
+    queryMany<{ id: string }>(
+      `SELECT id FROM dm_conversations
+       WHERE (user1_id=? OR user2_id=?) AND last_message_at > DATE_SUB(UTC_TIMESTAMP(), INTERVAL 30 DAY)
+       LIMIT 50`,
+      [userId, userId]
+    ).then(convs => {
+      for (const c of convs) socket.join(`dm:${c.id}`)
+    }).catch(() => {})
+
     socket.on('join_server', async (serverId: string) => {
       const isMem = await memberQueries.isMember(userId, serverId)
       if (!isMem) return
@@ -501,6 +511,46 @@ export function setupSocket(io: SocketIO) {
 
     socket.on('PING', (cb: unknown) => {
       if (typeof cb === 'function') cb()
+    })
+
+    // ── DM ──────────────────────────────────────────────────────────────────
+    socket.on('DM_JOIN', async (convId: string) => {
+      try {
+        const conv = await queryOne<{ user1_id: string; user2_id: string }>(
+          'SELECT user1_id, user2_id FROM dm_conversations WHERE id=?', [convId]
+        )
+        if (!conv || (conv.user1_id !== userId && conv.user2_id !== userId)) return
+        socket.join(`dm:${convId}`)
+      } catch {}
+    })
+
+    socket.on('DM_LEAVE', (convId: string) => {
+      socket.leave(`dm:${convId}`)
+    })
+
+    socket.on('DM_TYPING_START', async (convId: string) => {
+      try {
+        const conv = await queryOne<{ user1_id: string; user2_id: string }>(
+          'SELECT user1_id, user2_id FROM dm_conversations WHERE id=?', [convId]
+        )
+        if (!conv || (conv.user1_id !== userId && conv.user2_id !== userId)) return
+        const profile = await getProfile(userId)
+        socket.to(`dm:${convId}`).emit('DM_TYPING', { convId, userId, username: profile.display_name, typing: true })
+        const key = `dm:${convId}:${userId}`
+        const prev = typingTimers.get(key)
+        if (prev) clearTimeout(prev)
+        typingTimers.set(key, setTimeout(() => {
+          socket.to(`dm:${convId}`).emit('DM_TYPING', { convId, userId, typing: false })
+          typingTimers.delete(key)
+        }, 5000))
+      } catch {}
+    })
+
+    socket.on('DM_TYPING_STOP', (convId: string) => {
+      const key = `dm:${convId}:${userId}`
+      const prev = typingTimers.get(key)
+      if (prev) { clearTimeout(prev); typingTimers.delete(key) }
+      socket.to(`dm:${convId}`).emit('DM_TYPING', { convId, userId, typing: false })
     })
 
     socket.on('MARK_NOTIFICATIONS_READ', async (data: { channelId?: string; serverId?: string }) => {

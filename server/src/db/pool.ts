@@ -28,13 +28,15 @@ function buildPoolConfig(): mysql.PoolOptions {
 export const pool = mysql.createPool({
   ...buildPoolConfig(),
   waitForConnections: true,
-  connectionLimit:    20,
-  queueLimit:         0,
+  connectionLimit:    25,
+  queueLimit:         100,
   timezone:           '+00:00',
   charset:            'utf8mb4',
   enableKeepAlive:    true,
   keepAliveInitialDelay: 10000,
 })
+
+export function rawPool() { return pool }
 
 export async function testConnection(): Promise<void> {
   try {

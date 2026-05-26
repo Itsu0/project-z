@@ -13,6 +13,7 @@ import { ScreenShareView } from '@/components/voice/ScreenShareView'
 import { useStore } from '@/lib/store'
 import { MobileApp } from '@/components/mobile/MobileApp'
 import { useIsMobile } from '@/hooks/usePlatform'
+import { DMPanel } from '@/components/dm/DMPanel'
 
 function AppLayout() {
   const { membersPanelOpen } = useStore()
@@ -30,6 +31,7 @@ function AppLayout() {
       <VoiceDock />
       <ScreenShareView />
       {showSettings && <ServerSettings onClose={() => setShowSettings(false)} />}
+      <DMPanel />
     </main>
   )
 }

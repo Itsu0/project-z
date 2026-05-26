@@ -468,6 +468,77 @@ CREATE TABLE IF NOT EXISTS friend_requests (
   INDEX idx_to (to_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- ─── Wiadomości prywatne (DM) ────────────────────────────────
+CREATE TABLE IF NOT EXISTS dm_conversations (
+  id              CHAR(36)  PRIMARY KEY,
+  user1_id        CHAR(36)  NOT NULL,
+  user2_id        CHAR(36)  NOT NULL,
+  last_message_at DATETIME  DEFAULT CURRENT_TIMESTAMP,
+  created_at      DATETIME  DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_pair (user1_id, user2_id),
+  FOREIGN KEY (user1_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (user2_id) REFERENCES users(id) ON DELETE CASCADE,
+  INDEX idx_user1 (user1_id, last_message_at DESC),
+  INDEX idx_user2 (user2_id, last_message_at DESC)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS dm_messages (
+  id              CHAR(36)   PRIMARY KEY,
+  conversation_id CHAR(36)   NOT NULL,
+  author_id       CHAR(36)   NOT NULL,
+  content         TEXT       NOT NULL,
+  edited_at       DATETIME   DEFAULT NULL,
+  deleted_at      DATETIME   DEFAULT NULL,
+  created_at      DATETIME   DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (conversation_id) REFERENCES dm_conversations(id) ON DELETE CASCADE,
+  FOREIGN KEY (author_id)       REFERENCES users(id)            ON DELETE CASCADE,
+  INDEX idx_conv_created (conversation_id, created_at DESC)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS dm_attachments (
+  id          CHAR(36)      PRIMARY KEY,
+  message_id  CHAR(36)      NOT NULL,
+  filename    VARCHAR(255)  NOT NULL,
+  file_path   VARCHAR(512)  NOT NULL,
+  content_type VARCHAR(100) NOT NULL,
+  size        INT           DEFAULT 0,
+  width       INT           DEFAULT NULL,
+  height      INT           DEFAULT NULL,
+  created_at  DATETIME      DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (message_id) REFERENCES dm_messages(id) ON DELETE CASCADE,
+  INDEX idx_dm_att_msg (message_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS dm_reactions (
+  message_id  CHAR(36)    NOT NULL,
+  user_id     CHAR(36)    NOT NULL,
+  emoji       VARCHAR(64) NOT NULL,
+  created_at  DATETIME    DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (message_id, user_id, emoji),
+  FOREIGN KEY (message_id) REFERENCES dm_messages(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id)    REFERENCES users(id)        ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS dm_reads (
+  user_id         CHAR(36) NOT NULL,
+  conversation_id CHAR(36) NOT NULL,
+  last_read_id    CHAR(36) DEFAULT NULL,
+  PRIMARY KEY (user_id, conversation_id),
+  FOREIGN KEY (user_id)         REFERENCES users(id)             ON DELETE CASCADE,
+  FOREIGN KEY (conversation_id) REFERENCES dm_conversations(id)  ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS dm_blocks (
+  blocker_id  CHAR(36) NOT NULL,
+  blocked_id  CHAR(36) NOT NULL,
+  created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (blocker_id, blocked_id),
+  FOREIGN KEY (blocker_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (blocked_id) REFERENCES users(id) ON DELETE CASCADE,
+  INDEX idx_blocker (blocker_id),
+  INDEX idx_blocked (blocked_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- ─── Tokeny weryfikacji email ─────────────────────────────────
 CREATE TABLE IF NOT EXISTS email_verification_tokens (
   id         CHAR(36)   PRIMARY KEY,
