@@ -52,6 +52,9 @@ router.post('/:serverId/moderation/mute/:userId', requireAuth, async (req: Reque
     if (targetIsAdmin && !requesterIsAdmin) {
       return res.status(403).json({ error: 'Nie możesz moderować administratora' })
     }
+    if (!await memberQueries.isMember(userId, serverId)) {
+      return res.status(400).json({ error: 'Użytkownik nie jest członkiem serwera' })
+    }
 
     const mins = Math.min(Math.max(Number(duration) || 10, 1), 10080)
     await execute(
@@ -136,6 +139,9 @@ router.post('/:serverId/moderation/ban/:userId', requireAuth, async (req: Reques
     const requesterIsAdmin = await canModerate(req.user!.userId, serverId, 'ADMINISTRATOR')
     if (targetIsAdmin && !requesterIsAdmin) {
       return res.status(403).json({ error: 'Nie możesz moderować administratora' })
+    }
+    if (!await memberQueries.isMember(userId, serverId)) {
+      return res.status(400).json({ error: 'Użytkownik nie jest członkiem serwera' })
     }
 
     await execute(

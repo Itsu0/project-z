@@ -469,6 +469,7 @@ export function setupSocket(io: SocketIO) {
 
     socket.on('MUTE_APPLY', async (data: { targetUserId: string; serverId: string }) => {
       if (!await hasPermission(userId, data.serverId, 'MUTE_MEMBERS')) return
+      if (!await memberQueries.isMember(data.targetUserId, data.serverId)) return
 
       const mute = await queryOne<any>(
         `SELECT sm.*, u.display_name, u.username FROM server_mutes sm
@@ -477,7 +478,7 @@ export function setupSocket(io: SocketIO) {
         [data.targetUserId, data.serverId]
       )
       if (mute) {
-        io.to(`server:${data.serverId}`).emit('MEMBER_MUTED', {
+        socket.emit('MEMBER_MUTED', {
           userId: data.targetUserId,
           displayName: mute.display_name,
           serverId: data.serverId,
