@@ -32,10 +32,32 @@ interface PatchRelease { version: string; date: string; labelPl: string; labelEn
 
 const PATCH_NOTES: PatchRelease[] = [
   {
-    version: '0.7.3',
-    date: '2026-05-24',
+    version: '0.7.5',
+    date: '2026-05-26',
     labelPl: 'Najnowsza',
     labelEn: 'Latest',
+    entries: [
+      { type: 'fix', pl: 'Przypinanie wiadomości — tylko moderatorzy i administratorzy mogą przypinać/odpinać wiadomości', en: 'Message pinning — only moderators and administrators can pin/unpin messages' },
+      { type: 'fix', pl: 'Usuwanie wiadomości — przycisk "Usuń" widoczny poprawnie dla moderatorów i administratorów przy wiadomościach innych użytkowników', en: 'Message deletion — "Delete" button now correctly visible for moderators and administrators on other users\' messages' },
+      { type: 'imp', pl: 'Mod-logi — usunięcie wiadomości przez moderatora automatycznie zapisuje treść wiadomości w logach', en: 'Mod logs — deleting a message as a moderator automatically saves the message content in the logs' },
+      { type: 'new', pl: 'Forum — moderatorzy i administratorzy mogą usuwać posty i odpowiedzi innych użytkowników; usunięcie posta przez moda zapisuje rekord XML do mod-logów', en: 'Forum — moderators and administrators can delete posts and replies from other users; mod deletion saves an XML record to mod logs' },
+      { type: 'new', pl: 'Uprawnienia kanałów — możliwość blokowania widoczności kanału dla wybranych ról w Ustawieniach serwera → Kanały (przycisk 🔒 przy każdym kanale)', en: 'Channel permissions — ability to block channel visibility for selected roles in Server Settings → Channels (🔒 button next to each channel)' },
+    ],
+  },
+  {
+    version: '0.7.4',
+    date: '2026-05-26',
+    labelPl: '',
+    labelEn: '',
+    entries: [
+      { type: 'imp', pl: 'Bezpieczeństwo — kompleksowy audyt i hardening serwera: wyeliminowano podatności IDOR w wiadomościach i forum, wzmocniono weryfikację członkostwa i uprawnień', en: 'Security — comprehensive server audit and hardening: eliminated IDOR vulnerabilities in messages and forum, strengthened membership and permission verification' },
+    ],
+  },
+  {
+    version: '0.7.3',
+    date: '2026-05-24',
+    labelPl: '',
+    labelEn: '',
     entries: [
       { type: 'fix', pl: 'Poprawki wizualne', en: 'Visual fixes' },
     ],
