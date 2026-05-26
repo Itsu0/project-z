@@ -217,8 +217,9 @@ export function setupSocket(io: SocketIO) {
         }
         msgRateMap.set(userId, [...timestamps, rateNow])
 
-        const mcCh = await queryOne<{ server_id: string }>('SELECT server_id FROM channels WHERE id = ?', [data.channelId])
+        const mcCh = await queryOne<{ server_id: string; mod_only: number }>('SELECT server_id, COALESCE(mod_only,0) AS mod_only FROM channels WHERE id = ?', [data.channelId])
         if (!mcCh || mcCh.server_id !== data.serverId) return
+        if (mcCh.mod_only && !await hasPermission(userId, data.serverId, 'MANAGE_MESSAGES')) return
 
         const banCheck = await queryOne<{ reason: string }>(
           'SELECT reason FROM server_bans WHERE user_id = ? AND server_id = ?',
@@ -280,7 +281,9 @@ export function setupSocket(io: SocketIO) {
         const [profile] = await Promise.all([
           getProfile(userId),
           data.replyToId
-            ? messageQueries.findById(data.replyToId).then(m => { replyToMessage = m; replyToAuthorId = m?.author_id })
+            ? messageQueries.findById(data.replyToId).then(m => {
+                if (m && m.channel_id === data.channelId) { replyToMessage = m; replyToAuthorId = m.author_id }
+              })
             : Promise.resolve(),
         ])
 

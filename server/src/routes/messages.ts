@@ -12,12 +12,15 @@ router.get('/:channelId/messages', requireAuth, async (req: Request, res: Respon
     const { channelId } = req.params
     const limit  = Math.max(1, Math.min(parseInt(String(req.query.limit ?? '50'), 10) || 50, 100))
     const before = req.query.before as string | undefined
-    const channelRow = await queryOne<{ server_id: string }>(
-      'SELECT server_id FROM channels WHERE id = ?', [channelId]
+    const channelRow = await queryOne<{ server_id: string; mod_only: number }>(
+      'SELECT server_id, COALESCE(mod_only,0) AS mod_only FROM channels WHERE id = ?', [channelId]
     )
     if (!channelRow) return res.status(404).json({ error: 'Kanał nie istnieje' })
     const effectiveServerId = channelRow.server_id
     if (!await hasPermission(req.user!.userId, effectiveServerId, 'VIEW_CHANNELS')) {
+      return res.status(403).json({ error: 'Nie masz dostępu do tego kanału' })
+    }
+    if (channelRow.mod_only && !await canModerate(req.user!.userId, effectiveServerId, 'MANAGE_MESSAGES')) {
       return res.status(403).json({ error: 'Nie masz dostępu do tego kanału' })
     }
 
