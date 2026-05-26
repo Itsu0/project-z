@@ -167,7 +167,8 @@ router.delete('/:channelId/posts/:postId', requireAuth, async (req: Request, res
     if (delChannel.mod_only && !await canModerate(req.user!.userId, delChannel.server_id, 'MANAGE_MESSAGES')) { res.status(403).json({ error: 'Brak dostępu' }); return }
     const post = await queryOne<{ author_id: string }>('SELECT author_id FROM forum_posts WHERE id = ? AND channel_id = ?', [postId, channelId])
     if (!post) return res.status(404).json({ error: 'Post nie istnieje' })
-    if (post.author_id !== req.user!.userId) return res.status(403).json({ error: 'Możesz usuwać tylko swoje posty' })
+    const isMod = await canModerate(req.user!.userId, delChannel.server_id, 'MANAGE_MESSAGES')
+    if (post.author_id !== req.user!.userId && !isMod) return res.status(403).json({ error: 'Brak uprawnień do usunięcia tego posta' })
     await execute('DELETE FROM forum_posts WHERE id = ?', [postId])
     return res.json({ ok: true })
   } catch (err) {
@@ -187,7 +188,8 @@ router.delete('/:channelId/posts/:postId/replies/:replyId', requireAuth, async (
     if (!postCheck) return res.status(404).json({ error: 'Post nie istnieje' })
     const reply = await queryOne<{ author_id: string }>('SELECT author_id FROM forum_replies WHERE id = ? AND post_id = ?', [replyId, postId])
     if (!reply) return res.status(404).json({ error: 'Odpowiedź nie istnieje' })
-    if (reply.author_id !== req.user!.userId) return res.status(403).json({ error: 'Możesz usuwać tylko swoje odpowiedzi' })
+    const isReplyMod = await canModerate(req.user!.userId, delReplyCh.server_id, 'MANAGE_MESSAGES')
+    if (reply.author_id !== req.user!.userId && !isReplyMod) return res.status(403).json({ error: 'Brak uprawnień do usunięcia tej odpowiedzi' })
     await execute('DELETE FROM forum_replies WHERE id = ? AND post_id = ?', [replyId, postId])
     await execute('UPDATE forum_posts SET reply_count = GREATEST(reply_count - 1, 0) WHERE id = ?', [postId])
     return res.json({ ok: true })
