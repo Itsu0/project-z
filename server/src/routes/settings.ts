@@ -96,6 +96,11 @@ router.delete('/:serverId/members/:userId', requireAuth, async (req: Request, re
     const { io } = await import('../index')
     io.to(`server:${serverId}`).emit('MEMBER_LEAVE', { serverId, userId })
 
+    try {
+      const { kickUserFromServer } = await import('../socket')
+      kickUserFromServer(userId, serverId, 'KICKED')
+    } catch {}
+
     return res.json({ ok: true })
   } catch (err) {
     console.error('[settings/kick-member]', err)

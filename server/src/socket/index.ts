@@ -187,10 +187,11 @@ export function setupSocket(io: SocketIO) {
     })
 
     socket.on('join_channel', async (channelId: string) => {
-      const ch = await queryOne<{ server_id: string }>('SELECT server_id FROM channels WHERE id = ?', [channelId])
+      const ch = await queryOne<{ server_id: string; mod_only: number }>('SELECT server_id, COALESCE(mod_only,0) AS mod_only FROM channels WHERE id = ?', [channelId])
       if (!ch) return
       const memberOk = await memberQueries.isMember(userId, ch.server_id)
       if (!memberOk) return
+      if (ch.mod_only && !await hasPermission(userId, ch.server_id, 'MANAGE_MESSAGES')) return
       socket.join(`channel:${channelId}`)
     })
     socket.on('leave_channel', (channelId: string) => socket.leave(`channel:${channelId}`))
