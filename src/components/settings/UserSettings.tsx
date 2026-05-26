@@ -1126,8 +1126,8 @@ function DeleteAccountSection({ token, onDeleted }: { token: string; onDeleted: 
   )
 }
 
-function TabFriends() {
-  const { token } = useStore()
+function TabFriends({ onClose }: { onClose?: () => void }) {
+  const { token, setDmOpen, setActiveDmConvId } = useStore()
   const t = useT()
   const [friends,  setFriends]  = useState<any[]>([])
   const [incoming, setIncoming] = useState<any[]>([])
@@ -1206,6 +1206,21 @@ function TabFriends() {
     load()
   }
 
+  async function openDm(userId: string) {
+    if (!token) return
+    try {
+      const res = await fetch(`${BASE}/api/dm/open/${userId}`, {
+        method: 'POST', headers: { Authorization: `Bearer ${token}` }
+      })
+      const data = await res.json()
+      if (res.ok && data.conversation?.id) {
+        setActiveDmConvId(data.conversation.id)
+        setDmOpen(true)
+        onClose?.()
+      }
+    } catch {}
+  }
+
   const TABS = [
     { id: 'friends',  label: t('settings.friends.tabFriends', { n: friends.length }) },
     { id: 'requests', label: t('settings.friends.tabRequests') + (incoming.length > 0 ? ` (${incoming.length})` : '') },
@@ -1244,11 +1259,22 @@ function TabFriends() {
                 <p className="text-sm font-medium truncate" style={{ color: 'var(--eb-text1)' }}>{f.display_name}</p>
                 <p className="text-xs truncate" style={{ color: 'var(--eb-text3)' }}>@{f.username}</p>
               </div>
-              <button onClick={() => removeFriend(f.id)}
-                className="text-xs px-2.5 py-1 rounded-lg"
-                style={{ background: 'rgba(220,38,38,0.1)', color: 'var(--eb-accent2)', border: '0.5px solid rgba(220,38,38,0.2)' }}>
-                {t('settings.friends.remove')}
-              </button>
+              <div className="flex items-center gap-1.5">
+                <button onClick={() => openDm(f.id)}
+                  className="text-xs px-2.5 py-1 rounded-lg flex items-center gap-1"
+                  style={{ background: 'rgba(245,158,11,0.1)', color: 'var(--eb-accent)', border: '0.5px solid rgba(245,158,11,0.25)' }}
+                  title="Wyślij wiadomość">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                  </svg>
+                  Napisz
+                </button>
+                <button onClick={() => removeFriend(f.id)}
+                  className="text-xs px-2.5 py-1 rounded-lg"
+                  style={{ background: 'rgba(220,38,38,0.1)', color: 'var(--eb-accent2)', border: '0.5px solid rgba(220,38,38,0.2)' }}>
+                  {t('settings.friends.remove')}
+                </button>
+              </div>
             </div>
           ))}
         </div>
@@ -1404,7 +1430,7 @@ export function UserSettings({ onClose }: Props) {
           {activeTab === 'profil'   && <TabProfile />}
           {activeTab === 'audio'   && <TabAudio />}
           {activeTab === 'wygląd'  && <TabAppearance />}
-          {activeTab === 'znajomi' && <TabFriends />}
+          {activeTab === 'znajomi' && <TabFriends onClose={onClose} />}
           {activeTab === 'konto'   && <TabAccount />}
         </div>
       </div>
