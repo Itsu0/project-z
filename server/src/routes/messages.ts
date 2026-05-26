@@ -140,6 +140,10 @@ router.get('/:serverId/search', requireAuth, async (req: Request, res: Response)
     const isMember = await memberQueries.isMember(req.user!.userId, serverId)
     if (!isMember) return res.status(403).json({ error: 'Brak dostępu' })
 
+    if (!await hasPermission(req.user!.userId, serverId, 'VIEW_CHANNELS')) {
+      return res.status(403).json({ error: 'Brak dostępu' })
+    }
+
     const { queryMany } = await import('../db/pool')
     const ftQuery = q.trim().split(/\s+/).filter(Boolean).map(w => `+${w}*`).join(' ')
     const rows = await queryMany<any>(
@@ -232,6 +236,9 @@ router.patch('/:channelId/messages/:messageId', requireAuth, async (req: Request
     if (existing.author_id !== req.user!.userId) {
       return res.status(403).json({ error: 'Możesz edytować tylko swoje wiadomości' })
     }
+    if (!await memberQueries.isMember(req.user!.userId, existing.server_id)) {
+      return res.status(403).json({ error: 'Brak dostępu' })
+    }
 
     await messageQueries.update(messageId, content.trim())
     const updated = await messageQueries.findById(messageId)
@@ -251,6 +258,11 @@ router.delete('/:channelId/messages/:messageId', requireAuth, async (req: Reques
     const isMod = await canModerate(req.user!.userId, existing.server_id, 'MANAGE_MESSAGES')
     if (existing.author_id !== req.user!.userId && !isMod) {
       return res.status(403).json({ error: 'Brak uprawnień' })
+    }
+    if (existing.author_id === req.user!.userId && !isMod) {
+      if (!await memberQueries.isMember(req.user!.userId, existing.server_id)) {
+        return res.status(403).json({ error: 'Brak dostępu' })
+      }
     }
 
     await messageQueries.delete(messageId)

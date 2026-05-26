@@ -416,6 +416,9 @@ router.post('/:serverId/strikes/:userId', requireAuth, async (req: Request, res:
     const { serverId, userId } = req.params
     if (!await canModerate(req.user!.userId, serverId, 'KICK_MEMBERS'))
       return res.status(403).json({ error: 'Brak uprawnień' })
+    const { memberQueries: mq } = await import('../db/queries')
+    if (!await mq.isMember(userId, serverId))
+      return res.status(400).json({ error: 'Użytkownik nie jest członkiem serwera' })
     const { reason } = req.body
     if (!reason?.trim()) return res.status(400).json({ error: 'Wymagany powód' })
     await addStrike(serverId, userId, reason.trim(), req.user!.userId, false)

@@ -100,8 +100,8 @@ router.post('/:channelId/attachments', requireAuth, (req: Request, res: Response
 
 router.get('/:id', requireAuth, async (req: Request, res: Response) => {
   try {
-    const row = await queryOne<{ data: Buffer; content_type: string; filename: string; server_id: string }>(
-      `SELECT ma.data, ma.content_type, ma.filename, c.server_id
+    const row = await queryOne<{ data: Buffer; content_type: string; filename: string; server_id: string; mod_only: number }>(
+      `SELECT ma.data, ma.content_type, ma.filename, c.server_id, COALESCE(c.mod_only, 0) AS mod_only
        FROM message_attachments ma
        INNER JOIN channels c ON c.id = ma.channel_id
        WHERE ma.id = ?`,
@@ -111,6 +111,12 @@ router.get('/:id', requireAuth, async (req: Request, res: Response) => {
 
     if (!await hasPermission(req.user!.userId, row.server_id, 'VIEW_CHANNELS')) {
       return res.status(403).json({ error: 'Brak dostępu' })
+    }
+    if (row.mod_only) {
+      const { canModerate } = await import('../middleware/permissions')
+      if (!await canModerate(req.user!.userId, row.server_id, 'MANAGE_MESSAGES')) {
+        return res.status(403).json({ error: 'Brak dostępu' })
+      }
     }
 
     const safeContentType = ALLOWED_MIME_TYPES.has(row.content_type)
