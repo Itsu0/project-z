@@ -381,6 +381,9 @@ router.post('/:channelId/read', requireAuth, async (req: Request, res: Response)
     const { channelId } = req.params
     const { messageId } = req.body
     if (!messageId) return res.status(400).json({ error: 'Wymagane: messageId' })
+    const readCh = await queryOne<{ server_id: string }>('SELECT server_id FROM channels WHERE id = ?', [channelId])
+    if (!readCh) return res.status(404).json({ error: 'Kanał nie istnieje' })
+    if (!await memberQueries.isMember(req.user!.userId, readCh.server_id)) return res.status(403).json({ error: 'Brak dostępu' })
     await messageQueries.markRead(req.user!.userId, channelId, messageId)
     return res.json({ ok: true })
   } catch (err) {

@@ -395,6 +395,8 @@ export function setupSocket(io: SocketIO) {
       try {
         const rxAddCh = await queryOne<{ server_id: string }>('SELECT server_id FROM channels WHERE id = ?', [data.channelId])
         if (!rxAddCh || !await memberQueries.isMember(userId, rxAddCh.server_id)) return
+        const rxAddMsg = await queryOne<{ id: string }>('SELECT id FROM messages WHERE id = ? AND channel_id = ?', [data.messageId, data.channelId])
+        if (!rxAddMsg) return
         await reactionQueries.add(data.messageId, userId, data.emoji)
         const reactions = await reactionQueries.forMessage(data.messageId, userId)
 
@@ -417,6 +419,8 @@ export function setupSocket(io: SocketIO) {
       try {
         const rxRemCh = await queryOne<{ server_id: string }>('SELECT server_id FROM channels WHERE id = ?', [data.channelId])
         if (!rxRemCh || !await memberQueries.isMember(userId, rxRemCh.server_id)) return
+        const rxRemMsg = await queryOne<{ id: string }>('SELECT id FROM messages WHERE id = ? AND channel_id = ?', [data.messageId, data.channelId])
+        if (!rxRemMsg) return
         await reactionQueries.remove(data.messageId, userId, data.emoji)
         const reactions = await reactionQueries.forMessage(data.messageId, userId)
         io.to(`channel:${data.channelId}`).emit('REACTION_UPDATE', { messageId: data.messageId, reactions })
