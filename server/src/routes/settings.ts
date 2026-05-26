@@ -221,7 +221,7 @@ router.post('/:serverId/members/:userId/roles/:roleId', requireAuth, async (req:
     const requesterIsAdmin = await canModerate(req.user!.userId, serverId, 'ADMINISTRATOR')
     if (!requesterIsAdmin) {
       const { queryOne: qOne } = await import('../db/pool')
-      const role = await qOne<{ permissions: string }>('SELECT permissions FROM roles WHERE id = ?', [roleId])
+      const role = await qOne<{ permissions: string }>('SELECT permissions FROM roles WHERE id = ? AND server_id = ?', [roleId, serverId])
       if (role) {
         let rolePerms: string[] = []
         const raw = String(role.permissions ?? '')
@@ -235,6 +235,9 @@ router.post('/:serverId/members/:userId/roles/:roleId', requireAuth, async (req:
         }
       }
     }
+    const { queryOne: qOneAssign } = await import('../db/pool')
+    const roleExists = await qOneAssign<{ id: string }>('SELECT id FROM roles WHERE id = ? AND server_id = ?', [roleId, serverId])
+    if (!roleExists) return res.status(404).json({ error: 'Ranga nie istnieje na tym serwerze' })
     await memberQueries.assignRole(userId, serverId, roleId)
 
     const { io } = await import('../index')
