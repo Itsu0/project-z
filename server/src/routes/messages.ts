@@ -12,13 +12,11 @@ router.get('/:channelId/messages', requireAuth, async (req: Request, res: Respon
     const { channelId } = req.params
     const limit  = Math.max(1, Math.min(parseInt(String(req.query.limit ?? '50'), 10) || 50, 100))
     const before = req.query.before as string | undefined
-    const serverId = req.query.serverId as string | undefined
-
     const channelRow = await queryOne<{ server_id: string }>(
       'SELECT server_id FROM channels WHERE id = ?', [channelId]
     )
     if (!channelRow) return res.status(404).json({ error: 'Kanał nie istnieje' })
-    const effectiveServerId = serverId ?? channelRow.server_id
+    const effectiveServerId = channelRow.server_id
     if (!await hasPermission(req.user!.userId, effectiveServerId, 'VIEW_CHANNELS')) {
       return res.status(403).json({ error: 'Nie masz dostępu do tego kanału' })
     }
@@ -183,11 +181,14 @@ router.post('/:channelId/messages', requireAuth, async (req: Request, res: Respo
       return res.status(400).json({ error: 'Wiadomość może mieć maksymalnie 2000 znaków' })
     }
 
-    const postChannelRow = await queryOne<{ server_id: string }>(
-      'SELECT server_id FROM channels WHERE id = ?', [channelId]
+    const postChannelRow = await queryOne<{ server_id: string; mod_only: number }>(
+      'SELECT server_id, COALESCE(mod_only, 0) AS mod_only FROM channels WHERE id = ?', [channelId]
     )
     if (!postChannelRow) return res.status(404).json({ error: 'Kanał nie istnieje' })
     const postServerId = postChannelRow.server_id
+    if (postChannelRow.mod_only && !await canModerate(req.user!.userId, postServerId, 'MANAGE_MESSAGES')) {
+      return res.status(403).json({ error: 'Brak dostępu do tego kanału' })
+    }
 
     if (!await memberQueries.isMember(req.user!.userId, postServerId)) {
       return res.status(403).json({ error: 'Nie jesteś członkiem tego serwera' })
@@ -282,6 +283,8 @@ router.put('/:channelId/messages/:messageId/reactions/:emoji', requireAuth, asyn
     const rxCh = await queryOne<{ server_id: string }>('SELECT server_id FROM channels WHERE id = ?', [channelId])
     if (!rxCh) return res.status(404).json({ error: 'Kanał nie istnieje' })
     if (!await memberQueries.isMember(req.user!.userId, rxCh.server_id)) return res.status(403).json({ error: 'Brak dostępu' })
+    const rxMsg = await queryOne<{ id: string }>('SELECT id FROM messages WHERE id = ? AND channel_id = ?', [messageId, channelId])
+    if (!rxMsg) return res.status(404).json({ error: 'Wiadomość nie istnieje' })
     await reactionQueries.add(messageId, req.user!.userId, decodeURIComponent(emoji))
     return res.json({ ok: true })
   } catch (err) {
@@ -296,6 +299,8 @@ router.delete('/:channelId/messages/:messageId/reactions/:emoji', requireAuth, a
     const rxChDel = await queryOne<{ server_id: string }>('SELECT server_id FROM channels WHERE id = ?', [channelId])
     if (!rxChDel) return res.status(404).json({ error: 'Kanał nie istnieje' })
     if (!await memberQueries.isMember(req.user!.userId, rxChDel.server_id)) return res.status(403).json({ error: 'Brak dostępu' })
+    const rxMsgDel = await queryOne<{ id: string }>('SELECT id FROM messages WHERE id = ? AND channel_id = ?', [messageId, channelId])
+    if (!rxMsgDel) return res.status(404).json({ error: 'Wiadomość nie istnieje' })
     await reactionQueries.remove(messageId, req.user!.userId, decodeURIComponent(emoji))
     return res.json({ ok: true })
   } catch (err) {

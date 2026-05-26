@@ -255,6 +255,22 @@ router.delete('/:serverId/members/:userId/roles/:roleId', requireAuth, async (re
     const { canModerate } = await import('../middleware/permissions')
     const allowed = await canModerate(req.user!.userId, serverId, 'MANAGE_ROLES')
     if (!allowed) return res.status(403).json({ error: 'Brak uprawnień (wymagane MANAGE_ROLES)' })
+
+    const requesterIsAdminDel = await canModerate(req.user!.userId, serverId, 'ADMINISTRATOR')
+    if (!requesterIsAdminDel) {
+      const { queryOne: qOneDel } = await import('../db/pool')
+      const roleDel = await qOneDel<{ permissions: string }>('SELECT permissions FROM roles WHERE id = ? AND server_id = ?', [roleId, serverId])
+      if (roleDel) {
+        let rolePermsDel: string[] = []
+        const rawDel = String(roleDel.permissions ?? '')
+        if (rawDel.startsWith('[')) { try { rolePermsDel = JSON.parse(rawDel) } catch {} }
+        else { rolePermsDel = rawDel.split(',').map(s => s.trim()).filter(Boolean) }
+        if (rolePermsDel.includes('ADMINISTRATOR') || rolePermsDel.includes('MANAGE_ROLES')) {
+          return res.status(403).json({ error: 'Tylko administrator może odebrać tę rangę' })
+        }
+      }
+    }
+
     await memberQueries.removeRole(userId, serverId, roleId)
 
     const { io } = await import('../index')
