@@ -467,13 +467,15 @@ export function DMPanel() {
   const { on, off } = useSocket()
   const [search, setSearch] = useState('')
 
-  // Load conversations
+  // Load conversations whenever panel opens or activeDmConvId changes from outside
+  const token = useStore(s => s.token)
   useEffect(() => {
     if (!dmOpen || !currentUser) return
-    fetch(`${BASE}/api/dm`, { credentials: 'include' })
+    const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {}
+    fetch(`${BASE}/api/dm`, { credentials: 'include', headers })
       .then(r => r.json())
       .then(d => { if (d.conversations) setDmConversations(d.conversations) })
-  }, [dmOpen, currentUser?.id])
+  }, [dmOpen, currentUser?.id, activeDmConvId])
 
   // Global DM socket listeners (for unread badge when panel is closed / other conv active)
   useEffect(() => {
@@ -496,66 +498,87 @@ export function DMPanel() {
 
   const activeConv = activeDmConvId ? dmConversations.find(c => c.id === activeDmConvId) : null
 
-  if (!dmOpen) return null
+  const panelWidth = activeDmConvId ? 700 : 260
 
   return (
-    <div className="flex h-full" style={{ width: activeDmConvId ? 700 : 280, minWidth: activeDmConvId ? 700 : 280 }}>
-      {/* Sidebar: conversation list */}
-      <div className="flex flex-col h-full border-r"
-        style={{ width: 260, flexShrink: 0, background: 'var(--eb-bg1)', borderColor: 'var(--eb-border)' }}>
-        <div className="px-3 pt-3 pb-2 flex-shrink-0">
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="text-sm font-semibold" style={{ color: 'var(--eb-text1)' }}>Wiadomości</h2>
-            <button onClick={() => { setDmOpen(false); setActiveDmConvId(null) }}
-              className="p-1 rounded-lg transition-colors"
-              style={{ color: 'var(--eb-text4)' }}
-              onMouseEnter={e => (e.currentTarget.style.color = 'var(--eb-text2)')}
-              onMouseLeave={e => (e.currentTarget.style.color = 'var(--eb-text4)')}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-              </svg>
-            </button>
-          </div>
-          <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Szukaj rozmów…"
-            className="w-full px-3 py-1.5 rounded-lg text-sm outline-none"
-            style={{ background: 'var(--eb-bg2)', border: '1px solid var(--eb-border)', color: 'var(--eb-text1)' }} />
-        </div>
-        <div className="flex-1 overflow-y-auto px-2 pb-2 flex flex-col gap-0.5"
-          style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--eb-border) transparent' }}>
-          {filtered.length === 0 && (
-            <div className="flex flex-col items-center justify-center flex-1 gap-2 opacity-50 py-8">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ color: 'var(--eb-text4)' }}>
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-              </svg>
-              <p className="text-xs text-center px-4" style={{ color: 'var(--eb-text4)' }}>
-                Brak rozmów. Napisz do znajomego klikając jego imię w panelu członków.
-              </p>
-            </div>
-          )}
-          {filtered.map(conv => (
-            <ConvItem key={conv.id} conv={conv} active={activeDmConvId === conv.id}
-              unread={dmUnread[conv.id] ?? 0}
-              onClick={() => { setActiveDmConvId(conv.id); }} />
-          ))}
-        </div>
-      </div>
+    <>
+      {/* Backdrop — closes panel when clicking outside */}
+      <div
+        onClick={() => { setDmOpen(false); setActiveDmConvId(null) }}
+        style={{
+          position: 'fixed', inset: 0, zIndex: 200,
+          background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(2px)',
+        }}
+      />
 
-      {/* Conversation view */}
-      {activeConv ? (
-        <div className="flex-1 flex flex-col h-full" style={{ background: 'var(--eb-bg0)', minWidth: 0 }}>
-          <ConvView conv={activeConv} />
-        </div>
-      ) : (
-        <div className="flex-1 flex items-center justify-center" style={{ background: 'var(--eb-bg0)' }}>
-          <div className="text-center opacity-40">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" className="mx-auto mb-3" style={{ color: 'var(--eb-text4)' }}>
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-            </svg>
-            <p className="text-sm" style={{ color: 'var(--eb-text4)' }}>Wybierz rozmowę</p>
+      {/* Panel */}
+      <div
+        className="flex h-full"
+        style={{
+          position: 'fixed', top: 0, right: 0, bottom: 0,
+          width: panelWidth, zIndex: 201,
+          boxShadow: '-4px 0 32px rgba(0,0,0,0.5)',
+          transition: 'width 0.2s ease',
+        }}
+      >
+        {/* Sidebar: conversation list */}
+        <div className="flex flex-col h-full border-r"
+          style={{ width: 260, flexShrink: 0, background: 'var(--eb-bg1)', borderColor: 'var(--eb-border)' }}>
+          <div className="px-3 pt-3 pb-2 flex-shrink-0">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-sm font-semibold" style={{ color: 'var(--eb-text1)' }}>Wiadomości</h2>
+              <button onClick={() => { setDmOpen(false); setActiveDmConvId(null) }}
+                className="p-1 rounded-lg transition-colors"
+                style={{ color: 'var(--eb-text4)' }}
+                onMouseEnter={e => (e.currentTarget.style.color = 'var(--eb-text2)')}
+                onMouseLeave={e => (e.currentTarget.style.color = 'var(--eb-text4)')}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+            <input value={search} onChange={e => setSearch(e.target.value)}
+              placeholder="Szukaj rozmów…"
+              className="w-full px-3 py-1.5 rounded-lg text-sm outline-none"
+              style={{ background: 'var(--eb-bg2)', border: '1px solid var(--eb-border)', color: 'var(--eb-text1)' }} />
+          </div>
+          <div className="flex-1 overflow-y-auto px-2 pb-2 flex flex-col gap-0.5"
+            style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--eb-border) transparent' }}>
+            {filtered.length === 0 && (
+              <div className="flex flex-col items-center justify-center flex-1 gap-2 opacity-50 py-8">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ color: 'var(--eb-text4)' }}>
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                </svg>
+                <p className="text-xs text-center px-4" style={{ color: 'var(--eb-text4)' }}>
+                  Brak rozmów. Napisz do znajomego w zakładce Znajomi.
+                </p>
+              </div>
+            )}
+            {filtered.map(conv => (
+              <ConvItem key={conv.id} conv={conv} active={activeDmConvId === conv.id}
+                unread={dmUnread[conv.id] ?? 0}
+                onClick={() => { setActiveDmConvId(conv.id) }} />
+            ))}
           </div>
         </div>
-      )}
-    </div>
+
+        {/* Conversation view */}
+        {activeDmConvId && (
+          activeConv ? (
+            <div className="flex-1 flex flex-col h-full" style={{ background: 'var(--eb-bg0)', minWidth: 0 }}>
+              <ConvView conv={activeConv} />
+            </div>
+          ) : (
+            <div className="flex-1 flex items-center justify-center" style={{ background: 'var(--eb-bg0)' }}>
+              <div className="text-center opacity-40">
+                <div className="w-8 h-8 border-2 rounded-full border-t-transparent animate-spin mx-auto mb-3"
+                  style={{ borderColor: 'var(--eb-accent)', borderTopColor: 'transparent' }} />
+                <p className="text-sm" style={{ color: 'var(--eb-text4)' }}>Ładowanie…</p>
+              </div>
+            </div>
+          )
+        )}
+      </div>
+    </>
   )
 }
