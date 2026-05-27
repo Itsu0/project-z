@@ -218,7 +218,7 @@ function MsgBubble({ msg, isMe, showAvatar, onReact, onDelete }: {
 
 function ConvView({ conv }: { conv: DmConversation }) {
   const {
-    currentUser, dmMessages, addDmMessage, updateDmMessage, deleteDmMessage,
+    currentUser, token, dmMessages, addDmMessage, updateDmMessage, deleteDmMessage,
     setDmMessages, prependDmMessages, clearDmUnread, updateDmConvLastMsg,
     dmTyping, setDmTyping,
   } = useStore()
@@ -234,16 +234,25 @@ function ConvView({ conv }: { conv: DmConversation }) {
   const msgs = dmMessages[conv.id] ?? []
   const typing = dmTyping[conv.id] ?? []
 
+  const authHeaders = useCallback(
+    (extra?: HeadersInit): HeadersInit => ({
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...extra,
+    }),
+    [token]
+  )
+
   // Load initial messages
   useEffect(() => {
     emit('DM_JOIN', conv.id)
     clearDmUnread(conv.id)
 
-    fetch(`${BASE}/api/dm/${conv.id}/messages`, { credentials: 'include' })
+    fetch(`${BASE}/api/dm/${conv.id}/messages`, { credentials: 'include', headers: authHeaders() })
       .then(r => r.json())
       .then(d => {
-        if (d.messages) { setDmMessages(conv.id, d.messages); setHasMore(d.hasMore) }
+        if (d.messages) { setDmMessages(conv.id, d.messages); setHasMore(d.hasMore ?? false) }
       })
+      .catch(() => {})
     return () => { emit('DM_LEAVE', conv.id) }
   }, [conv.id])
 
@@ -262,7 +271,7 @@ function ConvView({ conv }: { conv: DmConversation }) {
       // mark read
       fetch(`${BASE}/api/dm/${conv.id}/read`, {
         method: 'PATCH', credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ lastReadId: msg.id }),
       }).catch(() => {})
     }
@@ -294,7 +303,7 @@ function ConvView({ conv }: { conv: DmConversation }) {
     if (!hasMore || loadingMore || !msgs.length) return
     setLoadingMore(true)
     const oldest = msgs[0]
-    const r = await fetch(`${BASE}/api/dm/${conv.id}/messages?before=${oldest.id}`, { credentials: 'include' })
+    const r = await fetch(`${BASE}/api/dm/${conv.id}/messages?before=${oldest.id}`, { credentials: 'include', headers: authHeaders() })
     const d = await r.json()
     if (d.messages?.length) { prependDmMessages(conv.id, d.messages); setHasMore(d.hasMore) }
     setLoadingMore(false)
@@ -309,7 +318,7 @@ function ConvView({ conv }: { conv: DmConversation }) {
     try {
       await fetch(`${BASE}/api/dm/${conv.id}/messages`, {
         method: 'POST', credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ content }),
       })
     } finally { setSending(false) }
@@ -331,18 +340,18 @@ function ConvView({ conv }: { conv: DmConversation }) {
     const alreadyMe = msg?.reactions?.find(r => r.emoji === emoji && r.me)
     const url = `${BASE}/api/dm/${conv.id}/messages/${msgId}/react`
     if (alreadyMe) {
-      await fetch(`${url}/${encodeURIComponent(emoji)}`, { method: 'DELETE', credentials: 'include' })
+      await fetch(`${url}/${encodeURIComponent(emoji)}`, { method: 'DELETE', credentials: 'include', headers: authHeaders() })
     } else {
       await fetch(url, {
         method: 'POST', credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ emoji }),
       })
     }
   }
 
   const onDelete = async (msgId: string) => {
-    await fetch(`${BASE}/api/dm/${conv.id}/messages/${msgId}`, { method: 'DELETE', credentials: 'include' })
+    await fetch(`${BASE}/api/dm/${conv.id}/messages/${msgId}`, { method: 'DELETE', credentials: 'include', headers: authHeaders() })
   }
 
   const uploadFile = async (file: File) => {
@@ -350,17 +359,16 @@ function ConvView({ conv }: { conv: DmConversation }) {
     try {
       const fd = new FormData(); fd.append('file', file)
       const r = await fetch(`${BASE}/api/dm/${conv.id}/attachments`, {
-        method: 'POST', credentials: 'include', body: fd,
+        method: 'POST', credentials: 'include', headers: authHeaders(), body: fd,
       })
       const att = await r.json()
       if (att.id) {
         const content = text.trim() || `📎 ${file.name}`
-        const res = await fetch(`${BASE}/api/dm/${conv.id}/messages`, {
+        await fetch(`${BASE}/api/dm/${conv.id}/messages`, {
           method: 'POST', credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
+          headers: authHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({ content, attachmentId: att.id }),
         })
-        // attach the file to the message via separate endpoint (handled by backend)
       }
     } finally { setUploading(false) }
   }
