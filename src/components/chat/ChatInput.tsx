@@ -10,7 +10,7 @@ const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
 interface GifItem { id: string; url: string; preview: string; title: string }
 
-function GifPicker({ onSelect, onClose }: { onSelect: (url: string) => void; onClose: () => void }) {
+export function GifPicker({ onSelect, onClose }: { onSelect: (url: string) => void; onClose: () => void }) {
   const t = useT()
   const { token } = useStore()
   const [query, setQuery]   = useState('')
