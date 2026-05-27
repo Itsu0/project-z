@@ -16,7 +16,7 @@ import { useIsMobile } from '@/hooks/usePlatform'
 import { DMPanel } from '@/components/dm/DMPanel'
 
 function AppLayout() {
-  const { membersPanelOpen } = useStore()
+  const { membersPanelOpen, dmOpen } = useStore()
   const [showSettings, setShowSettings] = useState(false)
 
   return (
@@ -26,12 +26,12 @@ function AppLayout() {
         <ServerRail />
         <NotificationsPanelExpanded />
         <ChatArea onOpenSettings={() => setShowSettings(true)} />
-        {membersPanelOpen && <MembersPanel />}
+        {membersPanelOpen && !dmOpen && <MembersPanel />}
+        {dmOpen && <DMPanel />}
       </div>
       <VoiceDock />
       <ScreenShareView />
       {showSettings && <ServerSettings onClose={() => setShowSettings(false)} />}
-      <DMPanel />
     </main>
   )
 }
