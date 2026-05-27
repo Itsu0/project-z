@@ -1213,8 +1213,8 @@ function TabFriends({ onClose }: { onClose?: () => void }) {
         method: 'POST', headers: { Authorization: `Bearer ${token}` }
       })
       const data = await res.json()
-      if (res.ok && data.conversation?.id) {
-        setActiveDmConvId(data.conversation.id)
+      if (res.ok && data.conversationId) {
+        setActiveDmConvId(data.conversationId)
         setDmOpen(true)
         onClose?.()
       }
