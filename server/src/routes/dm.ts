@@ -168,7 +168,6 @@ router.get('/:convId/messages', requireAuth, async (req: Request, res: Response)
     const params: any[] = [convId]
     let cursor = ''
     if (before) { cursor = 'AND m.created_at < (SELECT created_at FROM dm_messages WHERE id=?)'; params.push(before) }
-    params.push(limit)
 
     const msgs = await queryMany<any>(
       `SELECT m.id, m.conversation_id, m.author_id, m.content, m.edited_at, m.deleted_at, m.created_at,
@@ -178,7 +177,7 @@ router.get('/:convId/messages', requireAuth, async (req: Request, res: Response)
        INNER JOIN users u ON u.id = m.author_id
        WHERE m.conversation_id=? ${cursor}
        ORDER BY m.created_at DESC
-       LIMIT ?`,
+       LIMIT ${limit}`,
       params
     )
 
