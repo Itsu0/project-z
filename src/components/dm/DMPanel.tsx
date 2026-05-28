@@ -539,10 +539,9 @@ export function DMPanel() {
     currentUser, dmOpen, setDmOpen,
     dmConversations, setDmConversations,
     activeDmConvId, setActiveDmConvId,
-    addDmMessage, updateDmConvLastMsg, incDmUnread,
-    dmUnread, setDmTyping,
+    dmUnread,
   } = useStore()
-  const { on, off } = useSocket()
+  const { } = useSocket()
   const [search, setSearch] = useState('')
 
   // Load conversations whenever panel opens or activeDmConvId changes from outside
@@ -555,17 +554,7 @@ export function DMPanel() {
       .then(d => { if (d.conversations) setDmConversations(d.conversations) })
   }, [dmOpen, currentUser?.id, activeDmConvId])
 
-  // Global DM socket listeners (for unread badge when panel is closed / other conv active)
-  useEffect(() => {
-    const onNew = (msg: DmMessage & { conversation_id: string }) => {
-      updateDmConvLastMsg(msg.conversation_id, msg.content, msg.created_at)
-      if (msg.author_id !== currentUser?.id && msg.conversation_id !== activeDmConvId) {
-        incDmUnread(msg.conversation_id)
-      }
-    }
-    on('DM_MESSAGE_CREATE', onNew)
-    return () => off('DM_MESSAGE_CREATE', onNew)
-  }, [currentUser?.id, activeDmConvId])
+  // DM_MESSAGE_CREATE global tracking is handled in useSocket.ts
 
   const totalUnread = Object.values(dmUnread).reduce((a, b) => a + b, 0)
 

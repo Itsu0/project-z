@@ -98,6 +98,10 @@ interface Store {
   setChannels: (serverId: string, channels: RealChannel[]) => void
   setCurrentChannel: (id: string) => void
 
+  channelMentions: Record<string, number>
+  incChannelMention: (channelId: string) => void
+  clearChannelMention: (channelId: string) => void
+
   members: Record<string, RealMember[]>
   setMembers:          (serverId: string, members: RealMember[])           => void
   addMember:           (serverId: string, member: RealMember)              => void
@@ -219,7 +223,18 @@ export const useStore = create<Store>((set, get) => ({
   setChannels: (serverId, channels) => set((s) => ({
     channels: { ...s.channels, [serverId]: channels },
   })),
-  setCurrentChannel: (id) => set({ currentChannelId: id }),
+  setCurrentChannel: (id) => set((s) => ({
+    currentChannelId: id,
+    channelMentions: id ? { ...s.channelMentions, [id]: 0 } : s.channelMentions,
+  })),
+
+  channelMentions: {},
+  incChannelMention: (channelId) => set((s) => ({
+    channelMentions: { ...s.channelMentions, [channelId]: (s.channelMentions[channelId] ?? 0) + 1 },
+  })),
+  clearChannelMention: (channelId) => set((s) => ({
+    channelMentions: { ...s.channelMentions, [channelId]: 0 },
+  })),
 
   members: {},
   setMembers: (serverId, members) => set((s) => ({

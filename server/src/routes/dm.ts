@@ -165,6 +165,9 @@ router.get('/:convId/messages', requireAuth, async (req: Request, res: Response)
     if (!conv || (conv.user1_id !== me && conv.user2_id !== me))
       return res.status(403).json({ error: 'Brak dostępu' })
 
+    const otherId = conv.user1_id === me ? conv.user2_id : conv.user1_id
+    if (await isBlocked(me, otherId)) return res.status(403).json({ error: 'Zablokowany' })
+
     const params: any[] = [convId]
     let cursor = ''
     if (before) { cursor = 'AND m.created_at < (SELECT created_at FROM dm_messages WHERE id=?)'; params.push(before) }
@@ -289,6 +292,12 @@ router.post('/:convId/messages/:msgId/react', requireAuth, async (req: Request, 
     const { emoji } = req.body
     if (!emoji) return res.status(400).json({ error: 'Emoji wymagane' })
 
+    const conv = await queryOne<{ user1_id: string; user2_id: string }>(
+      'SELECT user1_id, user2_id FROM dm_conversations WHERE id=?', [req.params.convId]
+    )
+    if (!conv || (conv.user1_id !== me && conv.user2_id !== me))
+      return res.status(403).json({ error: 'Brak dostępu' })
+
     const msg = await queryOne<{ conversation_id: string; deleted_at: string | null }>(
       'SELECT conversation_id, deleted_at FROM dm_messages WHERE id=?', [req.params.msgId]
     )
@@ -312,6 +321,13 @@ router.post('/:convId/messages/:msgId/react', requireAuth, async (req: Request, 
 router.delete('/:convId/messages/:msgId/react/:emoji', requireAuth, async (req: Request, res: Response) => {
   try {
     const me = req.user!.userId
+
+    const conv = await queryOne<{ user1_id: string; user2_id: string }>(
+      'SELECT user1_id, user2_id FROM dm_conversations WHERE id=?', [req.params.convId]
+    )
+    if (!conv || (conv.user1_id !== me && conv.user2_id !== me))
+      return res.status(403).json({ error: 'Brak dostępu' })
+
     await execute('DELETE FROM dm_reactions WHERE message_id=? AND user_id=? AND emoji=?',
       [req.params.msgId, me, decodeURIComponent(req.params.emoji)])
     const reactions = await queryMany<any>(
@@ -344,6 +360,9 @@ router.post('/:convId/attachments', requireAuth,
       )
       if (!conv || (conv.user1_id !== me && conv.user2_id !== me))
         return res.status(403).json({ error: 'Brak dostępu' })
+
+      const attOtherId = conv.user1_id === me ? conv.user2_id : conv.user1_id
+      if (await isBlocked(me, attOtherId)) return res.status(403).json({ error: 'Zablokowany' })
 
       const saved = await saveDmAttachment(req.file.buffer, req.file.mimetype, req.file.originalname)
       const attId = uuidv4()
@@ -379,13 +398,14 @@ router.get('/files/:attId', requireAuth, async (req: Request, res: Response) => 
     )
     if (!att) return res.status(404).json({ error: 'Nie znaleziono' })
 
-    if (att.conversation_id) {
-      const conv = await queryOne<{ user1_id: string; user2_id: string }>(
-        'SELECT user1_id, user2_id FROM dm_conversations WHERE id=?', [att.conversation_id]
-      )
-      if (!conv || (conv.user1_id !== me && conv.user2_id !== me))
-        return res.status(403).json({ error: 'Brak dostępu' })
-    }
+    if (!att.conversation_id)
+      return res.status(403).json({ error: 'Brak dostępu' })
+
+    const conv = await queryOne<{ user1_id: string; user2_id: string }>(
+      'SELECT user1_id, user2_id FROM dm_conversations WHERE id=?', [att.conversation_id]
+    )
+    if (!conv || (conv.user1_id !== me && conv.user2_id !== me))
+      return res.status(403).json({ error: 'Brak dostępu' })
 
     const filePath = path.join(UPLOAD_DIR, 'dm', att.file_path)
     if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Plik nie znaleziony' })
