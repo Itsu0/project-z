@@ -217,6 +217,27 @@ export function useSocket() {
       useStore.getState().updateMessage(data.channelId, data.messageId, { poll: data.poll })
     })
 
+    // ── DM global: unread badge even when DMPanel is closed ──────────────────
+    s.on('DM_MESSAGE_CREATE', (msg: any) => {
+      if (!msg?.conversation_id) return
+      const store = useStore.getState()
+      store.updateDmConvLastMsg(msg.conversation_id, msg.content, msg.created_at)
+      if (msg.author_id !== store.currentUser?.id &&
+          (!store.dmOpen || store.activeDmConvId !== msg.conversation_id)) {
+        store.incDmUnread(msg.conversation_id)
+      }
+    })
+
+    // ── Channel mention highlight (mention / reply / @everyone / @here) ──────
+    s.on('NOTIFICATION', (data: any) => {
+      if (!data?.channelId || !data?.type) return
+      if (data.type !== 'mention' && data.type !== 'reply') return
+      const store = useStore.getState()
+      if (store.currentChannelId !== data.channelId) {
+        store.incChannelMention(data.channelId)
+      }
+    })
+
     s.on('CHANNEL_CREATE', (data: { serverId: string; channel: any }) => {
       if (data.channel?.mod_only) return  // filtered server-side on load
       const store = useStore.getState()

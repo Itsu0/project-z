@@ -26,6 +26,9 @@ async function handleMentions(
   if (content.includes('@everyone')) {
     const members = await memberQueries.list(serverId)
     members.forEach(m => { if (m.user_id !== authorId) mentions.add(m.user_id) })
+  } else if (content.includes('@here')) {
+    const members = await memberQueries.list(serverId)
+    members.forEach(m => { if (m.user_id !== authorId && onlineUsers.has(m.user_id)) mentions.add(m.user_id) })
   } else {
 
     const userMatches = content.match(/@([\w\-\.ąćęłńóśźżĄĆĘŁŃÓŚŹŻ]+)/gu) ?? []

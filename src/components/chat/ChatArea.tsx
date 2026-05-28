@@ -92,7 +92,7 @@ function ChannelTabBar({ channels, activeId, serverId, serverName, serverColor, 
   onBulkDelete?: () => void
 }) {
   const { participants, connected } = useVoice()
-  const { voice: voiceState, token, channels: allChannels, setChannels } = useStore()
+  const { voice: voiceState, token, channels: allChannels, setChannels, channelMentions } = useStore()
   const { canManageServer, canManageChannels, canKick, canBan, canMute } = usePermissions(serverId)
   const canOpenSettings = canManageServer || canKick || canBan || canMute
   const [showCreate, setShowCreate] = useState(false)
@@ -262,6 +262,8 @@ function ChannelTabBar({ channels, activeId, serverId, serverName, serverColor, 
             const isDragging = dragSrcId === ch.id
             const isDragOver = dragOverId === ch.id && dragSrcId !== ch.id
 
+            const hasMention = (channelMentions[ch.id] ?? 0) > 0 && ch.id !== activeId
+
             return (
               <div
                 key={ch.id}
@@ -284,7 +286,8 @@ function ChannelTabBar({ channels, activeId, serverId, serverName, serverColor, 
                   onSelect(ch.id)
                   if (ch.type === 'voice') setExpandedVoice(isExpanded ? null : ch.id)
                 }}
-                  className={clsx('server-tab flex items-center gap-1', ch.id === activeId && 'active')}>
+                  className={clsx('server-tab flex items-center gap-1', ch.id === activeId && 'active')}
+                  style={hasMention ? { color: 'var(--eb-text1)', fontWeight: 600 } : undefined}>
                   {ch.type === 'voice' ? (
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ flexShrink: 0 }}>
                       <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
@@ -295,6 +298,12 @@ function ChannelTabBar({ channels, activeId, serverId, serverName, serverColor, 
                     <span className="text-[9px] font-semibold px-1 rounded"
                       style={{ background: ch.id === activeId ? 'rgba(255,255,255,0.25)' : 'rgba(34,197,94,0.2)', color: ch.id === activeId ? '#fff' : 'var(--eb-online)' }}>
                       {count}
+                    </span>
+                  )}
+                  {hasMention && (
+                    <span className="inline-flex items-center justify-center rounded-full text-[8px] font-bold ml-0.5 flex-shrink-0"
+                      style={{ minWidth: 14, height: 14, padding: '0 3px', background: 'var(--eb-accent2)', color: '#fff' }}>
+                      {channelMentions[ch.id] > 99 ? '99+' : channelMentions[ch.id]}
                     </span>
                   )}
                 </button>
