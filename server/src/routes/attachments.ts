@@ -69,42 +69,33 @@ router.post('/:channelId/attachments', requireAuth, (req: Request, res: Response
 
 const UPLOAD_DIR = process.env.UPLOAD_DIR ?? path.join(process.cwd(), 'uploads')
 
-router.get('/:id', requireAuth, async (req: Request, res: Response) => {
+// UUID (122 bits) is the access token — browsers cannot send Bearer in <img> tags.
+router.get('/:id', async (req: Request, res: Response) => {
   try {
     const row = await queryOne<{
-      data: Buffer | null; content_type: string; filename: string
-      file_path: string | null; server_id: string; mod_only: number
+      data: Buffer | null; content_type: string; filename: string; file_path: string | null
     }>(
-      `SELECT ma.data, ma.content_type, ma.filename, ma.file_path,
-              c.server_id, COALESCE(c.mod_only, 0) AS mod_only
-       FROM message_attachments ma
-       INNER JOIN channels c ON c.id = ma.channel_id
-       WHERE ma.id = ?`,
+      'SELECT data, content_type, filename, file_path FROM message_attachments WHERE id = ?',
       [req.params.id]
     )
     if (!row) return res.status(404).json({ error: 'Nie znaleziono' })
 
-    if (!await hasPermission(req.user!.userId, row.server_id, 'VIEW_CHANNELS'))
-      return res.status(403).json({ error: 'Brak dostępu' })
-    if (row.mod_only) {
-      const { canModerate } = await import('../middleware/permissions')
-      if (!await canModerate(req.user!.userId, row.server_id, 'MANAGE_MESSAGES'))
-        return res.status(403).json({ error: 'Brak dostępu' })
-    }
-
     const safeContentType = ALLOWED_MIME_TYPES.has(row.content_type) ? row.content_type : 'application/octet-stream'
-    const isImage = safeContentType.startsWith('image/')
     res.set('Content-Type', safeContentType)
+    res.set('Cache-Control', 'public, max-age=31536000, immutable')
+    res.set('Cross-Origin-Resource-Policy', 'cross-origin')
     res.set('X-Content-Type-Options', 'nosniff')
-    res.set('Cache-Control', 'private, max-age=31536000')
-    if (!isImage) {
+    if (!safeContentType.startsWith('image/') && !safeContentType.startsWith('video/') && !safeContentType.startsWith('audio/')) {
       const safe = encodeURIComponent(row.filename.replace(/[^\w.\-]/g, '_'))
       res.set('Content-Disposition', `attachment; filename="${safe}"; filename*=UTF-8''${safe}`)
     }
 
     if (row.file_path) {
       const filePath = path.join(UPLOAD_DIR, 'attachments', row.file_path)
-      if (fs.existsSync(filePath)) return res.sendFile(filePath)
+      const resolvedPath = path.resolve(filePath)
+      const resolvedBase = path.resolve(path.join(UPLOAD_DIR, 'attachments'))
+      if (resolvedPath.startsWith(resolvedBase + path.sep) && fs.existsSync(resolvedPath))
+        return res.sendFile(resolvedPath)
     }
     if (row.data) return res.send(Buffer.from(row.data))
     return res.status(404).json({ error: 'Plik nie znaleziony' })

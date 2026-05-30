@@ -179,7 +179,7 @@ function getExt(mime: string, originalName: string): string {
   }
   if (map[mime]) return map[mime]
   const dotIdx = originalName.lastIndexOf('.')
-  if (dotIdx !== -1) return originalName.slice(dotIdx).toLowerCase()
+  if (dotIdx !== -1) return originalName.slice(dotIdx).toLowerCase().replace(/[/\\:*?"<>|]/g, '')
   return '.bin'
 }
 

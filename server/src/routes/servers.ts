@@ -276,6 +276,34 @@ router.post('/:serverId/logo', requireAuth, async (req: Request, res: Response) 
 
 export default router
 
+router.get('/:serverId/invites', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { serverId } = req.params
+    const { hasPermission: hasPerm } = await import('../middleware/permissions')
+    if (!await hasPerm(req.user!.userId, serverId, 'MANAGE_SERVER'))
+      return res.status(403).json({ error: 'Brak uprawnień' })
+    const invites = await queryMany<any>(
+      `SELECT i.code, i.uses, i.max_uses, i.expires_at, i.created_at,
+              u.username AS creator_username, u.display_name AS creator_display_name
+       FROM invites i LEFT JOIN users u ON u.id = i.created_by
+       WHERE i.server_id = ? ORDER BY i.created_at DESC`,
+      [serverId]
+    )
+    return res.json({ invites })
+  } catch (err) { return res.status(500).json({ error: 'Błąd serwera' }) }
+})
+
+router.delete('/:serverId/invites/:code', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { serverId, code } = req.params
+    const { hasPermission: hasPerm } = await import('../middleware/permissions')
+    if (!await hasPerm(req.user!.userId, serverId, 'MANAGE_SERVER'))
+      return res.status(403).json({ error: 'Brak uprawnień' })
+    await execute('DELETE FROM invites WHERE code = ? AND server_id = ?', [code, serverId])
+    return res.json({ ok: true })
+  } catch (err) { return res.status(500).json({ error: 'Błąd serwera' }) }
+})
+
 router.post('/:serverId/invites', requireAuth, async (req: Request, res: Response) => {
   try {
     const { serverId } = req.params

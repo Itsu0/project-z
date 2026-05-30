@@ -118,8 +118,18 @@ app.use(express.json({ limit: '2mb' }))
 app.use(express.urlencoded({ extended: true }))
 
 const UPLOAD_DIR = process.env.UPLOAD_DIR ?? './uploads'
-app.use('/uploads/avatars', express.static(UPLOAD_DIR + '/avatars', { maxAge: '1y', immutable: true }))
-app.use('/uploads/icons',   express.static(UPLOAD_DIR + '/icons',   { maxAge: '1y', immutable: true }))
+const staticOpts = (extra?: Record<string, string>) => ({
+  maxAge: '1y',
+  immutable: true,
+  setHeaders: (res: express.Response) => {
+    res.set('Cross-Origin-Resource-Policy', 'cross-origin')
+    res.set('Cache-Control', 'public, max-age=31536000, immutable')
+    if (extra) Object.entries(extra).forEach(([k, v]) => res.set(k, v))
+  },
+})
+app.use('/uploads/avatars',      express.static(UPLOAD_DIR + '/avatars',      staticOpts()))
+app.use('/uploads/icons',        express.static(UPLOAD_DIR + '/icons',        staticOpts()))
+app.use('/uploads/attachments',  express.static(UPLOAD_DIR + '/attachments',  staticOpts()))
 
 app.use('/api/auth',          authLimiter, authRoutes)
 app.use('/api/channels',      messageLimiter, messageRoutes)
