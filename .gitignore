@@ -44,3 +44,6 @@ railway_backup.sql
 # IDE / AI tools
 .claude/
 dist-electron/
+
+# Poufne dokumenty biznesowe (nie publikować)
+docs/
