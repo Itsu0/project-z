@@ -194,6 +194,19 @@ export function useSocket() {
       } catch {}
     })
 
+    // Live role update — refetch members so role badges/permissions refresh immediately
+    s.on('ROLE_UPDATE', async (data: { serverId: string; userId: string; roles?: any[] }) => {
+      try {
+        const { token } = useStore.getState()
+        if (!token) return
+        const res = await fetch(`${API_BASE}/api/servers/${data.serverId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        const d = await res.json()
+        if (Array.isArray(d.members)) useStore.getState().setMembers(data.serverId, d.members)
+      } catch {}
+    })
+
     const handleForcedLeave = (data: { serverId: string }) => {
       const store = useStore.getState()
       const remaining = store.servers.filter(s => s.id !== data.serverId)

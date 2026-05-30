@@ -563,7 +563,10 @@ app.whenReady().then(async () => {
         const source = sources.find(s => s.id === pendingScreenShareSourceId)
         pendingScreenShareSourceId = null
         if (source) {
-          callback({ video: source, audio: 'loopback' })
+          // Loopback (audio systemowe) działa tylko dla całego ekranu.
+          // Dla okna wymusza przechwycenie ekranu — pomijamy je przy oknie.
+          const isWindow = source.id.startsWith('window:')
+          callback({ video: source, audio: isWindow ? undefined : 'loopback' })
           return
         }
       }

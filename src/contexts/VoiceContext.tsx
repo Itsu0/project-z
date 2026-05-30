@@ -186,7 +186,11 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       getSocketInstance()?.emit('VOICE_LEAVE', { channelId: v.channelId, serverId: v.serverId })
     }
     window.addEventListener('beforeunload', onUnload)
-    return () => window.removeEventListener('beforeunload', onUnload)
+    window.addEventListener('pagehide', onUnload)
+    return () => {
+      window.removeEventListener('beforeunload', onUnload)
+      window.removeEventListener('pagehide', onUnload)
+    }
   }, [])
 
   useEffect(() => {
@@ -353,6 +357,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         .on(RoomEvent.ActiveSpeakersChanged,   update)
         .on(RoomEvent.TrackMuted,              update)
         .on(RoomEvent.TrackUnmuted,            update)
+        .on(RoomEvent.Reconnected, () => { update(); startRttMeasurement() })
         .on(RoomEvent.TrackSubscribed, (track: any, pub: any, participant: any) => {
           if (track.kind === 'audio') {
             const el = track.attach() as HTMLAudioElement

@@ -166,8 +166,8 @@ const io = new SocketIO(httpServer, {
     methods:     ['GET', 'POST'],
   },
   transports:   ['websocket', 'polling'],
-  pingTimeout:  60000,
-  pingInterval: 25000,
+  pingTimeout:  15000,
+  pingInterval: 10000,
 
   perMessageDeflate: {
     threshold: 1024,
