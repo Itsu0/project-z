@@ -422,6 +422,16 @@ const ENTRY_COLORS = {
 function PatchNotes() {
   const t = useT()
   const lang = useStore(s => s.userSettings.language ?? 'pl')
+  const token = useStore(s => s.token)
+  const [dynamicNotes, setDynamicNotes] = useState<any[]>([])
+
+  useEffect(() => {
+    if (!token) return
+    fetch(`${BASE}/api/admin/patch-notes`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json())
+      .then(d => { if (d.notes) setDynamicNotes(d.notes) })
+      .catch(() => {})
+  }, [token])
 
   const labelMap = {
     new: t('notif.changelog.new'),
@@ -429,48 +439,62 @@ function PatchNotes() {
     imp: t('notif.changelog.imp'),
   }
 
+  // Dynamiczne notatki zdefiniowane w DB + stałe (hardcoded) na końcu
+  const allReleases = [
+    ...dynamicNotes.map(n => ({
+      version: n.version,
+      date: n.date,
+      labelPl: n.label_pl,
+      labelEn: n.label_en,
+      entries: n.entries,
+    })),
+    ...PATCH_NOTES,
+  ]
+
+  const ReleaseBlock = ({ release }: { release: typeof PATCH_NOTES[0] }) => {
+    const label = lang === 'en' ? release.labelEn : release.labelPl
+    return (
+      <div>
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-xs font-bold px-2 py-0.5 rounded-full"
+            style={{ background: 'var(--eb-gradient)', color: '#fff' }}>
+            v{release.version}
+          </span>
+          {label && (
+            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+              style={{ background: 'rgba(34,197,94,0.15)', color: '#22c55e', border: '0.5px solid rgba(34,197,94,0.3)' }}>
+              {label}
+            </span>
+          )}
+          <span className="text-[10px] ml-auto" style={{ color: 'var(--eb-text3)' }}>{release.date}</span>
+        </div>
+        <div className="flex flex-col gap-1.5 pl-1">
+          {release.entries.map((entry, i) => {
+            const meta = ENTRY_COLORS[entry.type as keyof typeof ENTRY_COLORS] ?? ENTRY_COLORS.new
+            const text = lang === 'en' ? entry.en : entry.pl
+            return (
+              <div key={i} className="flex items-start gap-2">
+                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded mt-0.5 flex-shrink-0"
+                  style={{ background: meta.bg, color: meta.color }}>
+                  {labelMap[entry.type as keyof typeof labelMap] ?? entry.type}
+                </span>
+                <span className="text-[11px] leading-snug" style={{ color: 'var(--eb-text2)' }}>
+                  {text}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+        <div className="mt-3 h-px" style={{ background: 'var(--eb-border)' }} />
+      </div>
+    )
+  }
+
   return (
     <div className="pt-2 flex flex-col gap-4">
-      {PATCH_NOTES.map(release => {
-        const label = lang === 'en' ? release.labelEn : release.labelPl
-        return (
-          <div key={release.version}>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-xs font-bold px-2 py-0.5 rounded-full"
-                style={{ background: 'var(--eb-gradient)', color: '#fff' }}>
-                v{release.version}
-              </span>
-              {label && (
-                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
-                  style={{ background: 'rgba(34,197,94,0.15)', color: '#22c55e', border: '0.5px solid rgba(34,197,94,0.3)' }}>
-                  {label}
-                </span>
-              )}
-              <span className="text-[10px] ml-auto" style={{ color: 'var(--eb-text3)' }}>{release.date}</span>
-            </div>
-
-            <div className="flex flex-col gap-1.5 pl-1">
-              {release.entries.map((entry, i) => {
-                const meta = ENTRY_COLORS[entry.type as keyof typeof ENTRY_COLORS] ?? ENTRY_COLORS.new
-                const text = lang === 'en' ? entry.en : entry.pl
-                return (
-                  <div key={i} className="flex items-start gap-2">
-                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded mt-0.5 flex-shrink-0"
-                      style={{ background: meta.bg, color: meta.color }}>
-                      {labelMap[entry.type as keyof typeof labelMap] ?? entry.type}
-                    </span>
-                    <span className="text-[11px] leading-snug" style={{ color: 'var(--eb-text2)' }}>
-                      {text}
-                    </span>
-                  </div>
-                )
-              })}
-            </div>
-
-            <div className="mt-3 h-px" style={{ background: 'var(--eb-border)' }} />
-          </div>
-        )
-      })}
+      {allReleases.map((release, idx) => (
+        <ReleaseBlock key={`${release.version}-${idx}`} release={release} />
+      ))}
     </div>
   )
 }
