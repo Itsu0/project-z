@@ -75,7 +75,11 @@ async function enrichMessages(msgs: any[], myId: string): Promise<any[]> {
   const attMap = new Map<string, any[]>()
   for (const a of attachments) {
     if (!attMap.has(a.message_id)) attMap.set(a.message_id, [])
-    attMap.get(a.message_id)!.push({ ...a, url: `${BASE}/api/dm/files/${a.id}` })
+    attMap.get(a.message_id)!.push({
+      id: a.id, filename: a.filename, contentType: a.content_type,
+      size: a.size, width: a.width, height: a.height,
+      url: `${BASE}/api/dm/files/${a.id}`,
+    })
   }
   // aggregate reactions
   function aggregateRx(raw: any[]) {
@@ -157,7 +161,7 @@ router.get('/:convId/messages', requireAuth, async (req: Request, res: Response)
     const me     = req.user!.userId
     const convId = req.params.convId
     const before = req.query.before as string | undefined
-    const limit  = Math.min(parseInt(req.query.limit as string) || 50, 100)
+    const limit  = Math.max(1, Math.min(parseInt(req.query.limit as string) || 50, 100))
 
     const conv = await queryOne<{ user1_id: string; user2_id: string }>(
       'SELECT user1_id, user2_id FROM dm_conversations WHERE id=?', [convId]
@@ -198,9 +202,9 @@ router.post('/:convId/messages', requireAuth, async (req: Request, res: Response
   try {
     const me     = req.user!.userId
     const convId = req.params.convId
-    const { content } = req.body
+    const { content, attachmentId } = req.body
 
-    if (!content?.trim() || content.length > 4000)
+    if ((!content?.trim() && !attachmentId) || (content && content.length > 4000))
       return res.status(400).json({ error: 'Treść wiadomości jest wymagana (maks. 4000 znaków)' })
 
     const conv = await queryOne<{ user1_id: string; user2_id: string }>(
@@ -214,8 +218,22 @@ router.post('/:convId/messages', requireAuth, async (req: Request, res: Response
 
     const id = uuidv4()
     await execute('INSERT INTO dm_messages (id,conversation_id,author_id,content) VALUES (?,?,?,?)',
-      [id, convId, me, content.trim()])
+      [id, convId, me, content?.trim() ?? ''])
     await execute('UPDATE dm_conversations SET last_message_at=UTC_TIMESTAMP() WHERE id=?', [convId])
+
+    // Link attachment to the new message (verify ownership + conv before linking)
+    let attachments: any[] = []
+    if (attachmentId) {
+      const att = await queryOne<{ id: string; filename: string; content_type: string; size: number; width: number | null; height: number | null; conv_id: string; uploader_id: string; message_id: string | null }>(
+        'SELECT id, filename, content_type, size, width, height, conv_id, uploader_id, message_id FROM dm_attachments WHERE id=?',
+        [attachmentId]
+      )
+      if (att && att.conv_id === convId && att.uploader_id === me && !att.message_id) {
+        await execute('UPDATE dm_attachments SET message_id=? WHERE id=?', [id, attachmentId])
+        const BASE = process.env.BACKEND_URL ?? 'http://localhost:3001'
+        attachments = [{ id: att.id, filename: att.filename, contentType: att.content_type, size: att.size, width: att.width, height: att.height, url: `${BASE}/api/dm/files/${att.id}` }]
+      }
+    }
 
     const msg = await queryOne<any>(
       `SELECT m.*, u.username AS author_username, u.display_name AS author_display_name,
@@ -226,10 +244,10 @@ router.post('/:convId/messages', requireAuth, async (req: Request, res: Response
     const { getSocketInstance } = await import('../socket')
     const io = getSocketInstance()
     if (io) {
-      io.to(`dm:${convId}`).emit('DM_MESSAGE_CREATE', { ...msg, reactions: [], attachments: [] })
+      io.to(`dm:${convId}`).emit('DM_MESSAGE_CREATE', { ...msg, reactions: [], attachments })
     }
 
-    return res.status(201).json({ message: { ...msg, reactions: [], attachments: [] } })
+    return res.status(201).json({ message: { ...msg, reactions: [], attachments } })
   } catch (err) {
     console.error('[dm/send]', err)
     return res.status(500).json({ error: 'Błąd serwera' })
@@ -272,6 +290,16 @@ router.delete('/:convId/messages/:msgId', requireAuth, async (req: Request, res:
     )
     if (!msg || msg.author_id !== me || msg.conversation_id !== req.params.convId)
       return res.status(403).json({ error: 'Brak dostępu' })
+
+    // Delete attachment files from disk before soft-deleting the message
+    const dmAtts = await queryMany<{ file_path: string }>(
+      'SELECT file_path FROM dm_attachments WHERE message_id = ? AND file_path IS NOT NULL',
+      [req.params.msgId]
+    )
+    for (const a of dmAtts) {
+      const fp = path.join(UPLOAD_DIR, 'dm', a.file_path)
+      try { if (fs.existsSync(fp)) fs.unlinkSync(fp) } catch {}
+    }
 
     await execute('UPDATE dm_messages SET deleted_at=UTC_TIMESTAMP(), content=? WHERE id=?',
       ['Wiadomość usunięta', req.params.msgId])
@@ -369,8 +397,8 @@ router.post('/:convId/attachments', requireAuth,
       const BASE  = process.env.BACKEND_URL ?? 'http://localhost:3001'
 
       await execute(
-        'INSERT INTO dm_attachments (id,message_id,filename,file_path,content_type,size,width,height) VALUES (?,?,?,?,?,?,?,?)',
-        [attId, '', req.file.originalname, saved.filename, saved.contentType, saved.size, saved.width, saved.height]
+        'INSERT INTO dm_attachments (id,message_id,conv_id,uploader_id,filename,file_path,content_type,size,width,height) VALUES (?,NULL,?,?,?,?,?,?,?,?)',
+        [attId, convId, me, req.file.originalname, saved.filename, saved.contentType, saved.size, saved.width, saved.height]
       )
 
       return res.status(201).json({
@@ -386,39 +414,36 @@ router.post('/:convId/attachments', requireAuth,
   }
 )
 
-// ── SERVE DM FILE (auth check) ────────────────────────────────────────────────
+// ── SERVE DM FILE ────────────────────────────────────────────────────────────
+// UUID (122 bits) is the access token — browsers cannot send Bearer in <img> tags.
+// This matches the approach used by Discord, Telegram, Slack.
 
-router.get('/files/:attId', requireAuth, async (req: Request, res: Response) => {
+router.get('/files/:attId', async (req: Request, res: Response) => {
   try {
-    const me  = req.user!.userId
     const att = await queryOne<any>(
-      `SELECT da.*, dm.conversation_id FROM dm_attachments da
-       LEFT JOIN dm_messages dm ON dm.id=da.message_id
-       WHERE da.id=?`, [req.params.attId]
+      'SELECT file_path, filename, content_type FROM dm_attachments WHERE id=?',
+      [req.params.attId]
     )
     if (!att) return res.status(404).json({ error: 'Nie znaleziono' })
 
-    if (!att.conversation_id)
-      return res.status(403).json({ error: 'Brak dostępu' })
-
-    const conv = await queryOne<{ user1_id: string; user2_id: string }>(
-      'SELECT user1_id, user2_id FROM dm_conversations WHERE id=?', [att.conversation_id]
-    )
-    if (!conv || (conv.user1_id !== me && conv.user2_id !== me))
-      return res.status(403).json({ error: 'Brak dostępu' })
-
     const filePath = path.join(UPLOAD_DIR, 'dm', att.file_path)
+    const resolvedPath = path.resolve(filePath)
+    const resolvedBase = path.resolve(path.join(UPLOAD_DIR, 'dm'))
+    if (!resolvedPath.startsWith(resolvedBase + path.sep)) {
+      return res.status(403).json({ error: 'Brak dostępu' })
+    }
     if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Plik nie znaleziony' })
 
     const ct = ALLOWED_TYPES.has(att.content_type) ? att.content_type : 'application/octet-stream'
     res.set('Content-Type', ct)
-    res.set('Cache-Control', 'private, max-age=31536000')
+    res.set('Cache-Control', 'public, max-age=31536000, immutable')
+    res.set('Cross-Origin-Resource-Policy', 'cross-origin')
     res.set('X-Content-Type-Options', 'nosniff')
-    if (!ct.startsWith('image/')) {
+    if (!ct.startsWith('image/') && !ct.startsWith('video/') && !ct.startsWith('audio/')) {
       const safe = encodeURIComponent(att.filename.replace(/[^\w.\-]/g, '_'))
       res.set('Content-Disposition', `attachment; filename="${safe}"`)
     }
-    return res.sendFile(filePath)
+    return res.sendFile(resolvedPath)
   } catch (err) {
     console.error('[dm/file]', err)
     return res.status(500).json({ error: 'Błąd serwera' })
@@ -432,6 +457,13 @@ router.patch('/:convId/read', requireAuth, async (req: Request, res: Response) =
     const me     = req.user!.userId
     const convId = req.params.convId
     const { lastReadId } = req.body
+
+    const conv = await queryOne<{ user1_id: string; user2_id: string }>(
+      'SELECT user1_id, user2_id FROM dm_conversations WHERE id=?', [convId]
+    )
+    if (!conv || (conv.user1_id !== me && conv.user2_id !== me))
+      return res.status(403).json({ error: 'Brak dostępu' })
+
     await execute(
       `INSERT INTO dm_reads (user_id,conversation_id,last_read_id) VALUES (?,?,?)
        ON DUPLICATE KEY UPDATE last_read_id=?`,

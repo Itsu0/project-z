@@ -6,8 +6,16 @@ import { isMuted, hasPermission, canViewChannel } from '../middleware/permission
 import { v4 as uuidv4 } from 'uuid'
 import { invalidateChannel } from '../cache/messages'
 import { checkAutoMod, addStrike, logModAction, isRaidLocked } from '../routes/serverMod'
+import fs   from 'fs'
+import path from 'path'
 
-const onlineUsers = new Map<string, string>()
+const UPLOAD_DIR = process.env.UPLOAD_DIR ?? path.join(process.cwd(), 'uploads')
+
+function deleteFileIfExists(filePath: string): void {
+  try { if (fs.existsSync(filePath)) fs.unlinkSync(filePath) } catch {}
+}
+
+const onlineUsers = new Map<string, Set<string>>()
 const typingUsers = new Map<string, Set<string>>()
 const typingTimers = new Map<string, NodeJS.Timeout>()
 
@@ -51,9 +59,9 @@ async function handleMentions(
       'INSERT INTO notifications (id, user_id, server_id, channel_id, message_id, type) VALUES (?, ?, ?, ?, ?, ?)',
       [notifId, replyToAuthorId, serverId, channelId, messageId, 'reply']
     )
-    const socketId = onlineUsers.get(replyToAuthorId)
-    if (socketId) {
-      io.to(socketId).emit('NOTIFICATION', { type: 'reply', channelId, serverId, messageId })
+    const rSocketIds = onlineUsers.get(replyToAuthorId)
+    if (rSocketIds) {
+      for (const sid of rSocketIds) io.to(sid).emit('NOTIFICATION', { type: 'reply', channelId, serverId, messageId })
     }
   }
 
@@ -64,9 +72,9 @@ async function handleMentions(
       'INSERT INTO notifications (id, user_id, server_id, channel_id, message_id, type) VALUES (?, ?, ?, ?, ?, ?)',
       [notifId, userId, serverId, channelId, messageId, 'mention']
     )
-    const socketId = onlineUsers.get(userId)
-    if (socketId) {
-      io.to(socketId).emit('NOTIFICATION', { type: 'mention', channelId, serverId, messageId })
+    const mSocketIds = onlineUsers.get(userId)
+    if (mSocketIds) {
+      for (const sid of mSocketIds) io.to(sid).emit('NOTIFICATION', { type: 'mention', channelId, serverId, messageId })
     }
   }
 }
@@ -102,8 +110,10 @@ export function invalidateUserProfile(userId: string): void {
 let _io: SocketIO | null = null
 
 export function emitToUser(userId: string, event: string, data: unknown): void {
-  const socketId = onlineUsers.get(userId)
-  if (socketId && _io) _io.to(socketId).emit(event, data)
+  const socketIds = onlineUsers.get(userId)
+  if (socketIds && _io) {
+    for (const sid of socketIds) _io.to(sid).emit(event, data)
+  }
 }
 
 export function getSocketInstance(): SocketIO | null {
@@ -111,15 +121,29 @@ export function getSocketInstance(): SocketIO | null {
 }
 
 export function kickUserFromServer(userId: string, serverId: string, eventName: 'KICKED' | 'BANNED', reason?: string): void {
-  const socketId = onlineUsers.get(userId)
-  if (socketId && _io) {
-    _io.to(socketId).emit(eventName, { serverId, reason: reason ?? null })
-    const sock = _io.sockets.sockets.get(socketId)
-    if (sock) sock.leave(`server:${serverId}`)
+  const socketIds = onlineUsers.get(userId)
+  if (socketIds && _io) {
+    for (const sid of socketIds) {
+      _io.to(sid).emit(eventName, { serverId, reason: reason ?? null })
+      const sock = _io.sockets.sockets.get(sid)
+      if (sock) sock.leave(`server:${serverId}`)
+    }
   }
 }
 
-const msgRateMap = new Map<string, number[]>()
+export function kickUserFromPlatform(userId: string, reason: string): void {
+  const socketIds = onlineUsers.get(userId)
+  if (socketIds && _io) {
+    for (const sid of socketIds) {
+      _io.to(sid).emit('PLATFORM_BANNED', { reason })
+      const sock = _io.sockets.sockets.get(sid)
+      if (sock) sock.disconnect(true)
+    }
+  }
+}
+
+const msgRateMap   = new Map<string, number[]>()
+const slowmodeMap  = new Map<string, number>()   // `${userId}:${channelId}` → last message timestamp
 
 export function setupSocket(io: SocketIO) {
   _io = io
@@ -155,7 +179,9 @@ export function setupSocket(io: SocketIO) {
     const { userId, username } = socket.data
     console.log(`🔌 ${username} (${userId}) połączony`)
 
-    onlineUsers.set(userId, socket.id)
+    const existingSockets = onlineUsers.get(userId) ?? new Set<string>()
+    existingSockets.add(socket.id)
+    onlineUsers.set(userId, existingSockets)
 
     // Auto-join recent DM rooms
     queryMany<{ id: string }>(
@@ -232,9 +258,33 @@ export function setupSocket(io: SocketIO) {
         }
         msgRateMap.set(userId, [...timestamps, rateNow])
 
-        const mcCh = await queryOne<{ server_id: string; mod_only: number }>('SELECT server_id, COALESCE(mod_only,0) AS mod_only FROM channels WHERE id = ?', [data.channelId])
+        const mcCh = await queryOne<{ server_id: string; mod_only: number; slowmode: number }>(
+          'SELECT server_id, COALESCE(mod_only,0) AS mod_only, COALESCE(slowmode,0) AS slowmode FROM channels WHERE id = ?', [data.channelId]
+        )
         if (!mcCh || mcCh.server_id !== data.serverId) return
         if (mcCh.mod_only && !await hasPermission(userId, data.serverId, 'MANAGE_MESSAGES')) return
+
+        // Slowmode — not enforced for users with MANAGE_MESSAGES (moderators)
+        if (mcCh.slowmode > 0 && !await hasPermission(userId, data.serverId, 'MANAGE_MESSAGES')) {
+          const smKey = `${userId}:${data.channelId}`
+          const lastSent = slowmodeMap.get(smKey) ?? 0
+          const remaining = Math.ceil((lastSent + mcCh.slowmode * 1000 - Date.now()) / 1000)
+          if (remaining > 0) {
+            socket.emit('ERROR', { code: 'SLOWMODE', message: `Odczekaj jeszcze ${remaining}s przed następną wiadomością` })
+            return
+          }
+          slowmodeMap.set(smKey, Date.now())
+        }
+
+        const platformBan = await queryOne<{ reason: string }>(
+          'SELECT reason FROM user_bans WHERE user_id = ? AND (expires_at IS NULL OR expires_at > NOW()) LIMIT 1',
+          [userId]
+        )
+        if (platformBan) {
+          socket.emit('PLATFORM_BANNED', { reason: platformBan.reason })
+          socket.disconnect(true)
+          return
+        }
 
         const banCheck = await queryOne<{ reason: string }>(
           'SELECT reason FROM server_bans WHERE user_id = ? AND server_id = ?',
@@ -403,7 +453,15 @@ export function setupSocket(io: SocketIO) {
         if (!delCh || !await memberQueries.isMember(userId, delCh.server_id)) return
         const delBanned = await queryOne<{ id: string }>('SELECT id FROM server_bans WHERE user_id = ? AND server_id = ?', [userId, delCh.server_id])
         if (delBanned) return
+        // Delete attachment files from disk before removing DB record
+        const msgAtts = await queryMany<{ file_path: string }>(
+          'SELECT file_path FROM message_attachments WHERE message_id = ? AND file_path IS NOT NULL',
+          [data.messageId]
+        )
         await messageQueries.delete(data.messageId)
+        for (const a of msgAtts) {
+          deleteFileIfExists(path.join(UPLOAD_DIR, 'attachments', a.file_path))
+        }
         invalidateChannel(data.channelId)
         io.to(`channel:${data.channelId}`).emit('MESSAGE_DELETE', { id: data.messageId, channelId: data.channelId })
       } catch (err) { console.error('[socket/MESSAGE_DELETE]', err) }
@@ -425,8 +483,10 @@ export function setupSocket(io: SocketIO) {
             'INSERT INTO notifications (id, user_id, server_id, channel_id, message_id, type) VALUES (?, ?, ?, ?, ?, ?)',
             [notifId, message.author_id, message.server_id, data.channelId, data.messageId, 'reaction']
           )
-          const socketId = onlineUsers.get(message.author_id)
-          if (socketId) io.to(socketId).emit('NOTIFICATION', { type: 'reaction', channelId: data.channelId, messageId: data.messageId })
+          const rxSids = onlineUsers.get(message.author_id)
+          if (rxSids) {
+            for (const sid of rxSids) io.to(sid).emit('NOTIFICATION', { type: 'reaction', channelId: data.channelId, messageId: data.messageId })
+          }
         }
 
         io.to(`channel:${data.channelId}`).emit('REACTION_UPDATE', { messageId: data.messageId, reactions })
@@ -549,11 +609,17 @@ export function setupSocket(io: SocketIO) {
       } catch {}
     })
 
-    socket.on('DM_TYPING_STOP', (convId: string) => {
-      const key = `dm:${convId}:${userId}`
-      const prev = typingTimers.get(key)
-      if (prev) { clearTimeout(prev); typingTimers.delete(key) }
-      socket.to(`dm:${convId}`).emit('DM_TYPING', { convId, userId, typing: false })
+    socket.on('DM_TYPING_STOP', async (convId: string) => {
+      try {
+        const conv = await queryOne<{ user1_id: string; user2_id: string }>(
+          'SELECT user1_id, user2_id FROM dm_conversations WHERE id=?', [convId]
+        )
+        if (!conv || (conv.user1_id !== userId && conv.user2_id !== userId)) return
+        const key = `dm:${convId}:${userId}`
+        const prev = typingTimers.get(key)
+        if (prev) { clearTimeout(prev); typingTimers.delete(key) }
+        socket.to(`dm:${convId}`).emit('DM_TYPING', { convId, userId, typing: false })
+      } catch {}
     })
 
     socket.on('MARK_NOTIFICATIONS_READ', async (data: { channelId?: string; serverId?: string }) => {
@@ -574,7 +640,11 @@ export function setupSocket(io: SocketIO) {
 
     socket.on('disconnect', async () => {
       console.log(`❌ ${username} rozłączony`)
-      onlineUsers.delete(userId)
+      const userSockets = onlineUsers.get(userId)
+      if (userSockets) {
+        userSockets.delete(socket.id)
+        if (userSockets.size === 0) onlineUsers.delete(userId)
+      }
       await userQueries.updateStatus(userId, 'offline')
 
       try {

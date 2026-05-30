@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express'
 import { v4 as uuid } from 'uuid'
 import { requireAuth } from '../middleware/auth'
 import { queryOne, queryMany, execute } from '../db/pool'
-import { emitToUser } from '../socket/index'
+import { emitToUser, kickUserFromPlatform } from '../socket/index'
 
 const router = Router()
 
@@ -96,6 +96,10 @@ router.post('/bans', requireAuth, async (req: Request, res: Response) => {
     }
 
     const ban = await queryOne('SELECT * FROM user_bans WHERE id = ?', [id])
+
+    // Natychmiastowe rozłączenie aktywnych socketów
+    kickUserFromPlatform(userId, reason.trim())
+
     return res.status(201).json({ ban })
   } catch (err) {
     console.error('[admin/ban]', err)
@@ -476,6 +480,53 @@ router.post('/ghost/:serverId/channels/:channelId/message', requireAuth, async (
     return res.json({ ok: true, messageId: id })
   } catch (err) {
     console.error('[admin/ghost/message]', err)
+    return res.status(500).json({ error: 'Błąd serwera' })
+  }
+})
+
+// ── PATCH NOTES ───────────────────────────────────────────────────────────────
+
+router.get('/patch-notes', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const notes = await queryMany<any>(
+      'SELECT id, version, date, label_pl, label_en, entries, created_at FROM patch_notes ORDER BY date DESC, version DESC'
+    )
+    const parsed = notes.map(n => ({
+      ...n,
+      entries: typeof n.entries === 'string' ? JSON.parse(n.entries) : n.entries,
+    }))
+    return res.json({ notes: parsed })
+  } catch (err) {
+    console.error('[admin/patch-notes/get]', err)
+    return res.status(500).json({ error: 'Błąd serwera' })
+  }
+})
+
+router.post('/patch-notes', requireAuth, async (req: Request, res: Response) => {
+  try {
+    if (!await requireCreator(req, res)) return
+    const { version, date, labelPl, labelEn, entries } = req.body
+    if (!version?.trim() || !date?.trim() || !Array.isArray(entries))
+      return res.status(400).json({ error: 'Wymagane: version, date, entries' })
+    const id = uuid()
+    await execute(
+      'INSERT INTO patch_notes (id, version, date, label_pl, label_en, entries) VALUES (?,?,?,?,?,?)',
+      [id, version.trim(), date.trim(), labelPl?.trim() ?? '', labelEn?.trim() ?? '', JSON.stringify(entries)]
+    )
+    return res.status(201).json({ id })
+  } catch (err) {
+    console.error('[admin/patch-notes/post]', err)
+    return res.status(500).json({ error: 'Błąd serwera' })
+  }
+})
+
+router.delete('/patch-notes/:id', requireAuth, async (req: Request, res: Response) => {
+  try {
+    if (!await requireCreator(req, res)) return
+    await execute('DELETE FROM patch_notes WHERE id = ?', [req.params.id])
+    return res.json({ ok: true })
+  } catch (err) {
+    console.error('[admin/patch-notes/delete]', err)
     return res.status(500).json({ error: 'Błąd serwera' })
   }
 })

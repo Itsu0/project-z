@@ -4,6 +4,14 @@ import { messageQueries, memberQueries, reactionQueries } from '../db/queries'
 import { canModerate, isMuted, hasPermission, canViewChannel } from '../middleware/permissions'
 import { queryOne, queryMany, execute } from '../db/pool'
 import { getCached, setCached, invalidateChannel } from '../cache/messages'
+import fs   from 'fs'
+import path from 'path'
+
+const UPLOAD_DIR = process.env.UPLOAD_DIR ?? path.join(process.cwd(), 'uploads')
+
+function deleteAttachmentFile(filePath: string): void {
+  try { if (fs.existsSync(filePath)) fs.unlinkSync(filePath) } catch {}
+}
 
 const router = Router()
 
@@ -285,7 +293,15 @@ router.delete('/:channelId/messages/:messageId', requireAuth, async (req: Reques
       )
     }
 
+    // Delete attachment files from disk before removing the message
+    const attsToDelete = await queryMany<{ file_path: string }>(
+      'SELECT file_path FROM message_attachments WHERE message_id = ? AND file_path IS NOT NULL',
+      [messageId]
+    )
     await messageQueries.delete(messageId)
+    for (const a of attsToDelete) {
+      deleteAttachmentFile(path.join(UPLOAD_DIR, 'attachments', a.file_path))
+    }
     invalidateChannel(channelId)
     const { getSocketInstance } = await import('../socket')
     getSocketInstance()?.to(`channel:${channelId}`).emit('MESSAGE_DELETE', { id: messageId, channelId })

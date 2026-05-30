@@ -57,6 +57,7 @@ export async function runMigrations(): Promise<void> {
     ['user_warnings', 'user_reply',  'TEXT DEFAULT NULL'],
     ['user_warnings', 'reply_at',    'DATETIME DEFAULT NULL'],
     ['users',         'is_dev',      'TINYINT(1) DEFAULT 0'],
+    ['users',         'is_creator',  'TINYINT(1) DEFAULT 0'],
     ['polls',         'closed',      'TINYINT(1) DEFAULT 0'],
   ]
 
@@ -350,6 +351,23 @@ export async function runMigrations(): Promise<void> {
     }
   }
   console.log('   ↳ Tabele DM OK')
+
+  try {
+    await conn.query(`CREATE TABLE IF NOT EXISTS \`patch_notes\` (
+      \`id\`         CHAR(36)      NOT NULL,
+      \`version\`    VARCHAR(20)   NOT NULL,
+      \`date\`       VARCHAR(10)   NOT NULL,
+      \`label_pl\`   VARCHAR(200)  DEFAULT '',
+      \`label_en\`   VARCHAR(200)  DEFAULT '',
+      \`entries\`    JSON          NOT NULL,
+      \`created_at\` DATETIME      DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (\`id\`),
+      INDEX \`idx_pn_created\` (\`created_at\` DESC)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`)
+    console.log('   ↳ Tabela patch_notes OK')
+  } catch (e: any) {
+    console.warn('   ⚠ Tabela patch_notes:', e.message)
+  }
 
   console.log('✅ Migracje zakończone pomyślnie')
   await conn.end()
