@@ -9,7 +9,7 @@ import { useT } from '@/lib/i18n'
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
-type Tab = 'ogólne' | 'kanały' | 'role' | 'członkowie' | 'emoji' | 'zbanowani' | 'moderacja'
+type Tab = 'ogólne' | 'kanały' | 'role' | 'członkowie' | 'emoji' | 'zbanowani' | 'moderacja' | 'zaproszenia'
 
 async function apiFetch(path: string, token: string, options: RequestInit = {}) {
   const res = await fetch(`${BASE}${path}`, {
@@ -1241,6 +1241,141 @@ function TabModeration({ server }: { server: any }) {
   )
 }
 
+function TabInvites({ server }: { server: any }) {
+  const token = useStore(s => s.token)
+  const [invites, setInvites]   = useState<any[]>([])
+  const [loading, setLoading]   = useState(true)
+  const [creating, setCreating] = useState(false)
+  const [copied,   setCopied]   = useState<string | null>(null)
+
+  async function load() {
+    setLoading(true)
+    try {
+      const d = await apiFetch(`/api/servers/${server.id}/invites`, token!)
+      setInvites(d.invites ?? [])
+    } catch {} finally { setLoading(false) }
+  }
+
+  useEffect(() => { load() }, [server.id])
+
+  async function createInvite() {
+    setCreating(true)
+    try {
+      await apiFetch(`/api/servers/${server.id}/invites`, token!, { method: 'POST' })
+      await load()
+    } catch {} finally { setCreating(false) }
+  }
+
+  async function deleteInvite(code: string) {
+    await apiFetch(`/api/servers/${server.id}/invites/${code}`, token!, { method: 'DELETE' })
+    setInvites(prev => prev.filter(i => i.code !== code))
+  }
+
+  function copyLink(code: string) {
+    navigator.clipboard.writeText(`${window.location.origin}/join/${code}`)
+    setCopied(code)
+    setTimeout(() => setCopied(null), 2000)
+  }
+
+  function fmtDate(iso: string) {
+    return new Date(iso).toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+  }
+
+  const isExpired = (exp: string) => new Date(exp) < new Date()
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-semibold" style={{ color: 'var(--eb-text1)' }}>Linki zaproszenia</p>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--eb-text3)' }}>Zarządzaj linkami do dołączenia do serwera</p>
+        </div>
+        <button onClick={createInvite} disabled={creating}
+          className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all disabled:opacity-50"
+          style={{ background: 'var(--eb-accent)', color: '#fff' }}>
+          {creating ? '…' : '+ Nowy link'}
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-6">
+          <div className="w-5 h-5 border-2 rounded-full animate-spin" style={{ borderColor: 'var(--eb-accent)', borderTopColor: 'transparent' }} />
+        </div>
+      ) : invites.length === 0 ? (
+        <div className="text-center py-8 rounded-xl" style={{ background: 'var(--eb-bg3)', border: '1px solid var(--eb-border)' }}>
+          <p className="text-2xl mb-2">🔗</p>
+          <p className="text-sm" style={{ color: 'var(--eb-text3)' }}>Brak linków zaproszenia</p>
+          <p className="text-xs mt-1" style={{ color: 'var(--eb-text4)' }}>Utwórz pierwszy link, aby zapraszać użytkowników</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {invites.map(inv => {
+            const expired = isExpired(inv.expires_at)
+            return (
+              <div key={inv.code}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl"
+                style={{
+                  background: expired ? 'var(--eb-bg2)' : 'var(--eb-bg3)',
+                  border: `1px solid ${expired ? 'rgba(239,68,68,0.2)' : 'var(--eb-border)'}`,
+                  opacity: expired ? 0.6 : 1,
+                }}>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <code className="text-xs font-mono px-1.5 py-0.5 rounded"
+                      style={{ background: 'var(--eb-bg1)', color: 'var(--eb-accent)', border: '1px solid var(--eb-border)' }}>
+                      {inv.code}
+                    </code>
+                    {expired && (
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                        style={{ background: 'rgba(239,68,68,0.1)', color: '#f87171', border: '0.5px solid rgba(239,68,68,0.3)' }}>
+                        WYGASŁ
+                      </span>
+                    )}
+                    <span className="text-[10px]" style={{ color: 'var(--eb-text4)' }}>
+                      {inv.uses ?? 0} użyć
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-[10px]" style={{ color: 'var(--eb-text3)' }}>
+                      Stworzył: <span style={{ color: 'var(--eb-text2)' }}>{inv.creator_display_name ?? inv.creator_username ?? '—'}</span>
+                    </span>
+                    <span className="text-[10px]" style={{ color: 'var(--eb-text4)' }}>·</span>
+                    <span className="text-[10px]" style={{ color: expired ? '#f87171' : 'var(--eb-text3)' }}>
+                      Wygasa: {fmtDate(inv.expires_at)}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  {!expired && (
+                    <button onClick={() => copyLink(inv.code)}
+                      className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all"
+                      style={{
+                        background: copied === inv.code ? 'rgba(34,197,94,0.1)' : 'var(--eb-bg2)',
+                        color: copied === inv.code ? '#22c55e' : 'var(--eb-text2)',
+                        border: `1px solid ${copied === inv.code ? 'rgba(34,197,94,0.3)' : 'var(--eb-border)'}`,
+                      }}>
+                      {copied === inv.code ? '✓ Skopiowano' : '📋 Kopiuj'}
+                    </button>
+                  )}
+                  <button onClick={() => deleteInvite(inv.code)}
+                    className="p-1.5 rounded-lg transition-colors"
+                    style={{ color: 'var(--eb-text4)', border: '1px solid transparent' }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#f87171'; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(239,68,68,0.3)'; (e.currentTarget as HTMLElement).style.background = 'rgba(239,68,68,0.08)' }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--eb-text4)'; (e.currentTarget as HTMLElement).style.borderColor = 'transparent'; (e.currentTarget as HTMLElement).style.background = 'transparent' }}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function ServerSettings({ onClose }: { onClose: () => void }) {
   const t = useT()
   const { currentServerId, servers } = useStore()
@@ -1255,16 +1390,18 @@ export function ServerSettings({ onClose }: { onClose: () => void }) {
     { id: 'role'       as Tab, label: t('serverSettings.tab.roles'),    icon: '🏷' },
     { id: 'członkowie' as Tab, label: t('serverSettings.tab.members'),  icon: '👥' },
     { id: 'emoji'      as Tab, label: t('serverSettings.tab.emoji'),    icon: '😄' },
-    { id: 'zbanowani'  as Tab, label: 'Zbanowani',   icon: '🔨' },
-    { id: 'moderacja'  as Tab, label: 'Moderacja',   icon: '🛡' },
+    { id: 'zaproszenia' as Tab, label: 'Zaproszenia', icon: '🔗' },
+    { id: 'zbanowani'   as Tab, label: 'Zbanowani',   icon: '🔨' },
+    { id: 'moderacja'   as Tab, label: 'Moderacja',   icon: '🛡' },
   ].filter(tab => {
-    if (tab.id === 'ogólne')     return canManageServer
-    if (tab.id === 'kanały')     return canManageChannels
-    if (tab.id === 'role')       return canManageRoles || canKick || canBan || canMute
-    if (tab.id === 'członkowie') return canKick || canBan || canMute
-    if (tab.id === 'emoji')      return canManageServer
-    if (tab.id === 'zbanowani')  return canBan
-    if (tab.id === 'moderacja')  return canManageServer
+    if (tab.id === 'ogólne')      return canManageServer
+    if (tab.id === 'kanały')      return canManageChannels
+    if (tab.id === 'role')        return canManageRoles || canKick || canBan || canMute
+    if (tab.id === 'członkowie')  return canKick || canBan || canMute
+    if (tab.id === 'emoji')       return canManageServer
+    if (tab.id === 'zaproszenia') return canManageServer
+    if (tab.id === 'zbanowani')   return canBan
+    if (tab.id === 'moderacja')   return canManageServer
     return false
   })
 
@@ -1350,9 +1487,10 @@ export function ServerSettings({ onClose }: { onClose: () => void }) {
           {activeTab === 'kanały'     && <TabChannels server={server} />}
           {activeTab === 'role'       && <RolesTab server={server} />}
           {activeTab === 'członkowie' && <TabMembers server={server} />}
-          {activeTab === 'emoji'      && <TabEmoji server={server} />}
-          {activeTab === 'zbanowani'  && <TabBans server={server} />}
-          {activeTab === 'moderacja'  && <TabModeration server={server} />}
+          {activeTab === 'emoji'        && <TabEmoji server={server} />}
+          {activeTab === 'zaproszenia'  && <TabInvites server={server} />}
+          {activeTab === 'zbanowani'    && <TabBans server={server} />}
+          {activeTab === 'moderacja'    && <TabModeration server={server} />}
         </div>
       </div>
     </div>

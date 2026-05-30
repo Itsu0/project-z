@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS users (
   custom_status VARCHAR(128)  DEFAULT NULL,
   is_dev        TINYINT(1)    DEFAULT 0,
   is_mod        TINYINT(1)    DEFAULT 0,
+  is_creator    TINYINT(1)    DEFAULT 0,
   email_verified TINYINT(1)  DEFAULT 0,
   birth_date    DATE          DEFAULT NULL,
   last_ip       VARCHAR(45)   DEFAULT NULL,
@@ -496,17 +497,19 @@ CREATE TABLE IF NOT EXISTS dm_messages (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS dm_attachments (
-  id          CHAR(36)      PRIMARY KEY,
-  message_id  CHAR(36)      NOT NULL,
-  filename    VARCHAR(255)  NOT NULL,
-  file_path   VARCHAR(512)  NOT NULL,
-  content_type VARCHAR(100) NOT NULL,
-  size        INT           DEFAULT 0,
-  width       INT           DEFAULT NULL,
-  height      INT           DEFAULT NULL,
-  created_at  DATETIME      DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (message_id) REFERENCES dm_messages(id) ON DELETE CASCADE,
-  INDEX idx_dm_att_msg (message_id)
+  id           CHAR(36)      PRIMARY KEY,
+  message_id   CHAR(36)      NULL DEFAULT NULL,
+  conv_id      CHAR(36)      NULL DEFAULT NULL,
+  uploader_id  CHAR(36)      NULL DEFAULT NULL,
+  filename     VARCHAR(255)  NOT NULL,
+  file_path    VARCHAR(512)  NOT NULL,
+  content_type VARCHAR(100)  NOT NULL,
+  size         INT           DEFAULT 0,
+  width        INT           DEFAULT NULL,
+  height       INT           DEFAULT NULL,
+  created_at   DATETIME      DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_dm_att_msg  (message_id),
+  INDEX idx_dm_att_conv (conv_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS dm_reactions (
