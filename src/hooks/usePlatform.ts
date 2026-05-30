@@ -13,6 +13,15 @@ function detectPlatform(): Platform {
   return window.innerWidth < MOBILE_BREAKPOINT ? 'mobile' : 'desktop'
 }
 
+/* Keep <html data-platform> in sync with the actually-rendered platform so that
+   scoped CSS ([data-platform="mobile"] .xxx) always applies — even when the
+   server guessed "desktop" (e.g. a phone on the non-m. domain without a cookie). */
+function syncHtmlPlatform(p: Platform) {
+  if (typeof document !== 'undefined') {
+    document.documentElement.dataset.platform = p
+  }
+}
+
 export function usePlatform(): Platform {
   const [platform, setPlatform] = useState<Platform>(detectPlatform)
 
@@ -20,14 +29,20 @@ export function usePlatform(): Platform {
     /* If on mobile subdomain — lock to mobile, no listener needed */
     if (window.location.hostname.startsWith(MOBILE_SUBDOMAIN)) {
       setPlatform('mobile')
+      syncHtmlPlatform('mobile')
       return
     }
 
     const mq = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`)
-    const handler = (e: MediaQueryListEvent) => setPlatform(e.matches ? 'mobile' : 'desktop')
+    const apply = (isMobile: boolean) => {
+      const p: Platform = isMobile ? 'mobile' : 'desktop'
+      setPlatform(p)
+      syncHtmlPlatform(p)
+    }
+    const handler = (e: MediaQueryListEvent) => apply(e.matches)
 
     mq.addEventListener('change', handler)
-    setPlatform(mq.matches ? 'mobile' : 'desktop')
+    apply(mq.matches)
     return () => mq.removeEventListener('change', handler)
   }, [])
 

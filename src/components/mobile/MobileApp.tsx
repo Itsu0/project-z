@@ -759,9 +759,11 @@ interface Notif { id: string; type: string; content: string; read: boolean; crea
 
 function NotificationsScreen() {
   const token = useStore(s => s.token)
+  const lang  = useStore(s => s.userSettings.language ?? 'pl')
   const [notifs, setNotifs]     = useState<Notif[]>([])
   const [loading, setLoading]   = useState(true)
   const [tab, setTab]           = useState<'notifs' | 'patch'>('notifs')
+  const [patchNotes, setPatchNotes] = useState<any[]>([])
   const unread = notifs.filter(n => !n.read).length
 
   useEffect(() => {
@@ -771,6 +773,15 @@ function NotificationsScreen() {
     }).then(r => r.ok ? r.json() : { notifications: [] })
       .then(d => { setNotifs(d.notifications ?? []); setLoading(false) })
       .catch(() => setLoading(false))
+  }, [token])
+
+  // Patch notes z bazy (te same co desktop) zamiast zahardkodowanych
+  useEffect(() => {
+    if (!token) return
+    fetch(`${BASE}/api/admin/patch-notes`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : { notes: [] })
+      .then(d => setPatchNotes(d.notes ?? []))
+      .catch(() => {})
   }, [token])
 
   async function markAllRead() {
@@ -785,12 +796,6 @@ function NotificationsScreen() {
 
   const typeLabel = (t: string) => t === 'mention' ? '@ Wzmianka' : t === 'reply' ? '↩ Odpowiedź' : '😊 Reakcja'
   const typeColor = (t: string) => t === 'mention' ? 'var(--eb-mention)' : t === 'reply' ? 'var(--eb-voice)' : 'var(--eb-accent)'
-
-  const PATCH = [
-    { version: '0.7.3', label: 'Poprawki wizualne', date: '2026-05-24', entries: [{ type: 'fix', text: 'Poprawki wizualne interfejsu' }] },
-    { version: '0.7.2', label: 'Naprawa nakładki', date: '2026-05-23', entries: [{ type: 'fix', text: 'Naprawiono nakładkę głosową — teraz poprawnie wyświetla uczestników' }] },
-    { version: '0.7.1', label: 'Poprawki bezpieczeństwa', date: '2026-05-22', entries: [{ type: 'fix', text: 'Krytyczna poprawka bezpieczeństwa 2FA' }, { type: 'fix', text: 'Naprawiono wylogowywanie' }] },
-  ]
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -856,21 +861,32 @@ function NotificationsScreen() {
 
         {tab === 'patch' && (
           <div style={{ padding: '8px 0' }}>
-            {PATCH.map(release => (
-              <div key={release.version} style={{ padding: '14px 16px', borderBottom: '0.5px solid var(--eb-border)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--eb-text1)' }}>v{release.version}</span>
-                  <span style={{ fontSize: 11, color: 'var(--eb-accent)', background: 'rgba(245,158,11,0.1)', borderRadius: 6, padding: '1px 7px' }}>{release.label}</span>
-                  <span style={{ fontSize: 11, color: 'var(--eb-text3)', marginLeft: 'auto' }}>{release.date}</span>
-                </div>
-                {release.entries.map((e, i) => (
-                  <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 4 }}>
-                    <span style={{ fontSize: 12, color: e.type === 'fix' ? 'var(--eb-voice)' : 'var(--eb-online)', flexShrink: 0 }}>{e.type === 'fix' ? '🔧' : '✨'}</span>
-                    <span style={{ fontSize: 13, color: 'var(--eb-text2)', lineHeight: 1.4 }}>{e.text}</span>
-                  </div>
-                ))}
+            {patchNotes.length === 0 && (
+              <div style={{ padding: '40px 16px', textAlign: 'center', color: 'var(--eb-text3)', fontSize: 13 }}>
+                Brak wpisów
               </div>
-            ))}
+            )}
+            {patchNotes.map(release => {
+              const label = lang === 'en' ? release.label_en : release.label_pl
+              const entries: any[] = Array.isArray(release.entries) ? release.entries : []
+              return (
+                <div key={release.id ?? release.version} style={{ padding: '14px 16px', borderBottom: '0.5px solid var(--eb-border)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--eb-text1)' }}>v{release.version}</span>
+                    {label && <span style={{ fontSize: 11, color: 'var(--eb-accent)', background: 'rgba(245,158,11,0.1)', borderRadius: 6, padding: '1px 7px' }}>{label}</span>}
+                    <span style={{ fontSize: 11, color: 'var(--eb-text3)', marginLeft: 'auto' }}>{release.date}</span>
+                  </div>
+                  {entries.map((e, i) => (
+                    <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 4 }}>
+                      <span style={{ fontSize: 12, color: e.type === 'fix' ? 'var(--eb-voice)' : e.type === 'imp' ? 'var(--eb-accent)' : 'var(--eb-online)', flexShrink: 0 }}>
+                        {e.type === 'fix' ? '🔧' : e.type === 'imp' ? '⚡' : '✨'}
+                      </span>
+                      <span style={{ fontSize: 13, color: 'var(--eb-text2)', lineHeight: 1.4 }}>{lang === 'en' ? e.en : e.pl}</span>
+                    </div>
+                  ))}
+                </div>
+              )
+            })}
           </div>
         )}
       </div>
@@ -961,12 +977,33 @@ function ProfileScreen() {
 /* ─── MobileApp root ─────────────────────────────────────────────── */
 export function MobileApp() {
   const [tab, setTab] = useState<Tab>('chat')
-  const notifCount   = 0 // TODO: podpiąć z API
+  const token = useStore(s => s.token)
+  const { on, off } = useSocket()
+  const [notifCount, setNotifCount] = useState(0)
 
-  const TABS: { id: Tab; label: string; Icon: React.FC }[] = [
+  // Liczba nieprzeczytanych powiadomień (initial + live przez socket)
+  useEffect(() => {
+    if (!token) return
+    fetch(`${BASE}/api/notifications?limit=50`, {
+      headers: { Authorization: `Bearer ${token}` }, credentials: 'include',
+    }).then(r => r.ok ? r.json() : { notifications: [] })
+      .then(d => setNotifCount((d.notifications ?? []).filter((n: any) => !n.read).length))
+      .catch(() => {})
+  }, [token])
+
+  useEffect(() => {
+    const onNotif = () => setNotifCount(c => c + 1)
+    on('NOTIFICATION', onNotif)
+    return () => off('NOTIFICATION', onNotif)
+  }, [on, off])
+
+  // Wyzeruj badge po wejściu w zakładkę Aktywność
+  useEffect(() => { if (tab === 'notifications') setNotifCount(0) }, [tab])
+
+  const TABS: { id: Tab; label: string; Icon: React.FC; badge?: number }[] = [
     { id: 'chat',          label: 'Czaty',        Icon: () => <IC.Chat a={tab === 'chat'} /> },
     { id: 'members',       label: 'Członkowie',   Icon: () => <IC.Members a={tab === 'members'} /> },
-    { id: 'notifications', label: 'Aktywność',    Icon: () => <IC.Bell a={tab === 'notifications'} /> },
+    { id: 'notifications', label: 'Aktywność',    Icon: () => <IC.Bell a={tab === 'notifications'} />, badge: notifCount },
     { id: 'profile',       label: 'Profil',       Icon: () => <IC.User a={tab === 'profile'} /> },
   ]
 
@@ -982,10 +1019,15 @@ export function MobileApp() {
 
       {/* Bottom nav */}
       <nav className="mobile-bottom-nav">
-        {TABS.map(({ id, label, Icon }) => (
-          <button key={id} className={`mobile-nav-item${tab === id ? ' active' : ''}`} onClick={() => setTab(id)}>
+        {TABS.map(({ id, label, Icon, badge }) => (
+          <button key={id} className={`mobile-nav-item${tab === id ? ' active' : ''}`} onClick={() => setTab(id)} style={{ position: 'relative' }}>
             <Icon />
             <span>{label}</span>
+            {!!badge && badge > 0 && (
+              <span style={{ position: 'absolute', top: 2, right: '50%', marginRight: -22, minWidth: 16, height: 16, padding: '0 4px', borderRadius: 8, background: 'var(--eb-accent2)', color: '#fff', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>
+                {badge > 99 ? '99+' : badge}
+              </span>
+            )}
           </button>
         ))}
       </nav>
