@@ -2199,13 +2199,20 @@ function PatchNoteManager({ token }: { token: string }) {
         <div className="flex flex-col gap-2">
           {entries.map((entry, i) => (
             <div key={i} className="flex flex-col gap-1.5 p-2 rounded-lg" style={{ background: 'var(--eb-bg2)', border: '1px solid var(--eb-border)' }}>
-              <div className="flex items-center gap-2">
-                <select value={entry.type} onChange={e => updateEntry(i, 'type', e.target.value)}
-                  className="ember-input px-2 py-1 text-[11px] flex-shrink-0" style={{ width: 130 }}>
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex gap-1">
                   {(Object.entries(ENTRY_LABELS) as [EntryType, string][]).map(([k, v]) => (
-                    <option key={k} value={k}>{v}</option>
+                    <button key={k} type="button" onClick={() => updateEntry(i, 'type', k)}
+                      className="px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-all flex-shrink-0"
+                      style={{
+                        background: entry.type === k ? `${ENTRY_COLORS[k]}22` : 'var(--eb-bg3)',
+                        color:      entry.type === k ? ENTRY_COLORS[k] : 'var(--eb-text3)',
+                        border:     `1px solid ${entry.type === k ? ENTRY_COLORS[k] + '55' : 'var(--eb-border)'}`,
+                      }}>
+                      {v}
+                    </button>
                   ))}
-                </select>
+                </div>
                 <div className="flex-1" />
                 {entries.length > 1 && (
                   <button onClick={() => removeEntry(i)}
