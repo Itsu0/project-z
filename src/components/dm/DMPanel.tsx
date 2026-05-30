@@ -131,20 +131,22 @@ function MsgBubble({ msg, isMe, showAvatar, onReact, onDelete }: {
           </span>
         )}
         <div className="relative">
-          <div className={`px-3 py-2 rounded-2xl text-sm leading-relaxed break-words ${isDeleted ? 'opacity-50 italic' : ''}`}
-            style={{
-              background: isMe ? 'var(--eb-accent)' : 'var(--eb-bg3)',
-              color: isMe ? '#fff' : 'var(--eb-text1)',
-              borderRadius: isMe ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
-              maxWidth: '100%',
-            }}>
-            {msg.content}
-            {msg.edited_at && !isDeleted && (
-              <span className="text-[10px] ml-1 opacity-60">(edyt.)</span>
-            )}
-          </div>
+          {(msg.content || isDeleted || !msg.attachments?.length) && (
+            <div className={`px-3 py-2 rounded-2xl text-sm leading-relaxed break-words ${isDeleted ? 'opacity-50 italic' : ''}`}
+              style={{
+                background: isMe ? 'var(--eb-accent)' : 'var(--eb-bg3)',
+                color: isMe ? '#fff' : 'var(--eb-text1)',
+                borderRadius: isMe ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
+                maxWidth: '100%',
+              }}>
+              {msg.content}
+              {msg.edited_at && !isDeleted && (
+                <span className="text-[10px] ml-1 opacity-60">(edyt.)</span>
+              )}
+            </div>
+          )}
           {/* Attachments */}
-          {msg.attachments?.length > 0 && (
+          {!isDeleted && msg.attachments?.length > 0 && (
             <div className="mt-1 flex flex-col gap-1">
               {msg.attachments.map(att => (
                 att.contentType?.startsWith('image/') ? (
@@ -387,7 +389,7 @@ function ConvView({ conv }: { conv: DmConversation }) {
       })
       const att = await r.json()
       if (att.id) {
-        const content = text.trim() || `📎 ${file.name}`
+        const content = text.trim()
         await fetch(`${BASE}/api/dm/${conv.id}/messages`, {
           method: 'POST', credentials: 'include',
           headers: authHeaders({ 'Content-Type': 'application/json' }),
