@@ -1974,6 +1974,7 @@ function UsersAdmin({ token }: { token: string }) {
 }
 
 function DevManager({ token }: { token: string }) {
+  const [subTab,   setSubTab]   = useState<'users' | 'patchnotes'>('users')
   const [users,    setUsers]    = useState<any[]>([])
   const [loading,  setLoading]  = useState(true)
   const [search,   setSearch]   = useState('')
@@ -2006,10 +2007,27 @@ function DevManager({ token }: { token: string }) {
     (u.display_name + u.username).toLowerCase().includes(search.toLowerCase())
   )
 
-  if (loading) return <div className="flex justify-center py-8"><Spinner /></div>
+  if (loading && subTab === 'users') return <div className="flex justify-center py-8"><Spinner /></div>
 
   return (
     <div className="flex flex-col gap-3">
+      {/* Sub-tabs */}
+      <div className="flex gap-1 p-1 rounded-xl" style={{ background: 'var(--eb-bg2)', border: '1px solid var(--eb-border)' }}>
+        {([['users', '⚡ Dev badge'], ['patchnotes', '📋 Patch notes']] as const).map(([k, label]) => (
+          <button key={k} onClick={() => setSubTab(k)}
+            className="flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all"
+            style={{
+              background: subTab === k ? 'var(--eb-bg3)' : 'transparent',
+              color: subTab === k ? 'var(--eb-text1)' : 'var(--eb-text3)',
+              border: subTab === k ? '1px solid var(--eb-border2)' : '1px solid transparent',
+            }}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {subTab === 'patchnotes' && <PatchNoteManager token={token} />}
+      {subTab === 'users' && <>
       <div className="px-3 py-2.5 rounded-xl flex items-center gap-2"
         style={{ background: 'linear-gradient(135deg,rgba(139,92,246,0.1),rgba(167,139,250,0.07))', border: '1px solid rgba(167,139,250,0.25)' }}>
         <span className="text-base">⚡</span>
@@ -2070,6 +2088,218 @@ function DevManager({ token }: { token: string }) {
           <p className="text-xs text-center py-6" style={{ color: 'var(--eb-text3)' }}>Brak użytkowników</p>
         )}
       </div>
+      </>}
+    </div>
+  )
+}
+
+type EntryType = 'new' | 'fix' | 'imp'
+interface PNEntry { type: EntryType; pl: string; en: string }
+interface PatchNote { id: string; version: string; date: string; label_pl: string; label_en: string; entries: PNEntry[]; created_at: string }
+
+function PatchNoteManager({ token }: { token: string }) {
+  const [notes,   setNotes]   = useState<PatchNote[]>([])
+  const [loading, setLoading] = useState(true)
+  const [saving,  setSaving]  = useState(false)
+  const [version, setVersion] = useState('')
+  const [date,    setDate]    = useState(new Date().toISOString().split('T')[0])
+  const [labelPl, setLabelPl] = useState('')
+  const [labelEn, setLabelEn] = useState('')
+  const [entries, setEntries] = useState<PNEntry[]>([{ type: 'new', pl: '', en: '' }])
+  const [expanded, setExpanded] = useState<string | null>(null)
+
+  async function load() {
+    setLoading(true)
+    try {
+      const r = await fetch(`${BASE}/api/admin/patch-notes`, { headers: { Authorization: `Bearer ${token}` } })
+      const d = await r.json()
+      setNotes(d.notes ?? [])
+    } catch {} finally { setLoading(false) }
+  }
+
+  useEffect(() => { load() }, [token])
+
+  function addEntry() { setEntries(e => [...e, { type: 'new', pl: '', en: '' }]) }
+  function removeEntry(i: number) { setEntries(e => e.filter((_, idx) => idx !== i)) }
+  function updateEntry(i: number, field: keyof PNEntry, val: string) {
+    setEntries(e => e.map((en, idx) => idx === i ? { ...en, [field]: val } : en))
+  }
+
+  async function save() {
+    if (!version.trim() || !date.trim() || entries.some(e => !e.pl.trim() || !e.en.trim())) return
+    setSaving(true)
+    try {
+      const r = await fetch(`${BASE}/api/admin/patch-notes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ version, date, labelPl, labelEn, entries }),
+      })
+      if (r.ok) {
+        setVersion(''); setLabelPl(''); setLabelEn('')
+        setEntries([{ type: 'new', pl: '', en: '' }])
+        setDate(new Date().toISOString().split('T')[0])
+        await load()
+      }
+    } catch {} finally { setSaving(false) }
+  }
+
+  async function remove(id: string) {
+    await fetch(`${BASE}/api/admin/patch-notes/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
+    setNotes(n => n.filter(x => x.id !== id))
+  }
+
+  const ENTRY_LABELS: Record<EntryType, string> = { new: '✨ Nowe', fix: '🐛 Poprawka', imp: '⚡ Usprawnienie' }
+  const ENTRY_COLORS: Record<EntryType, string> = { new: '#22c55e', fix: '#60a5fa', imp: '#f59e0b' }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="px-3 py-2.5 rounded-xl flex items-center gap-2"
+        style={{ background: 'linear-gradient(135deg,rgba(99,102,241,0.1),rgba(139,92,246,0.07))', border: '1px solid rgba(139,92,246,0.25)' }}>
+        <span className="text-base">📋</span>
+        <div>
+          <p className="text-xs font-semibold" style={{ color: '#c4b5fd' }}>Patch Notes</p>
+          <p className="text-[10px]" style={{ color: 'var(--eb-text3)' }}>{notes.length} wpisów · widoczne dla wszystkich użytkowników</p>
+        </div>
+      </div>
+
+      {/* Form nowego wpisu */}
+      <div className="flex flex-col gap-2 p-3 rounded-xl" style={{ background: 'var(--eb-bg3)', border: '1px solid var(--eb-border)' }}>
+        <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--eb-text3)' }}>Nowe wydanie</p>
+
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="text-[10px] mb-0.5 block" style={{ color: 'var(--eb-text3)' }}>Wersja</label>
+            <input value={version} onChange={e => setVersion(e.target.value)}
+              placeholder="0.9.0" className="ember-input w-full px-2.5 py-1.5 text-xs"
+              style={{ fontFamily: 'monospace' }} />
+          </div>
+          <div>
+            <label className="text-[10px] mb-0.5 block" style={{ color: 'var(--eb-text3)' }}>Data</label>
+            <input type="date" value={date} onChange={e => setDate(e.target.value)}
+              className="ember-input w-full px-2.5 py-1.5 text-xs" />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="text-[10px] mb-0.5 block" style={{ color: 'var(--eb-text3)' }}>Etykieta PL (opcjonalnie)</label>
+            <input value={labelPl} onChange={e => setLabelPl(e.target.value)}
+              placeholder="np. Pierwsze wydanie" className="ember-input w-full px-2.5 py-1.5 text-xs" />
+          </div>
+          <div>
+            <label className="text-[10px] mb-0.5 block" style={{ color: 'var(--eb-text3)' }}>Label EN (optional)</label>
+            <input value={labelEn} onChange={e => setLabelEn(e.target.value)}
+              placeholder="e.g. First release" className="ember-input w-full px-2.5 py-1.5 text-xs" />
+          </div>
+        </div>
+
+        <div className="h-px my-1" style={{ background: 'var(--eb-border)' }} />
+        <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--eb-text3)' }}>Wpisy</p>
+
+        <div className="flex flex-col gap-2">
+          {entries.map((entry, i) => (
+            <div key={i} className="flex flex-col gap-1.5 p-2 rounded-lg" style={{ background: 'var(--eb-bg2)', border: '1px solid var(--eb-border)' }}>
+              <div className="flex items-center gap-2">
+                <select value={entry.type} onChange={e => updateEntry(i, 'type', e.target.value)}
+                  className="ember-input px-2 py-1 text-[11px] flex-shrink-0" style={{ width: 130 }}>
+                  {(Object.entries(ENTRY_LABELS) as [EntryType, string][]).map(([k, v]) => (
+                    <option key={k} value={k}>{v}</option>
+                  ))}
+                </select>
+                <div className="flex-1" />
+                {entries.length > 1 && (
+                  <button onClick={() => removeEntry(i)}
+                    className="text-[10px] px-2 py-1 rounded transition-colors"
+                    style={{ color: '#f87171', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}>
+                    Usuń
+                  </button>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-1.5">
+                <div>
+                  <label className="text-[9px] mb-0.5 block font-bold" style={{ color: '#a78bfa' }}>🇵🇱 PL</label>
+                  <input value={entry.pl} onChange={e => updateEntry(i, 'pl', e.target.value)}
+                    placeholder="Opis po polsku..." className="ember-input w-full px-2 py-1 text-[11px]" />
+                </div>
+                <div>
+                  <label className="text-[9px] mb-0.5 block font-bold" style={{ color: '#60a5fa' }}>🇬🇧 EN</label>
+                  <input value={entry.en} onChange={e => updateEntry(i, 'en', e.target.value)}
+                    placeholder="Description in English..." className="ember-input w-full px-2 py-1 text-[11px]" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex gap-2 mt-1">
+          <button onClick={addEntry}
+            className="flex-1 py-1.5 rounded-lg text-xs transition-colors"
+            style={{ border: '1px dashed var(--eb-border)', color: 'var(--eb-text3)' }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--eb-accent)'; (e.currentTarget as HTMLElement).style.color = 'var(--eb-accent)' }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--eb-border)'; (e.currentTarget as HTMLElement).style.color = 'var(--eb-text3)' }}>
+            + Dodaj wpis
+          </button>
+          <button onClick={save} disabled={saving || !version.trim() || entries.some(e => !e.pl.trim() || !e.en.trim())}
+            className="px-4 py-1.5 rounded-lg text-xs font-semibold transition-all disabled:opacity-40"
+            style={{ background: 'var(--eb-accent)', color: '#fff' }}>
+            {saving ? '…' : 'Opublikuj'}
+          </button>
+        </div>
+      </div>
+
+      {/* Lista istniejących */}
+      {loading ? (
+        <div className="flex justify-center py-4"><Spinner /></div>
+      ) : notes.length === 0 ? (
+        <p className="text-xs text-center py-4" style={{ color: 'var(--eb-text3)' }}>Brak opublikowanych patch notes</p>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {notes.map(note => (
+            <div key={note.id} className="rounded-xl overflow-hidden"
+              style={{ border: '1px solid var(--eb-border)', background: 'var(--eb-bg3)' }}>
+              <div className="flex items-center gap-2 px-3 py-2.5 cursor-pointer"
+                onClick={() => setExpanded(e => e === note.id ? null : note.id)}>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                  style={{ background: 'var(--eb-gradient)', color: '#fff' }}>
+                  v{note.version}
+                </span>
+                {note.label_pl && (
+                  <span className="text-[9px] px-1.5 py-0.5 rounded-full"
+                    style={{ background: 'rgba(34,197,94,0.1)', color: '#22c55e', border: '0.5px solid rgba(34,197,94,0.3)' }}>
+                    {note.label_pl}
+                  </span>
+                )}
+                <span className="text-[10px] ml-1" style={{ color: 'var(--eb-text3)' }}>{note.date}</span>
+                <span className="text-[10px] ml-1" style={{ color: 'var(--eb-text4)' }}>· {note.entries.length} wpis{note.entries.length === 1 ? '' : note.entries.length < 5 ? 'y' : 'ów'}</span>
+                <div className="ml-auto flex items-center gap-1.5">
+                  <span className="text-[10px]" style={{ color: 'var(--eb-text4)' }}>{expanded === note.id ? '▲' : '▼'}</span>
+                </div>
+              </div>
+              {expanded === note.id && (
+                <div className="px-3 pb-3 flex flex-col gap-1.5">
+                  {note.entries.map((e, i) => (
+                    <div key={i} className="flex items-start gap-2">
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded flex-shrink-0 mt-0.5"
+                        style={{ background: `${ENTRY_COLORS[e.type]}18`, color: ENTRY_COLORS[e.type], border: `0.5px solid ${ENTRY_COLORS[e.type]}40` }}>
+                        {e.type.toUpperCase()}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[11px]" style={{ color: 'var(--eb-text2)' }}>🇵🇱 {e.pl}</p>
+                        <p className="text-[11px]" style={{ color: 'var(--eb-text3)' }}>🇬🇧 {e.en}</p>
+                      </div>
+                    </div>
+                  ))}
+                  <button onClick={() => remove(note.id)}
+                    className="mt-2 self-end text-[10px] px-3 py-1 rounded-lg transition-colors"
+                    style={{ background: 'rgba(239,68,68,0.08)', color: '#f87171', border: '1px solid rgba(239,68,68,0.2)' }}>
+                    Usuń wydanie
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
