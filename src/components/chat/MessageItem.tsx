@@ -7,6 +7,7 @@ import { UserAvatar } from '@/components/ui/UserAvatar'
 import { WarEmbed } from './WarEmbed'
 import { MessageActions } from '@/components/moderation/ModerationMenu'
 import { ReportModal } from '@/components/chat/ReportModal'
+import { ImageLightbox } from '@/components/ui/ImageLightbox'
 import { useStore } from '@/lib/store'
 import { useSocket } from '@/hooks/useSocket'
 
@@ -107,19 +108,24 @@ function MsgBtn({ title, onClick, children }: { title: string; onClick: () => vo
 }
 
 function AttachmentsBlock({ attachments }: { attachments: Message['attachments'] }) {
+  const [lightbox, setLightbox] = useState<{ url: string; filename: string } | null>(null)
   if (!attachments?.length) return null
   return (
+    <>
+      {lightbox && (
+        <ImageLightbox url={lightbox.url} filename={lightbox.filename} onClose={() => setLightbox(null)} />
+      )}
     <div className="flex flex-wrap gap-2 mt-1.5">
       {attachments.map(att => (
         att.contentType?.startsWith('image/') ? (
-          <a key={att.id} href={att.url} target="_blank" rel="noopener noreferrer">
-            <img
-              src={att.url}
-              alt={att.filename}
-              className="rounded-xl object-contain cursor-pointer hover:opacity-90 transition-opacity"
-              style={{ maxHeight: 256, maxWidth: 320, display: 'block' }}
-            />
-          </a>
+          <img
+            key={att.id}
+            src={att.url}
+            alt={att.filename}
+            className="rounded-xl object-contain cursor-pointer hover:opacity-90 transition-opacity"
+            style={{ maxHeight: 256, maxWidth: 320, display: 'block' }}
+            onClick={() => setLightbox({ url: att.url, filename: att.filename })}
+          />
         ) : (
           <a
             key={att.id}
@@ -140,6 +146,7 @@ function AttachmentsBlock({ attachments }: { attachments: Message['attachments']
         )
       ))}
     </div>
+    </>
   )
 }
 

@@ -5,6 +5,7 @@ import { useSocket } from '@/hooks/useSocket'
 import TextareaAutosize from 'react-textarea-autosize'
 import { EmojiPicker } from '@/components/chat/EmojiPicker'
 import { GifPicker } from '@/components/chat/ChatInput'
+import { ImageLightbox } from '@/components/ui/ImageLightbox'
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
@@ -109,6 +110,7 @@ function MsgBubble({ msg, isMe, showAvatar, onReact, onDelete }: {
 }) {
   const [hover, setHover] = useState(false)
   const [emojiPicker, setEmojiPicker] = useState(false)
+  const [lightbox, setLightbox] = useState<{ url: string; filename: string } | null>(null)
   const isDeleted = !!msg.deleted_at
   const QUICK_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🔥']
 
@@ -146,15 +148,17 @@ function MsgBubble({ msg, isMe, showAvatar, onReact, onDelete }: {
             </div>
           )}
           {/* Attachments */}
+          {lightbox && (
+            <ImageLightbox url={lightbox.url} filename={lightbox.filename} onClose={() => setLightbox(null)} />
+          )}
           {!isDeleted && msg.attachments?.length > 0 && (
             <div className="mt-1 flex flex-col gap-1">
               {msg.attachments.map(att => (
                 att.contentType?.startsWith('image/') ? (
-                  <a key={att.id} href={att.url} target="_blank" rel="noreferrer">
-                    <img src={att.url} alt={att.filename}
-                      className="rounded-xl max-w-[280px] max-h-[280px] object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                      style={{ border: '1px solid var(--eb-border)' }} />
-                  </a>
+                  <img key={att.id} src={att.url} alt={att.filename}
+                    className="rounded-xl max-w-[280px] max-h-[280px] object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                    style={{ border: '1px solid var(--eb-border)' }}
+                    onClick={() => setLightbox({ url: att.url, filename: att.filename })} />
                 ) : (
                   <a key={att.id} href={att.url} target="_blank" rel="noreferrer"
                     className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs"
