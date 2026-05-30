@@ -9,6 +9,8 @@ import { ReportModal } from '@/components/chat/ReportModal'
 import { UserSettings } from '@/components/settings/UserSettings'
 import { EmojiPicker } from '@/components/chat/EmojiPicker'
 import { ForumView } from '@/components/forum/ForumView'
+import { MessageItem } from '@/components/chat/MessageItem'
+import { usePermissions } from '@/hooks/usePermissions'
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
@@ -165,14 +167,16 @@ function MobileGifPicker({ onSelect, onClose }: { onSelect: (url: string) => voi
 /* ─── Chat Screen ───────────────────────────────────────────────── */
 function ChatScreen() {
   const { servers, channels, currentServerId, currentChannelId, setCurrentServer, setCurrentChannel, currentUser, voice, token } = useStore()
-  const { sendMessage }  = useSocket()
+  const { sendMessage, addReaction, emit }  = useSocket()
+  const { canManageMessages } = usePermissions(currentServerId ?? null)
   const { openDevicePicker, disconnect, toggleMute, muted, participants } = useVoice()
   const currentChannelIdSafe = currentChannelId ?? ''
   const { messages, loading } = useMessages(currentChannelIdSafe)
   const [serverPickerOpen, setServerPickerOpen] = useState(false)
   const [text, setText]                         = useState('')
   const [reportMsg, setReportMsg]           = useState<null | { id: string; content: string; author: string }>(null)
-  const [ctxMenu, setCtxMenu]               = useState<null | { msgId: string; content: string; author: string; y: number }>(null)
+  const [ctxMenu, setCtxMenu]               = useState<null | { msgId: string; content: string; author: string; y: number; isMine: boolean }>(null)
+  const [reactionPickerMsg, setReactionPickerMsg] = useState<string | null>(null)
   const [showEmoji, setShowEmoji]           = useState(false)
   const [showGif, setShowGif]               = useState(false)
   const [showVoicePanel, setShowVoicePanel] = useState(false)
@@ -222,14 +226,16 @@ function ChatScreen() {
     sendMessage(currentChannelId, currentServerId, url)
   }
 
-  function onLongPressStart(msgId: string, content: string, author: string, clientY: number) {
+  function onLongPressStart(msgId: string, content: string, author: string, clientY: number, isMine: boolean) {
     pressTimer.current = setTimeout(() => {
-      setCtxMenu({ msgId, content, author, y: clientY })
-    }, 500)
+      setCtxMenu({ msgId, content, author, y: clientY, isMine })
+    }, 450)
   }
   function onLongPressEnd() {
     if (pressTimer.current) clearTimeout(pressTimer.current)
   }
+
+  const QUICK_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🔥']
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }}>
@@ -254,13 +260,6 @@ function ChatScreen() {
         <span className="mobile-header-title" style={{ fontSize: 13 }}>
           {currentChannel ? `~ ${currentChannel.name}` : ''}
         </span>
-        {/* Report button */}
-        {currentChannel && (
-          <button className="icon-btn" style={{ flexShrink: 0 }}
-            onClick={() => setCtxMenu({ msgId: '', content: '', author: '', y: 0 })}>
-            <IC.Flag />
-          </button>
-        )}
       </div>
 
       {/* Channel strip */}
@@ -341,87 +340,26 @@ function ChatScreen() {
         ) : null}
 
         {messages.map((msg: any) => {
-          const isMine    = msg.author?.id === currentUser?.id || msg.userId === currentUser?.id
-          const isAdmin   = Boolean(msg.isAdminMsg)
-          const authorName = isAdmin ? 'Administrator Aplikacji' : (msg.author?.displayName ?? msg.author?.display_name ?? msg.author?.username ?? 'Użytkownik')
-          const timeStr   = msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString('pl', { hour: '2-digit', minute: '2-digit' }) : ''
-          const isGif     = typeof msg.content === 'string' && /^https?:\/\/(media\.tenor\.com|media[0-9]*\.giphy\.com|tenor\.com)/i.test(msg.content.trim())
+          const isMine     = msg.author?.id === currentUser?.id
+          const authorName = msg.author?.displayName ?? msg.author?.display_name ?? msg.author?.username ?? 'Użytkownik'
           return (
             <div
               key={msg.id}
-              onTouchStart={e => onLongPressStart(msg.id, msg.content, authorName, e.touches[0].clientY)}
+              onTouchStart={e => onLongPressStart(msg.id, msg.content, authorName, e.touches[0].clientY, isMine)}
               onTouchEnd={onLongPressEnd}
               onTouchMove={onLongPressEnd}
               style={{
-                display: 'flex', gap: 10, padding: '4px 12px',
-                background: ctxMenu?.msgId === msg.id
-                  ? 'rgba(255,255,255,0.04)'
-                  : isAdmin ? 'rgba(124,58,237,0.06)' : 'transparent',
-                borderLeft: isAdmin ? '2px solid #7c3aed' : 'none',
+                padding: '2px 8px',
+                background: ctxMenu?.msgId === msg.id ? 'rgba(255,255,255,0.04)' : 'transparent',
               }}
             >
-              {/* Avatar */}
-              {isAdmin ? (
-                <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg,#7c3aed,#4f46e5)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, flexShrink: 0, marginTop: 2 }}>⚡</div>
-              ) : (
-                <Av
-                  url={msg.author?.avatar ?? msg.author?.avatar_url}
-                  color={msg.author?.avatarColor ?? msg.author?.avatar_color ?? '#f59e0b'}
-                  name={authorName}
-                  size={32}
-                />
-              )}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                {/* Reply reference */}
-                {msg.replyTo && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3, paddingLeft: 6, borderLeft: '2px solid var(--eb-accent)' }}>
-                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="var(--eb-text3)" strokeWidth="2.5"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
-                    <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--eb-accent)', flexShrink: 0 }}>{msg.replyTo.authorName}</span>
-                    <span style={{ fontSize: 11, color: 'var(--eb-text3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {/^https?:\/\/(media\.tenor\.com|media[0-9]*\.giphy\.com|tenor\.com)/i.test(msg.replyTo.content ?? '') ? '🖼 GIF' : msg.replyTo.content}
-                    </span>
-                  </div>
-                )}
-                {/* Header row */}
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 5, marginBottom: 2 }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: isAdmin ? '#a78bfa' : 'var(--eb-text1)' }}>
-                    {authorName}
-                  </span>
-                  {isAdmin && (
-                    <span style={{ fontSize: 9, fontWeight: 600, color: '#a78bfa', background: 'rgba(124,58,237,0.18)', border: '0.5px solid rgba(124,58,237,0.5)', borderRadius: 4, padding: '1px 5px', letterSpacing: '0.03em' }}>⚡ ADMIN</span>
-                  )}
-                  <span style={{ fontSize: 10, color: 'var(--eb-text3)' }}>{timeStr}</span>
-                </div>
-                {/* Content */}
-                {isGif ? (
-                  <img src={msg.content.trim()} alt="GIF" style={{ borderRadius: 10, maxHeight: 160, maxWidth: '85%', objectFit: 'contain', display: 'block', marginTop: 2 }} />
-                ) : (
-                  <div style={{ fontSize: 14, color: 'var(--eb-text2)', lineHeight: 1.45, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
-                    {msg.content}
-                  </div>
-                )}
-                {/* Attachments */}
-                {(msg.attachments ?? []).length > 0 && (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
-                    {msg.attachments.map((a: any) => (
-                      a.contentType?.startsWith('image/') ? (
-                        <img key={a.id} src={a.previewUrl ?? a.url} alt={a.filename} style={{ borderRadius: 8, maxHeight: 160, maxWidth: '85%', objectFit: 'contain', display: 'block' }} />
-                      ) : (
-                        <a key={a.id} href={a.url} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--eb-bg3)', borderRadius: 8, padding: '6px 10px', fontSize: 12, color: 'var(--eb-accent)', textDecoration: 'none' }}>
-                          📎 {a.filename}
-                        </a>
-                      )
-                    ))}
-                  </div>
-                )}
-              </div>
-              {/* Action: reply */}
-              <button
-                onTouchStart={e => { e.stopPropagation(); setReplyTo({ id: msg.id, authorName, content: msg.content ?? '' }); inputRef.current?.focus() }}
-                style={{ background: 'none', border: 'none', color: 'var(--eb-text3)', padding: '2px 4px', alignSelf: 'flex-start', flexShrink: 0, opacity: 0.6 }}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
-              </button>
+              <MessageItem
+                message={msg}
+                canManageMessages={canManageMessages}
+                onReply={info => { setReplyTo(info); inputRef.current?.focus() }}
+                onDelete={() => emit('MESSAGE_DELETE', { messageId: msg.id, channelId: currentChannelId })}
+                onPin={() => {}}
+              />
             </div>
           )
         })}
@@ -510,6 +448,19 @@ function ChatScreen() {
         />
       )}
 
+      {/* Reaction emoji picker (z menu kontekstowego) */}
+      {reactionPickerMsg && currentChannelId && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 400, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)' }} onClick={() => setReactionPickerMsg(null)} />
+          <div style={{ position: 'relative', zIndex: 1, maxHeight: '65vh', overflow: 'hidden', borderRadius: '20px 20px 0 0' }}>
+            <EmojiPicker
+              serverId={currentServerId ?? undefined}
+              onSelect={(val) => { addReaction(reactionPickerMsg, currentChannelId, val); setReactionPickerMsg(null) }}
+            />
+          </div>
+        </div>
+      )}
+
       {showVoicePanel && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 400, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
           <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)' }} onClick={() => setShowVoicePanel(false)} />
@@ -576,21 +527,50 @@ function ChatScreen() {
             }}
             onClick={e => e.stopPropagation()}
           >
+            {/* Szybkie reakcje */}
+            {ctxMenu.msgId && (
+              <div style={{ display: 'flex', gap: 4, padding: '10px 12px', borderBottom: '0.5px solid var(--eb-border)', justifyContent: 'space-between' }}>
+                {QUICK_REACTIONS.map(emoji => (
+                  <button key={emoji}
+                    onClick={() => { if (currentChannelId) addReaction(ctxMenu.msgId, currentChannelId, emoji); setCtxMenu(null) }}
+                    style={{ flex: 1, fontSize: 22, background: 'rgba(255,255,255,0.04)', border: 'none', borderRadius: 10, padding: '6px 0', cursor: 'pointer' }}>
+                    {emoji}
+                  </button>
+                ))}
+                <button
+                  onClick={() => { setReactionPickerMsg(ctxMenu.msgId); setCtxMenu(null) }}
+                  style={{ flex: 1, fontSize: 18, background: 'rgba(255,255,255,0.04)', border: 'none', borderRadius: 10, padding: '6px 0', cursor: 'pointer', color: 'var(--eb-text3)' }}>
+                  ➕
+                </button>
+              </div>
+            )}
             <div style={{ padding: '12px 16px', borderBottom: '0.5px solid var(--eb-border)', fontSize: 12, color: 'var(--eb-text3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               Wiadomość od <strong style={{ color: 'var(--eb-text2)' }}>{ctxMenu.author}</strong>
             </div>
-            <button
-              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', background: 'none', border: 'none', color: 'var(--eb-text2)', fontSize: 14, cursor: 'pointer' }}
-              onClick={() => { setReplyTo({ id: ctxMenu.msgId, authorName: ctxMenu.author, content: ctxMenu.content }); setCtxMenu(null); inputRef.current?.focus() }}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg> Odpowiedz
-            </button>
-            <button
-              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', background: 'none', border: 'none', color: '#ef4444', fontSize: 14, cursor: 'pointer', borderTop: '0.5px solid var(--eb-border)' }}
-              onClick={() => { setReportMsg({ id: ctxMenu.msgId, content: ctxMenu.content, author: ctxMenu.author }); setCtxMenu(null) }}
-            >
-              <IC.Flag /> Zgłoś wiadomość
-            </button>
+            {ctxMenu.msgId && (
+              <button
+                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', background: 'none', border: 'none', color: 'var(--eb-text2)', fontSize: 14, cursor: 'pointer' }}
+                onClick={() => { setReplyTo({ id: ctxMenu.msgId, authorName: ctxMenu.author, content: ctxMenu.content }); setCtxMenu(null); inputRef.current?.focus() }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg> Odpowiedz
+              </button>
+            )}
+            {ctxMenu.msgId && (ctxMenu.isMine || canManageMessages) && (
+              <button
+                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', background: 'none', border: 'none', color: '#ef4444', fontSize: 14, cursor: 'pointer', borderTop: '0.5px solid var(--eb-border)' }}
+                onClick={() => { if (currentChannelId) emit('MESSAGE_DELETE', { messageId: ctxMenu.msgId, channelId: currentChannelId }); setCtxMenu(null) }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg> Usuń wiadomość
+              </button>
+            )}
+            {ctxMenu.msgId && !ctxMenu.isMine && (
+              <button
+                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', background: 'none', border: 'none', color: '#ef4444', fontSize: 14, cursor: 'pointer', borderTop: '0.5px solid var(--eb-border)' }}
+                onClick={() => { setReportMsg({ id: ctxMenu.msgId, content: ctxMenu.content, author: ctxMenu.author }); setCtxMenu(null) }}
+              >
+                <IC.Flag /> Zgłoś wiadomość
+              </button>
+            )}
             <button
               style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', background: 'none', border: 'none', color: 'var(--eb-text2)', fontSize: 14, cursor: 'pointer', borderTop: '0.5px solid var(--eb-border)' }}
               onClick={() => setCtxMenu(null)}
