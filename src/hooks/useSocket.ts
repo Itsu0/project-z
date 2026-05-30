@@ -209,6 +209,13 @@ export function useSocket() {
     s.on('KICKED', handleForcedLeave)
     s.on('BANNED', handleForcedLeave)
 
+    s.on('PLATFORM_BANNED', (data: { reason: string }) => {
+      useStore.getState().clearAuth()
+      document.cookie = 'pz_token=; Max-Age=0; path=/; domain=.project-z.cloud'
+      alert(`Twoje konto zostało zablokowane na platformie.\nPowód: ${data.reason}`)
+      window.location.href = '/login'
+    })
+
     s.on('PRESENCE_UPDATE', (data: { userId: string; status: string }) => {
       useStore.getState().updateMemberStatus(data.userId, data.status)
     })
