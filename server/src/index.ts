@@ -93,6 +93,9 @@ const authLimiter = rateLimit({
   message:   { error: 'Zbyt wiele prób logowania, spróbuj za 15 minut' },
   standardHeaders: true,
   legacyHeaders:   false,
+  // Pomijaj endpointy read-only wymagające ważnego tokenu (nie są wektorem brute-force,
+  // a /me jest wołane przy każdym ładowaniu/reconnekcie aplikacji).
+  skip: (req) => req.path.endsWith('/me') || req.path.endsWith('/status') || req.path.endsWith('/settings'),
 })
 
 const messageLimiter = rateLimit({
