@@ -121,8 +121,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setReady(true)
       })
       .catch(() => {
+        // Token nieważny/wygasły (np. po rotacji JWT_SECRET) — wyczyść i wymuś login.
         clearAuth()
-        router.push('/auth/login')
+        try { tokenStore.clear() } catch {}
+        setReady(true) // defensywnie — żeby nie wisieć na ekranie ładowania
+        if (typeof window !== 'undefined') window.location.replace('/auth/login')
+        else router.push('/auth/login')
       })
   }, [])
 
