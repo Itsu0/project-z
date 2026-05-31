@@ -145,7 +145,7 @@ router.get('/:serverId/search', requireAuth, async (req: Request, res: Response)
   try {
     const { serverId } = req.params
     const q     = ((req.query.q as string) ?? '').trim()
-    const limit = Math.min(Number(req.query.limit ?? 25), 50)
+    const limit = Math.max(1, Math.min(Number(req.query.limit ?? 25) || 25, 50))
 
     if (!q || q.length < 3) return res.json({ messages: [] })
 

@@ -22,8 +22,8 @@ async function assertMember(userId: string, serverId: string, res: Response): Pr
 router.get('/:channelId/posts', requireAuth, async (req: Request, res: Response) => {
   try {
     const { channelId } = req.params
-    const limit  = Math.min(parseInt(String(req.query.limit  ?? 30), 10) || 30, 50)
-    const offset = parseInt(String(req.query.offset ?? 0), 10) || 0
+    const limit  = Math.max(1, Math.min(parseInt(String(req.query.limit  ?? 30), 10) || 30, 50))
+    const offset = Math.max(0, parseInt(String(req.query.offset ?? 0), 10) || 0)
 
     const channel = await queryOne<{ server_id: string; mod_only: number }>('SELECT server_id, COALESCE(mod_only,0) AS mod_only FROM channels WHERE id = ?', [channelId])
     if (!channel) return res.status(404).json({ error: 'Kanał nie istnieje' })

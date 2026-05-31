@@ -449,7 +449,7 @@ router.get('/:serverId/mod-log', requireAuth, async (req: Request, res: Response
     const { serverId } = req.params
     if (!await canModerate(req.user!.userId, serverId, 'KICK_MEMBERS'))
       return res.status(403).json({ error: 'Brak uprawnień' })
-    const limit = Math.min(Number(req.query.limit ?? 50), 100)
+    const limit = Math.max(1, Math.min(Number(req.query.limit ?? 50) || 50, 100))
     const logs = await queryMany(
       `SELECT l.*,
               mu.display_name as mod_name, mu.avatar_color as mod_avatar_color,

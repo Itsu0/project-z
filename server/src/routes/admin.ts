@@ -222,7 +222,7 @@ router.get('/ghost/:serverId/messages/:channelId', requireAuth, async (req: Requ
   if (!(await requireStaff(req, res))) return
   try {
     const { serverId, channelId } = req.params
-    const limit    = Math.min(Number(req.query.limit ?? 50), 100) | 0
+    const limit    = Math.max(1, Math.min(Number(req.query.limit ?? 50) || 50, 100)) | 0
     const chCheck = await queryOne<{ server_id: string }>('SELECT server_id FROM channels WHERE id = ?', [channelId])
     if (!chCheck || chCheck.server_id !== serverId) return res.status(404).json({ error: 'Kanał nie istnieje' })
     const beforeId = req.query.before as string | undefined

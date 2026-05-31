@@ -7,7 +7,7 @@ const router = Router()
 
 router.get('/', requireAuth, async (req: Request, res: Response) => {
   try {
-    const limit = Math.min(Number(req.query.limit ?? 50), 100)
+    const limit = Math.max(1, Math.min(Number(req.query.limit ?? 50) || 50, 100))
     const notifications = await queryMany(
       `SELECT n.*,
         m.content as message_content,
