@@ -12,6 +12,7 @@ import { ForumView } from '@/components/forum/ForumView'
 import { MessageItem } from '@/components/chat/MessageItem'
 import { usePermissions } from '@/hooks/usePermissions'
 import { ConvView } from '@/components/dm/DMPanel'
+import { ScreenShareView } from '@/components/voice/ScreenShareView'
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
@@ -175,7 +176,9 @@ function ChatScreen() {
   const { servers, channels, currentServerId, currentChannelId, setCurrentServer, setCurrentChannel, currentUser, voice, token } = useStore()
   const { sendMessage, addReaction, emit }  = useSocket()
   const { canManageMessages } = usePermissions(currentServerId ?? null)
-  const { openDevicePicker, disconnect, toggleMute, muted, participants } = useVoice()
+  const { openDevicePicker, disconnect, toggleMute, muted, participants,
+          deafened, toggleDeafen, latency, screenSharing, toggleScreenShare,
+          screenTracks, setShowStream, setWatchingIdentity } = useVoice()
   const currentChannelIdSafe = currentChannelId ?? ''
   const { messages, loading } = useMessages(currentChannelIdSafe)
   const [serverPickerOpen, setServerPickerOpen] = useState(false)
@@ -242,6 +245,7 @@ function ChatScreen() {
   }
 
   const QUICK_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🔥']
+  const pingColor = (ms: number) => ms < 80 ? 'var(--eb-online)' : ms < 150 ? '#facc15' : ms < 250 ? 'var(--eb-accent)' : 'var(--eb-accent2)'
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }}>
@@ -306,6 +310,11 @@ function ChatScreen() {
                 <span style={{ fontSize: 11, color: 'var(--eb-text3)', fontWeight: 400, flexShrink: 0 }}>{participants.length} os. ›</span>
               )}
             </button>
+            {latency !== null && (
+              <span style={{ fontSize: 10, fontWeight: 600, color: pingColor(latency), background: `${pingColor(latency)}1a`, border: `0.5px solid ${pingColor(latency)}40`, borderRadius: 8, padding: '2px 6px', flexShrink: 0 }}>
+                {latency}ms
+              </span>
+            )}
             <button onClick={() => toggleMute()}
               style={{ background: muted ? 'rgba(239,68,68,0.15)' : 'rgba(34,197,94,0.12)', border: `0.5px solid ${muted ? 'rgba(239,68,68,0.3)' : 'rgba(34,197,94,0.3)'}`, borderRadius: 20, padding: '4px 11px', fontSize: 12, fontWeight: 500, color: muted ? '#ef4444' : 'var(--eb-online)', cursor: 'pointer', flexShrink: 0 }}>
               {muted ? '🔇' : '🎤'}
@@ -471,20 +480,51 @@ function ChatScreen() {
         <div style={{ position: 'fixed', inset: 0, zIndex: 400, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
           <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)' }} onClick={() => setShowVoicePanel(false)} />
           <div style={{ position: 'relative', background: 'var(--eb-bg1)', borderRadius: '20px 20px 0 0', border: '0.5px solid var(--eb-border2)', zIndex: 1, paddingBottom: 'env(safe-area-inset-bottom, 0px)', maxHeight: '75vh', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ padding: '16px 16px 12px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: '0.5px solid var(--eb-border)', flexShrink: 0 }}>
-              <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--eb-online)' }} />
-              <span style={{ flex: 1, fontSize: 15, fontWeight: 600, color: 'var(--eb-text1)' }}>
+            <div style={{ padding: '16px 16px 10px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: '0.5px solid var(--eb-border)', flexShrink: 0 }}>
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--eb-online)', flexShrink: 0 }} />
+              <span style={{ flex: 1, fontSize: 15, fontWeight: 600, color: 'var(--eb-text1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {serverChannels.find(c => c.id === voice.channelId)?.name ?? 'Kanał głosowy'}
               </span>
-              <button onClick={() => toggleMute()}
-                style={{ background: muted ? 'rgba(239,68,68,0.15)' : 'rgba(34,197,94,0.12)', border: 'none', borderRadius: 20, padding: '6px 14px', fontSize: 13, fontWeight: 500, color: muted ? '#ef4444' : 'var(--eb-online)', cursor: 'pointer' }}>
-                {muted ? '🔇 Wyciszony' : '🎤 Aktywny'}
-              </button>
-              <button onClick={() => { disconnect(); setShowVoicePanel(false) }}
-                style={{ background: 'rgba(239,68,68,0.12)', border: 'none', borderRadius: 20, padding: '6px 14px', fontSize: 13, fontWeight: 500, color: '#ef4444', cursor: 'pointer' }}>
-                Rozłącz
-              </button>
+              {latency !== null && (
+                <span style={{ fontSize: 11, fontWeight: 600, color: pingColor(latency), background: `${pingColor(latency)}1a`, borderRadius: 8, padding: '2px 7px', flexShrink: 0 }}>
+                  {latency}ms
+                </span>
+              )}
             </div>
+
+            {/* Rząd kontrolek */}
+            <div style={{ display: 'flex', gap: 8, padding: '12px 16px', borderBottom: '0.5px solid var(--eb-border)', flexShrink: 0 }}>
+              {[
+                { label: muted ? 'Wycisz.' : 'Mikrofon', icon: muted ? '🔇' : '🎤', active: muted, danger: muted, onClick: () => toggleMute() },
+                { label: deafened ? 'Wygłusz.' : 'Głośnik', icon: deafened ? '🔇' : '🔊', active: deafened, danger: deafened, onClick: () => toggleDeafen() },
+                { label: screenSharing ? 'Stop' : 'Ekran', icon: '🖥', active: screenSharing, danger: false, onClick: () => toggleScreenShare() },
+                { label: 'Rozłącz', icon: '📴', active: false, danger: true, onClick: () => { disconnect(); setShowVoicePanel(false) } },
+              ].map((b, i) => (
+                <button key={i} onClick={b.onClick}
+                  style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '8px 0', borderRadius: 12, border: '0.5px solid var(--eb-border)', cursor: 'pointer',
+                    background: b.danger && b.active ? 'rgba(239,68,68,0.12)' : b.active ? 'rgba(245,158,11,0.12)' : 'rgba(255,255,255,0.04)' }}>
+                  <span style={{ fontSize: 18 }}>{b.icon}</span>
+                  <span style={{ fontSize: 10, color: b.danger && b.active ? '#ef4444' : b.active ? 'var(--eb-accent)' : 'var(--eb-text3)' }}>{b.label}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* Oglądanie udostępnionego ekranu */}
+            {screenTracks.length > 0 && (
+              <div style={{ padding: '10px 16px', borderBottom: '0.5px solid var(--eb-border)', flexShrink: 0 }}>
+                {screenTracks.map(st => (
+                  <button key={st.identity}
+                    onClick={() => { setWatchingIdentity(st.identity); setShowStream(true); setShowVoicePanel(false) }}
+                    style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 12, background: 'rgba(74,158,255,0.08)', border: '0.5px solid rgba(74,158,255,0.25)', cursor: 'pointer' }}>
+                    <span style={{ fontSize: 18 }}>🖥</span>
+                    <span style={{ flex: 1, textAlign: 'left', fontSize: 13, color: 'var(--eb-text1)' }}>
+                      <b>{st.name}</b> udostępnia ekran
+                    </span>
+                    <span style={{ fontSize: 12, color: 'var(--eb-voice)', fontWeight: 600 }}>Oglądaj ›</span>
+                  </button>
+                ))}
+              </div>
+            )}
             <div style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
               {participants.length === 0
                 ? <div style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--eb-text3)', fontSize: 13 }}>Tylko Ty jesteś na kanale</div>
@@ -1093,6 +1133,9 @@ export function MobileApp() {
         {tab === 'notifications' && <NotificationsScreen />}
         {tab === 'profile'       && <ProfileScreen />}
       </div>
+
+      {/* Podgląd udostępnionego ekranu (pełny ekran) */}
+      <ScreenShareView />
 
       {/* Bottom nav */}
       <nav className="mobile-bottom-nav">
