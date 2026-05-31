@@ -11,10 +11,11 @@ import { EmojiPicker } from '@/components/chat/EmojiPicker'
 import { ForumView } from '@/components/forum/ForumView'
 import { MessageItem } from '@/components/chat/MessageItem'
 import { usePermissions } from '@/hooks/usePermissions'
+import { ConvView } from '@/components/dm/DMPanel'
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
-type Tab = 'chat' | 'members' | 'notifications' | 'profile'
+type Tab = 'chat' | 'dm' | 'members' | 'notifications' | 'profile'
 
 /* ─── SVG Icons ─────────────────────────────────────────────────── */
 const IC = {
@@ -26,6 +27,11 @@ const IC = {
   Members: ({ a }: { a: boolean }) => (
     <svg viewBox="0 0 24 24" fill={a ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={a ? 0 : 1.8}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+    </svg>
+  ),
+  DM: ({ a }: { a: boolean }) => (
+    <svg viewBox="0 0 24 24" fill={a ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={a ? 0 : 1.8}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" />
     </svg>
   ),
   Bell: ({ a }: { a: boolean }) => (
@@ -954,12 +960,101 @@ function ProfileScreen() {
   )
 }
 
+/* ─── DM Screen ─────────────────────────────────────────────────── */
+function fmtDmTime(iso: string) {
+  const d = new Date(iso), now = new Date()
+  const diff = now.getTime() - d.getTime()
+  if (diff < 86400000 && d.getDate() === now.getDate())
+    return d.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })
+  if (diff < 7 * 86400000)
+    return d.toLocaleDateString('pl-PL', { weekday: 'short' })
+  return d.toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit' })
+}
+
+function DMScreen() {
+  const { token, currentUser, dmConversations, setDmConversations, activeDmConvId, setActiveDmConvId, dmUnread } = useStore()
+
+  useEffect(() => {
+    if (!token || !currentUser) return
+    fetch(`${BASE}/api/dm`, { credentials: 'include', headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json())
+      .then(d => { if (d.conversations) setDmConversations(d.conversations) })
+      .catch(() => {})
+  }, [token, currentUser?.id, activeDmConvId])
+
+  const activeConv = activeDmConvId ? dmConversations.find(c => c.id === activeDmConvId) : null
+
+  // Otwarty czat DM — pełny ekran
+  if (activeConv) {
+    return (
+      <div style={{ height: '100%', background: 'var(--eb-bg0)' }}>
+        <ConvView conv={activeConv} onBack={() => setActiveDmConvId(null)} />
+      </div>
+    )
+  }
+
+  // Lista konwersacji
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <div className="mobile-header">
+        <span className="mobile-header-title">Wiadomości</span>
+      </div>
+      <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
+        {dmConversations.length === 0 ? (
+          <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--eb-text3)', fontSize: 13 }}>
+            <div style={{ fontSize: 28, marginBottom: 8 }}>💬</div>
+            Brak rozmów.<br />Dodaj znajomych w Profil → Ustawienia → Znajomi, aby zacząć.
+          </div>
+        ) : dmConversations.map(conv => {
+          const unread = dmUnread[conv.id] ?? 0
+          const isMine = conv.last_author_id === currentUser?.id
+          return (
+            <button key={conv.id} onClick={() => setActiveDmConvId(conv.id)}
+              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', background: 'none', border: 'none', borderBottom: '0.5px solid var(--eb-border)', cursor: 'pointer', textAlign: 'left' }}>
+              <div style={{ position: 'relative', flexShrink: 0 }}>
+                <Av url={conv.avatar_url} color={conv.avatar_color} name={conv.display_name} size={44} />
+                <div style={{ position: 'absolute', bottom: 0, right: 0, width: 11, height: 11, borderRadius: '50%', background: conv.status === 'online' ? 'var(--eb-online)' : conv.status === 'idle' ? 'var(--eb-accent)' : conv.status === 'dnd' ? 'var(--eb-accent2)' : 'var(--eb-text3)', border: '2px solid var(--eb-bg0)' }} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--eb-text1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{conv.display_name}</span>
+                  {conv.last_msg_at && <span style={{ fontSize: 10, color: 'var(--eb-text3)', flexShrink: 0 }}>{fmtDmTime(conv.last_msg_at)}</span>}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ flex: 1, fontSize: 12, color: unread > 0 ? 'var(--eb-text2)' : 'var(--eb-text3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {conv.last_content ? (isMine ? `Ty: ${conv.last_content}` : conv.last_content) : <span style={{ fontStyle: 'italic' }}>Brak wiadomości</span>}
+                  </span>
+                  {unread > 0 && (
+                    <span style={{ flexShrink: 0, fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 10, background: 'var(--eb-accent2)', color: '#fff', minWidth: 18, textAlign: 'center' }}>
+                      {unread > 99 ? '99+' : unread}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 /* ─── MobileApp root ─────────────────────────────────────────────── */
 export function MobileApp() {
   const [tab, setTab] = useState<Tab>('chat')
   const token = useStore(s => s.token)
+  const activeDmConvId = useStore(s => s.activeDmConvId)
+  const dmUnread = useStore(s => s.dmUnread)
   const { on, off } = useSocket()
   const [notifCount, setNotifCount] = useState(0)
+  const dmUnreadTotal = Object.values(dmUnread).reduce((a, b) => a + b, 0)
+
+  // Gdy DM zostanie otwarte z innego miejsca (np. ze znajomych w ustawieniach) — przełącz na zakładkę DM
+  const prevDmRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (activeDmConvId && activeDmConvId !== prevDmRef.current) setTab('dm')
+    prevDmRef.current = activeDmConvId
+  }, [activeDmConvId])
 
   // Liczba nieprzeczytanych powiadomień (initial + live przez socket)
   useEffect(() => {
@@ -982,6 +1077,7 @@ export function MobileApp() {
 
   const TABS: { id: Tab; label: string; Icon: React.FC; badge?: number }[] = [
     { id: 'chat',          label: 'Czaty',        Icon: () => <IC.Chat a={tab === 'chat'} /> },
+    { id: 'dm',            label: 'DM',           Icon: () => <IC.DM a={tab === 'dm'} />, badge: dmUnreadTotal },
     { id: 'members',       label: 'Członkowie',   Icon: () => <IC.Members a={tab === 'members'} /> },
     { id: 'notifications', label: 'Aktywność',    Icon: () => <IC.Bell a={tab === 'notifications'} />, badge: notifCount },
     { id: 'profile',       label: 'Profil',       Icon: () => <IC.User a={tab === 'profile'} /> },
@@ -992,6 +1088,7 @@ export function MobileApp() {
       {/* Screen */}
       <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
         {tab === 'chat'          && <ChatScreen />}
+        {tab === 'dm'            && <DMScreen />}
         {tab === 'members'       && <MembersScreen />}
         {tab === 'notifications' && <NotificationsScreen />}
         {tab === 'profile'       && <ProfileScreen />}

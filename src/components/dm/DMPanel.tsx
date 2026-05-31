@@ -224,7 +224,7 @@ function MsgBubble({ msg, isMe, showAvatar, onReact, onDelete }: {
 
 // ── Conversation view ─────────────────────────────────────────────────────────
 
-function ConvView({ conv }: { conv: DmConversation }) {
+export function ConvView({ conv, onBack }: { conv: DmConversation; onBack?: () => void }) {
   const {
     currentUser, token, dmMessages, addDmMessage, updateDmMessage, deleteDmMessage,
     setDmMessages, prependDmMessages, clearDmUnread, updateDmConvLastMsg,
@@ -408,6 +408,11 @@ function ConvView({ conv }: { conv: DmConversation }) {
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3 border-b flex-shrink-0"
         style={{ borderColor: 'var(--eb-border)', background: 'var(--eb-bg1)' }}>
+        {onBack && (
+          <button onClick={onBack} className="flex-shrink-0 -ml-1 p-1" style={{ color: 'var(--eb-text2)' }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
+          </button>
+        )}
         <div className="relative">
           <UserAvatar user={{ avatar_url: conv.avatar_url, avatar_color: conv.avatar_color, display_name: conv.display_name }} size={34} />
           <StatusDot status={conv.status} />
