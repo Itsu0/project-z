@@ -13,6 +13,7 @@ import { MessageItem } from '@/components/chat/MessageItem'
 import { usePermissions } from '@/hooks/usePermissions'
 import { ConvView } from '@/components/dm/DMPanel'
 import { ScreenShareView } from '@/components/voice/ScreenShareView'
+import { ServerSettings } from '@/components/settings/ServerSettings'
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
@@ -175,7 +176,8 @@ function MobileGifPicker({ onSelect, onClose }: { onSelect: (url: string) => voi
 function ChatScreen() {
   const { servers, channels, currentServerId, currentChannelId, setCurrentServer, setCurrentChannel, currentUser, voice, token } = useStore()
   const { sendMessage, addReaction, emit }  = useSocket()
-  const { canManageMessages } = usePermissions(currentServerId ?? null)
+  const { canManageMessages, canManageServer, canManageChannels, canManageRoles, canKick, canBan, canMute } = usePermissions(currentServerId ?? null)
+  const canOpenServerSettings = canManageServer || canManageChannels || canManageRoles || canKick || canBan || canMute
   const { openDevicePicker, disconnect, toggleMute, muted, participants,
           deafened, toggleDeafen, latency, screenSharing, toggleScreenShare,
           screenTracks, setShowStream, setWatchingIdentity } = useVoice()
@@ -189,6 +191,7 @@ function ChatScreen() {
   const [showEmoji, setShowEmoji]           = useState(false)
   const [showGif, setShowGif]               = useState(false)
   const [showVoicePanel, setShowVoicePanel] = useState(false)
+  const [showServerSettings, setShowServerSettings] = useState(false)
   const [uploadingFile, setUploadingFile]   = useState(false)
   const [pendingAttachment, setPendingAttachment] = useState<{ id: string; url: string; filename: string; contentType: string; previewUrl?: string } | null>(null)
   const [replyTo, setReplyTo] = useState<{ id: string; authorName: string; content: string } | null>(null)
@@ -270,6 +273,14 @@ function ChatScreen() {
         <span className="mobile-header-title" style={{ fontSize: 13 }}>
           {currentChannel ? `~ ${currentChannel.name}` : ''}
         </span>
+        {currentServerId && canOpenServerSettings && (
+          <button className="icon-btn" style={{ flexShrink: 0 }} onClick={() => setShowServerSettings(true)} title="Ustawienia serwera">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="19" height="19">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+            </svg>
+          </button>
+        )}
       </div>
 
       {/* Channel strip */}
@@ -638,6 +649,9 @@ function ChatScreen() {
           onClose={() => setReportMsg(null)}
         />
       )}
+
+      {/* Ustawienia serwera (pełny ekran) */}
+      {showServerSettings && <ServerSettings onClose={() => setShowServerSettings(false)} />}
 
       {/* Server picker sheet */}
       {serverPickerOpen && (

@@ -1428,7 +1428,7 @@ export function ServerSettings({ onClose }: { onClose: () => void }) {
   )
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+    <div id="server-settings-modal" className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: 'rgba(0,0,0,0.82)', backdropFilter: 'blur(10px)' }}
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
       <div className="w-full max-w-2xl rounded-2xl overflow-hidden flex"
