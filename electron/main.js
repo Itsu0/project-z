@@ -34,6 +34,9 @@ app.commandLine.appendSwitch('disable-renderer-backgrounding')
 app.commandLine.appendSwitch('disable-backgrounding-occluded-windows')
 app.commandLine.appendSwitch('disable-background-media-suspend')
 app.commandLine.appendSwitch('use-fake-ui-for-media-stream', 'false')
+// Windows Graphics Capture — poprawne przechwytywanie pojedynczego okna
+// (w tym okien gier/DirectX). Bez tego stary GDI capturer daje cały ekran.
+app.commandLine.appendSwitch('enable-features', 'AllowWgcDesktopCapturer,AllowWgcScreenCapturer,AllowWgcWindowCapturer')
 
 let mainWindow      = null
 let overlayWindow   = null
