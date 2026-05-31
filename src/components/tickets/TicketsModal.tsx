@@ -2508,7 +2508,7 @@ export function TicketsModal({ onClose }: { onClose: () => void }) {
   ] as const
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+    <div id="tickets-modal" className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
       <div className="rounded-2xl w-full flex flex-col" style={{

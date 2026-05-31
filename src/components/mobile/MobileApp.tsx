@@ -14,6 +14,7 @@ import { usePermissions } from '@/hooks/usePermissions'
 import { ConvView } from '@/components/dm/DMPanel'
 import { ScreenShareView } from '@/components/voice/ScreenShareView'
 import { ServerSettings } from '@/components/settings/ServerSettings'
+import { TicketsModal } from '@/components/tickets/TicketsModal'
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
@@ -174,7 +175,7 @@ function MobileGifPicker({ onSelect, onClose }: { onSelect: (url: string) => voi
 
 /* ─── Chat Screen ───────────────────────────────────────────────── */
 function ChatScreen() {
-  const { servers, channels, currentServerId, currentChannelId, setCurrentServer, setCurrentChannel, currentUser, voice, token } = useStore()
+  const { servers, channels, currentServerId, currentChannelId, setCurrentServer, setCurrentChannel, currentUser, voice, token, addServer, setChannels, setMembers } = useStore()
   const { sendMessage, addReaction, emit }  = useSocket()
   const { canManageMessages, canManageServer, canManageChannels, canManageRoles, canKick, canBan, canMute } = usePermissions(currentServerId ?? null)
   const canOpenServerSettings = canManageServer || canManageChannels || canManageRoles || canKick || canBan || canMute
@@ -192,6 +193,9 @@ function ChatScreen() {
   const [showGif, setShowGif]               = useState(false)
   const [showVoicePanel, setShowVoicePanel] = useState(false)
   const [showServerSettings, setShowServerSettings] = useState(false)
+  const [joinCode, setJoinCode]             = useState('')
+  const [joining, setJoining]               = useState(false)
+  const [joinError, setJoinError]           = useState('')
   const [uploadingFile, setUploadingFile]   = useState(false)
   const [pendingAttachment, setPendingAttachment] = useState<{ id: string; url: string; filename: string; contentType: string; previewUrl?: string } | null>(null)
   const [replyTo, setReplyTo] = useState<{ id: string; authorName: string; content: string } | null>(null)
@@ -249,6 +253,30 @@ function ChatScreen() {
 
   const QUICK_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🔥']
   const pingColor = (ms: number) => ms < 80 ? 'var(--eb-online)' : ms < 150 ? '#facc15' : ms < 250 ? 'var(--eb-accent)' : 'var(--eb-accent2)'
+
+  async function joinServer() {
+    const raw = joinCode.trim()
+    const m = raw.match(/(?:invite|join)[/\s]+([A-Za-z0-9_-]+)/i)
+    const inviteCode = m ? m[1] : raw
+    if (!inviteCode) { setJoinError('Wpisz kod lub link zaproszenia'); return }
+    setJoining(true); setJoinError('')
+    try {
+      let res = await fetch(`${BASE}/api/servers/invite/${inviteCode}/join`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } })
+      if (res.status === 404) res = await fetch(`${BASE}/api/servers/join/${inviteCode}`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } })
+      const data = await res.json()
+      if (!res.ok) { setJoinError(data.error ?? 'Nieprawidłowy kod zaproszenia'); return }
+      addServer(data.server)
+      setCurrentServer(data.server.id)
+      const srvRes = await fetch(`${BASE}/api/servers/${data.server.id}`, { headers: { Authorization: `Bearer ${token}` } })
+      const srvData = await srvRes.json()
+      setChannels(data.server.id, srvData.channels ?? [])
+      setMembers(data.server.id, srvData.members ?? [])
+      const firstText = (srvData.channels ?? []).find((c: any) => c.type === 'text' || c.type === 'announcement')
+      if (firstText) setCurrentChannel(firstText.id)
+      setJoinCode(''); setServerPickerOpen(false)
+    } catch { setJoinError('Błąd połączenia') }
+    finally { setJoining(false) }
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }}>
@@ -678,6 +706,21 @@ function ChatScreen() {
                 </button>
               ))}
             </div>
+            {/* Dołącz do serwera */}
+            <div style={{ padding: '12px 16px', borderTop: '0.5px solid var(--eb-border)', flexShrink: 0 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--eb-text3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Dołącz do serwera</div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input value={joinCode} onChange={e => { setJoinCode(e.target.value); setJoinError('') }}
+                  onKeyDown={e => { if (e.key === 'Enter') joinServer() }}
+                  placeholder="Kod lub link zaproszenia"
+                  style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '0.5px solid var(--eb-border2)', borderRadius: 12, padding: '9px 12px', color: 'var(--eb-text1)', fontSize: 14, outline: 'none' }} />
+                <button onClick={joinServer} disabled={joining || !joinCode.trim()}
+                  style={{ flexShrink: 0, padding: '0 16px', borderRadius: 12, background: 'var(--eb-accent)', color: '#fff', border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: (joining || !joinCode.trim()) ? 0.4 : 1 }}>
+                  {joining ? '…' : 'Dołącz'}
+                </button>
+              </div>
+              {joinError && <div style={{ fontSize: 12, color: '#ef4444', marginTop: 6 }}>{joinError}</div>}
+            </div>
           </div>
         </div>
       )}
@@ -938,6 +981,7 @@ function NotificationsScreen() {
 function ProfileScreen() {
   const currentUser = useStore(s => s.currentUser)
   const [showSettings, setShowSettings] = useState(false)
+  const [showSupport, setShowSupport]   = useState(false)
 
   if (showSettings) {
     return (
@@ -992,7 +1036,15 @@ function ProfileScreen() {
               >
                 ⚙️ Ustawienia konta
               </button>
+              <button
+                onClick={() => setShowSupport(true)}
+                style={{ width: '100%', padding: '13px 16px', fontSize: 14, borderRadius: 14, background: 'var(--eb-bg2)', border: '0.5px solid var(--eb-border2)', color: 'var(--eb-text1)', cursor: 'pointer' }}
+              >
+                🛟 Centrum wsparcia / Zgłoś problem
+              </button>
             </div>
+
+            {showSupport && <TicketsModal onClose={() => setShowSupport(false)} />}
 
             {/* Info tiles */}
             <div style={{ padding: '20px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
