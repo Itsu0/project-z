@@ -224,6 +224,29 @@ router.get('/admin/orders', requireAuth, async (req: Request, res: Response) => 
   }
 })
 
+// ── Status pojedynczego zamówienia (polling strony powrotnej) ────────────────
+router.get('/orders/:id', requireAuth, async (req: Request, res: Response) => {
+  try {
+    if (!(await billingAccess(req.user!.userId))) {
+      return res.status(403).json({ error: 'Funkcja niedostępna' })
+    }
+    const order = await queryOne<any>(
+      `SELECT id, server_id, plan, slots, amount_grosze, currency, billing_period, status, created_at
+       FROM billing_orders WHERE id = ? AND user_id = ?`,
+      [req.params.id, req.user!.userId]
+    )
+    if (!order) return res.status(404).json({ error: 'Zamówienie nie znalezione' })
+    let server: any = null
+    if (order.server_id) {
+      server = await queryOne('SELECT id, name FROM servers WHERE id = ?', [order.server_id])
+    }
+    return res.json({ order, server })
+  } catch (err) {
+    console.error('[billing/orders/:id]', err)
+    return res.status(500).json({ error: 'Błąd serwera' })
+  }
+})
+
 // ── Moje zamówienia ──────────────────────────────────────────────────────────
 router.get('/orders', requireAuth, async (req: Request, res: Response) => {
   try {
