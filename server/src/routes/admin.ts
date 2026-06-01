@@ -1,10 +1,36 @@
 import { Router, Request, Response } from 'express'
 import { v4 as uuid } from 'uuid'
+import os from 'os'
+import { promises as fs, createReadStream } from 'fs'
+import { execFile } from 'child_process'
+import { promisify } from 'util'
 import { requireAuth } from '../middleware/auth'
 import { queryOne, queryMany, execute } from '../db/pool'
 import { emitToUser, kickUserFromPlatform } from '../socket/index'
 
+const execFileP = promisify(execFile)
 const router = Router()
+
+// Próbka obciążenia CPU w oknie ~200 ms (różnica liczników z os.cpus())
+function cpuSnapshot(): { idle: number; total: number } {
+  let idle = 0, total = 0
+  for (const c of os.cpus()) {
+    for (const t of Object.values(c.times)) total += t
+    idle += c.times.idle
+  }
+  return { idle, total }
+}
+function measureCpu(ms = 200): Promise<number> {
+  const a = cpuSnapshot()
+  return new Promise(resolve => {
+    setTimeout(() => {
+      const b = cpuSnapshot()
+      const idle = b.idle - a.idle
+      const total = b.total - a.total
+      resolve(total > 0 ? Math.max(0, Math.min(100, Math.round((1 - idle / total) * 100))) : 0)
+    }, ms)
+  })
+}
 
 async function isCreator(userId: string): Promise<boolean> {
   const row = await queryOne<{ is_dev: number; is_creator: number }>(
@@ -481,6 +507,152 @@ router.post('/ghost/:serverId/channels/:channelId/message', requireAuth, async (
   } catch (err) {
     console.error('[admin/ghost/message]', err)
     return res.status(500).json({ error: 'Błąd serwera' })
+  }
+})
+
+// ── MONITORING (live metryki serwera) ────────────────────────────────────────
+
+const BACKUP_DIR = process.env.BACKUP_DIR ?? '/opt/nexus/backups'
+
+router.get('/monitor', requireAuth, async (req: Request, res: Response) => {
+  if (!(await requireCreator(req, res))) return
+  try {
+    // CPU (próbka) + load average
+    const cpuPct = await measureCpu(200)
+    const load = os.loadavg()             // [1m, 5m, 15m]
+    const cores = os.cpus().length
+
+    // RAM
+    const totalMem = os.totalmem()
+    const freeMem = os.freemem()
+    const usedMem = totalMem - freeMem
+    const memPct = totalMem > 0 ? Math.round((usedMem / totalMem) * 100) : 0
+
+    // Dysk (df -P -k /) — w KB
+    let disk: { total: number; used: number; available: number; pct: number } | null = null
+    try {
+      const { stdout } = await execFileP('df', ['-P', '-k', '/'], { timeout: 4000 })
+      const line = stdout.trim().split('\n').pop() ?? ''
+      const cols = line.split(/\s+/)
+      if (cols.length >= 5) {
+        const totalK = Number(cols[1]) * 1024
+        const usedK = Number(cols[2]) * 1024
+        const availK = Number(cols[3]) * 1024
+        const pct = parseInt(cols[4], 10) || 0
+        disk = { total: totalK, used: usedK, available: availK, pct }
+      }
+    } catch {}
+
+    // Baza danych — ping i latencja
+    let db: { online: boolean; latencyMs: number | null } = { online: false, latencyMs: null }
+    try {
+      const t0 = Date.now()
+      await queryOne('SELECT 1 AS ok')
+      db = { online: true, latencyMs: Date.now() - t0 }
+    } catch {}
+
+    // Ostatni backup — najnowszy plik w katalogu kopii zapasowych
+    let backup: { exists: boolean; file: string | null; sizeBytes: number | null; ageHours: number | null; mtime: string | null } =
+      { exists: false, file: null, sizeBytes: null, ageHours: null, mtime: null }
+    try {
+      const files = await fs.readdir(BACKUP_DIR)
+      const dumps = files.filter(f => f.startsWith('nexus_') && f.endsWith('.sql.gz'))
+      let newest: { name: string; mtimeMs: number; size: number } | null = null
+      for (const name of dumps) {
+        const st = await fs.stat(`${BACKUP_DIR}/${name}`)
+        if (!newest || st.mtimeMs > newest.mtimeMs) newest = { name, mtimeMs: st.mtimeMs, size: st.size }
+      }
+      if (newest) {
+        backup = {
+          exists: true,
+          file: newest.name,
+          sizeBytes: newest.size,
+          ageHours: Math.round(((Date.now() - newest.mtimeMs) / 3_600_000) * 10) / 10,
+          mtime: new Date(newest.mtimeMs).toISOString(),
+        }
+      } else {
+        backup.exists = false
+      }
+    } catch {}
+
+    // Progi alertów (spójne ze skryptem monitorującym na VPS)
+    const thresholds = { cpu: 80, ram: 90, disk: 85, backupMaxHours: 26 }
+
+    return res.json({
+      timestamp: new Date().toISOString(),
+      host: os.hostname(),
+      backend: {
+        online: true,
+        nodeVersion: process.version,
+        processUptimeSec: Math.round(process.uptime()),
+        systemUptimeSec: Math.round(os.uptime()),
+        rssBytes: process.memoryUsage().rss,
+      },
+      cpu: { pct: cpuPct, cores, load1: +load[0].toFixed(2), load5: +load[1].toFixed(2), load15: +load[2].toFixed(2) },
+      memory: { totalBytes: totalMem, usedBytes: usedMem, freeBytes: freeMem, pct: memPct },
+      disk,
+      db,
+      backup,
+      thresholds,
+    })
+  } catch (err) {
+    console.error('[admin/monitor]', err)
+    return res.status(500).json({ error: 'Błąd serwera podczas pobierania metryk' })
+  }
+})
+
+// ── KOPIE ZAPASOWE (lista + pobieranie, tylko creator) ───────────────────────
+
+// Ścisły wzorzec nazwy — blokuje path-traversal (brak slashy, brak "..")
+const BACKUP_FILE_RE = /^nexus_(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})\.sql\.gz$/
+
+router.get('/backups', requireAuth, async (req: Request, res: Response) => {
+  if (!(await requireCreator(req, res))) return
+  try {
+    let files: string[] = []
+    try { files = await fs.readdir(BACKUP_DIR) } catch { files = [] }
+    const list: Array<{ file: string; sizeBytes: number; mtime: string; date: string | null }> = []
+    for (const name of files) {
+      const m = name.match(BACKUP_FILE_RE)
+      if (!m) continue
+      const st = await fs.stat(`${BACKUP_DIR}/${name}`).catch(() => null)
+      if (!st || !st.isFile()) continue
+      const [, Y, Mo, D, H, Mi, S] = m
+      list.push({
+        file: name,
+        sizeBytes: st.size,
+        mtime: new Date(st.mtimeMs).toISOString(),
+        date: `${Y}-${Mo}-${D}T${H}:${Mi}:${S}`,
+      })
+    }
+    list.sort((a, b) => (a.mtime < b.mtime ? 1 : -1))
+    return res.json({ backups: list })
+  } catch (err) {
+    console.error('[admin/backups]', err)
+    return res.status(500).json({ error: 'Nie udało się odczytać kopii zapasowych' })
+  }
+})
+
+router.get('/backups/:file/download', requireAuth, async (req: Request, res: Response) => {
+  if (!(await requireCreator(req, res))) return
+  try {
+    const file = req.params.file
+    if (!BACKUP_FILE_RE.test(file)) {
+      return res.status(400).json({ error: 'Nieprawidłowa nazwa pliku' })
+    }
+    const full = `${BACKUP_DIR}/${file}`
+    const st = await fs.stat(full).catch(() => null)
+    if (!st || !st.isFile()) return res.status(404).json({ error: 'Plik nie istnieje' })
+
+    res.setHeader('Content-Type', 'application/gzip')
+    res.setHeader('Content-Length', String(st.size))
+    res.setHeader('Content-Disposition', `attachment; filename="${file}"`)
+    const stream = createReadStream(full)
+    stream.on('error', () => { if (!res.headersSent) res.status(500).end() })
+    stream.pipe(res)
+  } catch (err) {
+    console.error('[admin/backups/download]', err)
+    if (!res.headersSent) return res.status(500).json({ error: 'Błąd pobierania' })
   }
 })
 

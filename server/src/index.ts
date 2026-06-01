@@ -27,6 +27,7 @@ import pollsRoutes, { restorePollTimers } from './routes/polls'
 import serverModRoutes from './routes/serverMod'
 import friendsRoutes from './routes/friends'
 import dmRoutes from './routes/dm'
+import billingRoutes from './routes/billing'
 
 dotenv.config()
 
@@ -117,6 +118,7 @@ const socketioLimiter = rateLimit({
 app.use(globalLimiter)
 app.use('/socket.io', socketioLimiter)
 app.use('/api/livekit/webhook', express.raw({ type: '*/*' }))
+app.use('/api/billing/webhook', express.raw({ type: '*/*' }))
 app.use(express.json({ limit: '2mb' }))
 app.use(express.urlencoded({ extended: true }))
 
@@ -153,6 +155,7 @@ app.use('/api/polls',         pollsRoutes)
 app.use('/api/servers',       serverModRoutes)
 app.use('/api/friends',       friendsRoutes)
 app.use('/api/dm',            messageLimiter, dmRoutes)
+app.use('/api/billing',       billingRoutes)
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', uptime: process.uptime(), timestamp: new Date().toISOString() })

@@ -927,6 +927,9 @@ function TabAccount() {
       {/* ── 2FA ── */}
       <TwoFASection token={token ?? ''} />
 
+      {/* ── Eksport danych (RODO) ── */}
+      <ExportDataSection token={token ?? ''} />
+
       {/* ── Wyloguj / Usuń konto ── */}
       <div className="pt-4 flex flex-col gap-2" style={{ borderTop: '0.5px solid var(--eb-border)' }}>
         <button onClick={logout}
@@ -1065,6 +1068,51 @@ function TwoFASection({ token }: { token: string }) {
       {msg && (
         <p className="text-xs mt-2" style={{ color: msg.startsWith('✓') ? 'var(--eb-online)' : 'var(--eb-accent2)' }}>{msg}</p>
       )}
+    </div>
+  )
+}
+
+function ExportDataSection({ token }: { token: string }) {
+  const [loading, setLoading] = useState(false)
+  const [error,   setError]   = useState('')
+
+  async function exportData() {
+    setError('')
+    setLoading(true)
+    try {
+      const res = await fetch(`${BASE}/api/user/export`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) {
+        let msg = 'Nie udało się wyeksportować danych'
+        try { const d = await res.json(); if (d?.error) msg = d.error } catch {}
+        throw new Error(msg)
+      }
+      const blob = await res.blob()
+      const url  = URL.createObjectURL(blob)
+      const a    = document.createElement('a')
+      a.href = url
+      a.download = `nexus-dane-${new Date().toISOString().slice(0, 10)}.json`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+    } catch (e: any) { setError(e.message || 'Błąd eksportu') }
+    finally { setLoading(false) }
+  }
+
+  return (
+    <div className="pt-4 flex flex-col gap-1.5" style={{ borderTop: '0.5px solid var(--eb-border)' }}>
+      <p className="text-xs font-semibold" style={{ color: 'var(--eb-text1)' }}>Eksport danych</p>
+      <p className="text-xs" style={{ color: 'var(--eb-text3)' }}>
+        Pobierz kopię wszystkich swoich danych (profil, wiadomości, serwery, znajomi, ustawienia) w formacie JSON — zgodnie z prawem do przenoszenia danych (RODO).
+      </p>
+      {error && <p className="text-xs" style={{ color: 'var(--eb-accent2)' }}>{error}</p>}
+      <button onClick={exportData} disabled={loading}
+        className="w-full py-2.5 mt-1 rounded-xl text-sm font-medium transition-all hover:opacity-80"
+        style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--eb-text1)', border: '1px solid var(--eb-border)', cursor: loading ? 'default' : 'pointer', opacity: loading ? 0.6 : 1 }}>
+        {loading ? 'Przygotowywanie…' : 'Pobierz moje dane (JSON)'}
+      </button>
     </div>
   )
 }

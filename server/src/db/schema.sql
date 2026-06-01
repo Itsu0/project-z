@@ -552,3 +552,24 @@ CREATE TABLE IF NOT EXISTS email_verification_tokens (
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   INDEX idx_token (token)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ─── Zamówienia / pakiety (infrastruktura płatności) ──────────
+CREATE TABLE IF NOT EXISTS billing_orders (
+  id             CHAR(36)     PRIMARY KEY,
+  user_id        CHAR(36)     NOT NULL,
+  server_id      CHAR(36)     DEFAULT NULL,
+  plan           VARCHAR(32)  NOT NULL,
+  slots          INT          DEFAULT NULL,
+  amount_grosze  INT          NOT NULL DEFAULT 0,
+  currency       VARCHAR(3)   NOT NULL DEFAULT 'PLN',
+  billing_period ENUM('monthly','yearly') NOT NULL DEFAULT 'monthly',
+  status         ENUM('pending','paid','cancelled','failed','provisioned') NOT NULL DEFAULT 'pending',
+  provider       VARCHAR(32)  DEFAULT NULL,
+  provider_ref   VARCHAR(255) DEFAULT NULL,
+  meta           JSON         DEFAULT NULL,
+  created_at     DATETIME     DEFAULT CURRENT_TIMESTAMP,
+  updated_at     DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  INDEX idx_billing_user   (user_id),
+  INDEX idx_billing_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

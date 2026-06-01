@@ -1,19 +1,48 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import clsx from 'clsx'
 import { useStore } from '@/lib/store'
 import { TicketsModal } from '@/components/tickets/TicketsModal'
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
+export interface SlotTier {
+  slots: number
+  label: string
+  ram: string
+  vcpu: number
+  disk: string
+  transfer: string
+  priceMonthly: number | null
+  priceYearly: number | null
+  recommended?: boolean
+}
+
+export interface SlotCatalog {
+  minSlots: number
+  currency: string
+  sharedFeatures: string[]
+  tiers: SlotTier[]
+}
+
+function formatPrice(grosze: number | null, period: 'monthly' | 'yearly'): string {
+  if (grosze == null) return 'Wycena wkrótce'
+  if (grosze === 0) return 'Darmowy'
+  const zl = grosze / 100
+  const val = Number.isInteger(zl) ? zl.toFixed(0) : zl.toFixed(2)
+  return `${val} zł / ${period === 'yearly' ? 'rok' : 'mies.'}`
+}
+
 function AddServerPicker({
   onClose,
   onJoin,
   onCreate,
+  canCreate,
 }: {
   onClose: () => void
   onJoin: () => void
   onCreate: () => void
+  canCreate: boolean
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -63,34 +92,61 @@ function AddServerPicker({
           </button>
 
           {}
-          <div
-            className="flex items-center gap-4 px-5 py-4 rounded-xl text-left opacity-40 cursor-not-allowed select-none"
-            style={{
-              background: 'var(--eb-bg3)',
-              border: '1px solid var(--eb-border)',
-            }}
-            title="Tworzenie serwerów jest tymczasowo wyłączone"
-          >
-            <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
-              style={{ background: 'rgba(100,116,139,0.1)', border: '1px solid rgba(100,116,139,0.25)' }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10"/>
-                <line x1="12" y1="8" x2="12" y2="16"/>
-                <line x1="8" y1="12" x2="16" y2="12"/>
+          {canCreate ? (
+            <button
+              onClick={onCreate}
+              className="group flex items-center gap-4 px-5 py-4 rounded-xl text-left transition-all duration-150"
+              style={{ background: 'var(--eb-bg3)', border: '1px solid var(--eb-border)' }}
+              onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(168,85,247,0.45)')}
+              onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--eb-border)')}
+            >
+              <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ background: 'rgba(168,85,247,0.12)', border: '1px solid rgba(168,85,247,0.25)' }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a855f7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="12" y1="8" x2="12" y2="16"/>
+                  <line x1="8" y1="12" x2="16" y2="12"/>
+                </svg>
+              </div>
+              <div>
+                <div className="font-semibold text-sm" style={{ color: 'var(--eb-text1)' }}>
+                  Załóż własny serwer
+                </div>
+                <div className="text-xs mt-0.5" style={{ color: 'var(--eb-text3)' }}>
+                  Wybierz pakiet i liczbę slotów
+                </div>
+              </div>
+              <svg className="ml-auto opacity-40" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="9 18 15 12 9 6"/>
+              </svg>
+            </button>
+          ) : (
+            <div
+              className="flex items-center gap-4 px-5 py-4 rounded-xl text-left opacity-40 cursor-not-allowed select-none"
+              style={{ background: 'var(--eb-bg3)', border: '1px solid var(--eb-border)' }}
+              title="Tworzenie serwerów jest tymczasowo wyłączone"
+            >
+              <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ background: 'rgba(100,116,139,0.1)', border: '1px solid rgba(100,116,139,0.25)' }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="12" y1="8" x2="12" y2="16"/>
+                  <line x1="8" y1="12" x2="16" y2="12"/>
+                </svg>
+              </div>
+              <div>
+                <div className="font-semibold text-sm" style={{ color: 'var(--eb-text1)' }}>
+                  Załóż własny serwer
+                </div>
+                <div className="text-xs mt-0.5" style={{ color: 'var(--eb-text3)' }}>
+                  Tymczasowo niedostępne
+                </div>
+              </div>
+              <svg className="ml-auto opacity-40" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="9 18 15 12 9 6"/>
               </svg>
             </div>
-            <div>
-              <div className="font-semibold text-sm" style={{ color: 'var(--eb-text1)' }}>
-                Załóż własny serwer
-              </div>
-              <div className="text-xs mt-0.5" style={{ color: 'var(--eb-text3)' }}>
-                Tymczasowo niedostępne
-              </div>
-            </div>
-            <svg className="ml-auto opacity-40" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <polyline points="9 18 15 12 9 6"/>
-            </svg>
-          </div>
+          )}
         </div>
 
         <button onClick={onClose}
@@ -231,15 +287,26 @@ function CreateServerModal({
   onClose,
   onBack,
   onCreated,
+  catalog,
 }: {
   onClose: () => void
   onBack: () => void
   onCreated: () => void
+  catalog: SlotCatalog
 }) {
   const { token, addServer, setCurrentServer, setChannels, setMembers, setCurrentChannel } = useStore()
   const [name, setName] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [info, setInfo]   = useState('')
+  const [period, setPeriod] = useState<'monthly' | 'yearly'>('monthly')
+
+  const tiers = catalog.tiers
+  // Indeks suwaka — domyślnie tier oznaczony jako recommended, inaczej pierwszy.
+  const defaultIdx = Math.max(0, tiers.findIndex(t => t.recommended))
+  const [tierIdx, setTierIdx] = useState<number>(defaultIdx)
+  const tier = tiers[tierIdx] ?? tiers[0]
+  const hasPrices = tiers.some(t => t.priceMonthly != null)
 
   const COLORS = [
     'linear-gradient(135deg,#dc2626,#f59e0b)',
@@ -253,15 +320,24 @@ function CreateServerModal({
 
   async function create() {
     if (!name.trim()) { setError('Podaj nazwę serwera'); return }
-    setLoading(true); setError('')
+    setLoading(true); setError(''); setInfo('')
     try {
-      const res = await fetch(`${BASE}/api/servers`, {
+      const res = await fetch(`${BASE}/api/billing/checkout`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ name: name.trim(), iconColor: color }),
+        body: JSON.stringify({ slots: tier.slots, period, name: name.trim(), iconColor: color }),
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error ?? 'Błąd'); return }
+
+      // Bramka aktywna — przekierowanie do płatności.
+      if (data.checkoutUrl) { window.location.href = data.checkoutUrl; return }
+
+      // Brak procesora / cennika — zamówienie oczekujące.
+      if (!data.provisioned) {
+        setInfo(data.message ?? 'Zamówienie zapisano jako oczekujące.')
+        return
+      }
 
       addServer(data.server)
       setCurrentServer(data.server.id)
@@ -288,8 +364,8 @@ function CreateServerModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="rounded-2xl p-6 w-full max-w-sm"
-        style={{ background: 'var(--eb-bg2)', border: '0.5px solid var(--eb-border2)' }}>
+      <div className="rounded-2xl p-6 w-full max-w-md overflow-y-auto"
+        style={{ background: 'var(--eb-bg2)', border: '0.5px solid var(--eb-border2)', maxHeight: '88vh' }}>
 
         {}
         <div className="flex items-center gap-3 mb-1">
@@ -342,14 +418,106 @@ function CreateServerModal({
           />
         </div>
 
+        {}
+        {tiers.length > 0 && (
+          <div className="mb-4">
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs font-semibold tracking-wide uppercase" style={{ color: 'var(--eb-text2)' }}>
+                Liczba slotów
+              </label>
+              {hasPrices && (
+                <div className="flex gap-0.5 p-0.5 rounded-lg" style={{ background: 'var(--eb-bg3)' }}>
+                  {(['monthly', 'yearly'] as const).map(p => (
+                    <button key={p} onClick={() => setPeriod(p)}
+                      className="px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all"
+                      style={{
+                        background: period === p ? 'var(--eb-bg1)' : 'transparent',
+                        color: period === p ? 'var(--eb-text1)' : 'var(--eb-text3)',
+                      }}>
+                      {p === 'monthly' ? 'Miesięcznie' : 'Rocznie'}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {}
+            <div className="px-3 py-3 rounded-xl" style={{ background: 'var(--eb-bg3)', border: '1px solid var(--eb-border)' }}>
+              <div className="flex items-baseline justify-between mb-2">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-2xl font-bold" style={{ color: 'var(--eb-text1)' }}>{tier.slots}</span>
+                  <span className="text-xs" style={{ color: 'var(--eb-text3)' }}>slotów · {tier.label}</span>
+                  {tier.recommended && (
+                    <span className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded"
+                      style={{ background: 'rgba(168,85,247,0.15)', color: '#a855f7' }}>
+                      Polecany
+                    </span>
+                  )}
+                </div>
+                <span className="text-sm font-bold" style={{ color: '#a855f7' }}>
+                  {formatPrice(period === 'yearly' ? tier.priceYearly : tier.priceMonthly, period)}
+                </span>
+              </div>
+
+              <input
+                type="range" min={0} max={tiers.length - 1} step={1} value={tierIdx}
+                onChange={e => setTierIdx(Number(e.target.value))}
+                className="w-full accent-[#a855f7] cursor-pointer"
+              />
+              <div className="flex justify-between mt-1">
+                {tiers.map((t, i) => (
+                  <button key={t.slots} onClick={() => setTierIdx(i)}
+                    className="text-[9px] tabular-nums transition-colors"
+                    style={{ color: i === tierIdx ? '#a855f7' : 'var(--eb-text3)', fontWeight: i === tierIdx ? 700 : 400 }}>
+                    {t.slots >= 1000 ? '1k' : t.slots}
+                  </button>
+                ))}
+              </div>
+
+              {}
+              <div className="grid grid-cols-4 gap-1 mt-3 text-center">
+                {[['RAM', tier.ram], ['vCPU', String(tier.vcpu)], ['Dysk', tier.disk], ['Transfer', tier.transfer]].map(([k, v]) => (
+                  <div key={k} className="px-1 py-1.5 rounded-lg" style={{ background: 'var(--eb-bg2)' }}>
+                    <div className="text-[9px] uppercase tracking-wide" style={{ color: 'var(--eb-text3)' }}>{k}</div>
+                    <div className="text-[11px] font-semibold mt-0.5" style={{ color: 'var(--eb-text1)' }}>{v}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {}
+            <p className="text-[10px] mt-2 mb-1" style={{ color: 'var(--eb-text3)' }}>
+              Wszystkie pakiety mają te same funkcje — różni się tylko pojemność:
+            </p>
+            <ul className="flex flex-col gap-1">
+              {catalog.sharedFeatures.map((f, i) => (
+                <li key={i} className="flex items-center gap-1.5 text-[11px]" style={{ color: 'var(--eb-text3)' }}>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="3">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                  {f}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {error && (
           <p className="text-xs mb-3 text-center" style={{ color: 'var(--eb-accent2)' }}>{error}</p>
+        )}
+        {info && (
+          <p className="text-xs mb-3 text-center px-3 py-2 rounded-lg"
+            style={{ color: '#f59e0b', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.25)' }}>
+            {info}
+          </p>
         )}
 
         <div className="flex gap-2">
           <button onClick={onClose} className="ember-btn-ghost flex-1 py-2.5 text-sm">Anuluj</button>
           <button onClick={create} disabled={loading} className="ember-btn flex-1 py-2.5 text-sm font-semibold">
-            {loading ? 'Tworzenie...' : 'Utwórz'}
+            {loading ? 'Przetwarzanie...'
+              : ((period === 'yearly' ? tier.priceYearly : tier.priceMonthly) ?? 0) > 0
+                ? 'Przejdź do płatności' : 'Zamów'}
           </button>
         </div>
       </div>
@@ -363,8 +531,20 @@ export function ServerRail() {
   const { servers, currentServerId, setCurrentServer, setChannels, setMembers, setCurrentChannel, token, dmUnread, setDmOpen } = useStore()
   const [modal, setModal]         = useState<ModalView>('none')
   const [showTickets, setShowTickets] = useState(false)
+  const [billing, setBilling] = useState<{ available: boolean; catalog: SlotCatalog | null }>({ available: false, catalog: null })
 
   const totalDmUnread = Object.values(dmUnread).reduce((a, b) => a + b, 0)
+
+  useEffect(() => {
+    if (!token) return
+    fetch(`${BASE}/api/billing/plans`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : Promise.reject(new Error('niedostępne')))
+      .then(d => setBilling({
+        available: true,
+        catalog: { minSlots: d.minSlots, currency: d.currency, sharedFeatures: d.sharedFeatures ?? [], tiers: d.tiers ?? [] },
+      }))
+      .catch(() => setBilling({ available: false, catalog: null }))
+  }, [token])
 
   async function selectServer(serverId: string) {
     if (serverId === currentServerId) return
@@ -466,6 +646,7 @@ export function ServerRail() {
           onClose={() => setModal('none')}
           onJoin={() => setModal('join')}
           onCreate={() => setModal('create')}
+          canCreate={billing.available && !!billing.catalog}
         />
       )}
       {modal === 'join' && (
@@ -475,11 +656,12 @@ export function ServerRail() {
           onJoined={() => {}}
         />
       )}
-      {modal === 'create' && (
+      {modal === 'create' && billing.catalog && (
         <CreateServerModal
           onClose={() => setModal('none')}
           onBack={() => setModal('picker')}
           onCreated={() => {}}
+          catalog={billing.catalog}
         />
       )}
 

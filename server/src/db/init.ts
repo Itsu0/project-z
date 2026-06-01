@@ -369,6 +369,38 @@ export async function runMigrations(): Promise<void> {
     console.warn('   ⚠ Tabela patch_notes:', e.message)
   }
 
+  try {
+    await conn.query(`CREATE TABLE IF NOT EXISTS \`billing_orders\` (
+      \`id\`             CHAR(36)     NOT NULL,
+      \`user_id\`        CHAR(36)     NOT NULL,
+      \`server_id\`      CHAR(36)     DEFAULT NULL,
+      \`plan\`           VARCHAR(32)  NOT NULL,
+      \`slots\`          INT          DEFAULT NULL,
+      \`amount_grosze\`  INT          NOT NULL DEFAULT 0,
+      \`currency\`       VARCHAR(3)   NOT NULL DEFAULT 'PLN',
+      \`billing_period\` ENUM('monthly','yearly') NOT NULL DEFAULT 'monthly',
+      \`status\`         ENUM('pending','paid','cancelled','failed','provisioned') NOT NULL DEFAULT 'pending',
+      \`provider\`       VARCHAR(32)  DEFAULT NULL,
+      \`provider_ref\`   VARCHAR(255) DEFAULT NULL,
+      \`meta\`           JSON         DEFAULT NULL,
+      \`created_at\`     DATETIME     DEFAULT CURRENT_TIMESTAMP,
+      \`updated_at\`     DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (\`id\`),
+      INDEX \`idx_billing_user\`   (\`user_id\`),
+      INDEX \`idx_billing_status\` (\`status\`),
+      FOREIGN KEY (\`user_id\`) REFERENCES \`users\`(\`id\`) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`)
+    // Dla istniejących instalacji (tabela bez kolumny slots)
+    try {
+      await conn.query('ALTER TABLE `billing_orders` ADD COLUMN `slots` INT DEFAULT NULL')
+    } catch (e: any) {
+      if (e.errno !== 1060) console.warn('   ⚠ Kolumna billing_orders.slots:', e.message)
+    }
+    console.log('   ↳ Tabela billing_orders OK')
+  } catch (e: any) {
+    console.warn('   ⚠ Tabela billing_orders:', e.message)
+  }
+
   console.log('✅ Migracje zakończone pomyślnie')
   await conn.end()
 }

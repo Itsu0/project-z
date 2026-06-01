@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useStore } from '@/lib/store'
 import { useT } from '@/lib/i18n'
+import { useIsMobile } from '@/hooks/usePlatform'
 
 async function compressImage(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -99,6 +100,9 @@ function GhostViewer({ token, serverId, onClose }: { token: string; serverId: st
   const [action,       setAction]     = useState<{ type: 'ban' | 'warn' | 'unban' | 'platform_ban'; user: any } | null>(null)
   const [adminMsg,     setAdminMsg]   = useState('')
   const [adminSending, setAdminSend]  = useState(false)
+  const isMobile = useIsMobile()
+  // Na mobile pokazujemy jeden panel naraz (3 stałe kolumny się nie mieszczą)
+  const [mobilePane, setMobilePane] = useState<'channels' | 'chat' | 'members'>('channels')
   const bottomRef = useRef<HTMLDivElement>(null)
   const msgContainerRef = useRef<HTMLDivElement>(null)
 
@@ -232,33 +236,49 @@ function GhostViewer({ token, serverId, onClose }: { token: string; serverId: st
           👻 GHOST
         </div>
         {srv && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 min-w-0">
             {srv.icon_url ? (
-              <img src={srv.icon_url} alt="" className="w-6 h-6 rounded-full object-cover" />
+              <img src={srv.icon_url} alt="" className="w-6 h-6 rounded-full object-cover flex-shrink-0" />
             ) : (
               <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0"
                 style={{ background: srv.icon_color ?? '#6366f1' }}>
                 {srv.name?.[0]?.toUpperCase()}
               </div>
             )}
-            <span className="text-sm font-bold" style={{ color: 'var(--eb-text1)' }}>{srv.name}</span>
-            <span className="text-[10px]" style={{ color: 'var(--eb-text3)' }}>
-              · {data?.memberCount ?? 0} członków · właściciel: {srv.owner_name}
-            </span>
+            <span className="text-sm font-bold truncate" style={{ color: 'var(--eb-text1)' }}>{srv.name}</span>
+            {!isMobile && (
+              <span className="text-[10px] flex-shrink-0" style={{ color: 'var(--eb-text3)' }}>
+                · {data?.memberCount ?? 0} członków · właściciel: {srv.owner_name}
+              </span>
+            )}
           </div>
         )}
         <div className="flex-1" />
-        <span className="text-[10px]" style={{ color: 'var(--eb-text3)' }}>
-          Twoja obecność nie jest widoczna
-        </span>
+        {!isMobile && (
+          <span className="text-[10px]" style={{ color: 'var(--eb-text3)' }}>
+            Twoja obecność nie jest widoczna
+          </span>
+        )}
+        {}
+        {isMobile && mobilePane !== 'channels' && (
+          <button
+            onClick={() => setMobilePane('channels')}
+            className="w-8 h-8 flex items-center justify-center rounded-lg transition-all"
+            title="Kanały"
+            style={{ background: 'var(--eb-bg3)', color: 'var(--eb-text3)' }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+              <line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>
+            </svg>
+          </button>
+        )}
         {}
         <button
-          onClick={() => setShowMem(v => !v)}
+          onClick={() => { if (isMobile) setMobilePane(p => p === 'members' ? 'chat' : 'members'); else setShowMem(v => !v) }}
           className="w-8 h-8 flex items-center justify-center rounded-lg transition-all"
           title="Lista członków"
           style={{
-            background: showMembers ? 'rgba(99,102,241,0.15)' : 'var(--eb-bg3)',
-            color: showMembers ? '#6366f1' : 'var(--eb-text3)',
+            background: (isMobile ? mobilePane === 'members' : showMembers) ? 'rgba(99,102,241,0.15)' : 'var(--eb-bg3)',
+            color: (isMobile ? mobilePane === 'members' : showMembers) ? '#6366f1' : 'var(--eb-text3)',
           }}>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
             <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
@@ -293,7 +313,7 @@ function GhostViewer({ token, serverId, onClose }: { token: string; serverId: st
         <div className="flex flex-1 overflow-hidden">
 
           {}
-          <div className="w-60 flex-shrink-0 flex flex-col overflow-y-auto"
+          <div className={`${isMobile ? (mobilePane === 'channels' ? 'w-full' : 'hidden') : 'w-60'} flex-shrink-0 flex flex-col overflow-y-auto`}
             style={{ background: 'var(--eb-bg2)', borderRight: '0.5px solid var(--eb-border)' }}>
 
             {}
@@ -337,7 +357,7 @@ function GhostViewer({ token, serverId, onClose }: { token: string; serverId: st
                       const isActive = channel?.id === ch.id
                       return (
                         <button key={ch.id}
-                          onClick={() => loadChannel(ch)}
+                          onClick={() => { loadChannel(ch); if (isMobile) setMobilePane('chat') }}
                           className="w-full flex items-center gap-2 px-3 py-1.5 mx-1 rounded-lg text-left transition-all group"
                           style={{
                             width: 'calc(100% - 8px)',
@@ -365,11 +385,13 @@ function GhostViewer({ token, serverId, onClose }: { token: string; serverId: st
           </div>
 
           {}
-          <div className="flex-1 flex flex-col overflow-hidden">
+          <div className={`${isMobile && mobilePane !== 'chat' ? 'hidden' : 'flex-1'} flex flex-col overflow-hidden`}>
             {!channel ? (
               <div className="flex flex-col items-center justify-center flex-1 gap-2">
                 <span className="text-4xl opacity-30">💬</span>
-                <p className="text-sm" style={{ color: 'var(--eb-text3)' }}>Wybierz kanał z listy po lewej</p>
+                <p className="text-sm" style={{ color: 'var(--eb-text3)' }}>
+                  {isMobile ? 'Wybierz kanał z menu' : 'Wybierz kanał z listy po lewej'}
+                </p>
               </div>
             ) : (
               <>
@@ -527,8 +549,8 @@ function GhostViewer({ token, serverId, onClose }: { token: string; serverId: st
           </div>
 
           {}
-          {showMembers && (
-            <div className="w-56 flex-shrink-0 flex flex-col overflow-y-auto py-3"
+          {(isMobile ? mobilePane === 'members' : showMembers) && (
+            <div className={`${isMobile ? 'w-full' : 'w-56'} flex-shrink-0 flex flex-col overflow-y-auto py-3`}
               style={{ background: 'var(--eb-bg2)', borderLeft: '0.5px solid var(--eb-border)' }}>
               {memberGroups().map(group => (
                 <div key={group.label} className="mb-3">
@@ -1973,6 +1995,315 @@ function UsersAdmin({ token }: { token: string }) {
   )
 }
 
+function BillingAdmin({ token }: { token: string }) {
+  const [data,    setData]    = useState<{ orders: any[]; summary: any } | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [filter,  setFilter]  = useState<string>('all')
+
+  async function load() {
+    setLoading(true)
+    try {
+      const qs = filter === 'all' ? '' : `?status=${filter}`
+      const r = await fetch(`${BASE}/api/billing/admin/orders${qs}`, { headers: { Authorization: `Bearer ${token}` } })
+      const d = await r.json()
+      setData({ orders: d.orders ?? [], summary: d.summary ?? {} })
+    } catch { setData({ orders: [], summary: {} }) }
+    finally { setLoading(false) }
+  }
+  useEffect(() => { load() }, [token, filter])
+
+  const fmtZl = (g: number | null | undefined) =>
+    g == null ? '—' : `${(g / 100).toLocaleString('pl-PL', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} zł`
+
+  const STATUS: Record<string, { label: string; color: string; bg: string }> = {
+    pending:     { label: 'Oczekuje',     color: '#f59e0b', bg: 'rgba(245,158,11,0.12)' },
+    paid:        { label: 'Opłacone',     color: '#3b82f6', bg: 'rgba(59,130,246,0.12)' },
+    provisioned: { label: 'Utworzony',    color: '#22c55e', bg: 'rgba(34,197,94,0.12)'  },
+    cancelled:   { label: 'Anulowane',    color: '#6b7280', bg: 'rgba(107,114,128,0.12)'},
+    failed:      { label: 'Nieudane',     color: '#ef4444', bg: 'rgba(239,68,68,0.12)'  },
+  }
+
+  if (loading && !data) return <div className="flex justify-center py-8"><Spinner /></div>
+  if (!data) return null
+  const s = data.summary || {}
+
+  return (
+    <div className="flex flex-col gap-3">
+      {/* Podsumowanie */}
+      <div className="grid grid-cols-3 gap-2">
+        {[
+          ['Przychód', fmtZl(Number(s.revenue_grosze || 0)), '#22c55e'],
+          ['Opłacone', String(Number(s.paid || 0) + Number(s.provisioned || 0)), '#3b82f6'],
+          ['Oczekujące', String(Number(s.pending || 0)), '#f59e0b'],
+        ].map(([k, v, c]) => (
+          <div key={k} className="p-2.5 rounded-xl text-center" style={{ background: 'var(--eb-bg2)', border: '1px solid var(--eb-border)' }}>
+            <div className="text-[9px] uppercase tracking-wide" style={{ color: 'var(--eb-text3)' }}>{k}</div>
+            <div className="text-sm font-bold mt-0.5" style={{ color: c as string }}>{v}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Filtr statusu */}
+      <div className="flex gap-1 flex-wrap">
+        {[['all', 'Wszystkie'], ['pending', 'Oczekujące'], ['paid', 'Opłacone'], ['provisioned', 'Utworzone'], ['failed', 'Nieudane']].map(([k, label]) => (
+          <button key={k} onClick={() => setFilter(k)}
+            className="px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all"
+            style={{
+              background: filter === k ? 'rgba(168,85,247,0.12)' : 'var(--eb-bg3)',
+              color: filter === k ? '#a855f7' : 'var(--eb-text3)',
+              border: filter === k ? '1px solid rgba(168,85,247,0.3)' : '1px solid transparent',
+            }}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* Lista zamówień */}
+      {data.orders.length === 0 ? (
+        <p className="text-xs py-6 text-center" style={{ color: 'var(--eb-text3)' }}>Brak zamówień.</p>
+      ) : (
+        <div className="flex flex-col gap-1.5">
+          {data.orders.map((o: any) => {
+            const st = STATUS[o.status] ?? STATUS.pending
+            const date = new Date(o.created_at).toLocaleString('pl-PL', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })
+            return (
+              <div key={o.id} className="p-2.5 rounded-xl" style={{ background: 'var(--eb-bg2)', border: '1px solid var(--eb-border)' }}>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Avatar user={{ display_name: o.display_name, avatar_color: o.avatar_color, avatar_url: o.avatar_url }} size={24} />
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold truncate" style={{ color: 'var(--eb-text1)' }}>{o.display_name}</p>
+                      <p className="text-[10px] truncate" style={{ color: 'var(--eb-text3)' }}>@{o.username}</p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0"
+                    style={{ color: st.color, background: st.bg }}>
+                    {st.label}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between mt-1.5 text-[11px]">
+                  <span style={{ color: 'var(--eb-text2)' }}>
+                    {o.slots ?? '—'} slotów · {o.billing_period === 'yearly' ? 'rocznie' : 'miesięcznie'}
+                  </span>
+                  <span className="font-semibold" style={{ color: 'var(--eb-text1)' }}>
+                    {o.amount_grosze ? fmtZl(o.amount_grosze) : 'wycena wkrótce'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between mt-1 text-[10px]" style={{ color: 'var(--eb-text3)' }}>
+                  <span>{date}{o.provider ? ` · ${o.provider}` : ''}</span>
+                  {o.server_name && <span className="truncate ml-2">→ {o.server_name}</span>}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+      <p className="text-[10px] text-center" style={{ color: 'var(--eb-text3)' }}>
+        Dane z tabeli billing_orders · webhook operatora aktualizuje status po zapłacie
+      </p>
+    </div>
+  )
+}
+
+function MonitorPanel({ token }: { token: string }) {
+  const [data,    setData]    = useState<any>(null)
+  const [error,   setError]   = useState('')
+  const [loading, setLoading] = useState(true)
+  const [backups, setBackups] = useState<any[] | null>(null)
+  const [dl,      setDl]      = useState<string | null>(null)
+
+  async function load() {
+    try {
+      const r = await fetch(`${BASE}/api/admin/monitor`, { headers: { Authorization: `Bearer ${token}` } })
+      if (!r.ok) {
+        let m = 'Nie udało się pobrać metryk'
+        try { const d = await r.json(); if (d?.error) m = d.error } catch {}
+        throw new Error(m)
+      }
+      setData(await r.json())
+      setError('')
+    } catch (e: any) { setError(e.message || 'Błąd') }
+    finally { setLoading(false) }
+  }
+
+  async function loadBackups() {
+    try {
+      const r = await fetch(`${BASE}/api/admin/backups`, { headers: { Authorization: `Bearer ${token}` } })
+      const d = await r.json()
+      setBackups(d.backups ?? [])
+    } catch { setBackups([]) }
+  }
+
+  async function downloadBackup(file: string) {
+    setDl(file)
+    try {
+      const r = await fetch(`${BASE}/api/admin/backups/${encodeURIComponent(file)}/download`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!r.ok) throw new Error()
+      const blob = await r.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url; a.download = file
+      document.body.appendChild(a); a.click(); a.remove()
+      URL.revokeObjectURL(url)
+    } catch {} finally { setDl(null) }
+  }
+
+  useEffect(() => {
+    load()
+    loadBackups()
+    const id = setInterval(load, 5000)
+    return () => clearInterval(id)
+  }, [token])
+
+  if (loading && !data) return <div className="flex justify-center py-8"><Spinner /></div>
+  if (error && !data)   return <p className="text-xs py-6 text-center" style={{ color: 'var(--eb-accent2)' }}>{error}</p>
+  if (!data) return null
+
+  const fmtBytes = (b: number | null | undefined) => {
+    if (b == null) return '—'
+    const u = ['B', 'KB', 'MB', 'GB', 'TB']; let i = 0; let n = b
+    while (n >= 1024 && i < u.length - 1) { n /= 1024; i++ }
+    return `${n.toFixed(n < 10 && i > 0 ? 1 : 0)} ${u[i]}`
+  }
+  const fmtDur = (s: number | null | undefined) => {
+    if (s == null) return '—'
+    const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60)
+    if (d > 0) return `${d}d ${h}h`
+    if (h > 0) return `${h}h ${m}m`
+    return `${m}m`
+  }
+  const barColor = (pct: number, warn: number) =>
+    pct >= warn ? '#ef4444' : pct >= warn * 0.8 ? '#f59e0b' : '#22c55e'
+
+  const th = data.thresholds ?? { cpu: 80, ram: 90, disk: 85, backupMaxHours: 26 }
+
+  const Metric = ({ label, pct, warn, detail }: { label: string; pct: number; warn: number; detail: string }) => (
+    <div className="p-3 rounded-xl" style={{ background: 'var(--eb-bg2)', border: '1px solid var(--eb-border)' }}>
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-xs font-semibold" style={{ color: 'var(--eb-text1)' }}>{label}</span>
+        <span className="text-xs font-bold" style={{ color: barColor(pct, warn) }}>{pct}%</span>
+      </div>
+      <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--eb-bg4)' }}>
+        <div style={{ width: `${Math.min(100, pct)}%`, height: '100%', background: barColor(pct, warn), transition: 'width .4s, background .4s' }} />
+      </div>
+      <p className="text-[10px] mt-1.5" style={{ color: 'var(--eb-text3)' }}>{detail}</p>
+    </div>
+  )
+
+  const Pill = ({ ok, label }: { ok: boolean; label: string }) => (
+    <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full"
+      style={{ background: ok ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.12)', color: ok ? '#22c55e' : '#ef4444' }}>
+      <span style={{ width: 6, height: 6, borderRadius: 999, background: ok ? '#22c55e' : '#ef4444' }} />
+      {label}
+    </span>
+  )
+
+  const backupOk = data.backup?.exists && data.backup.ageHours != null && data.backup.ageHours <= th.backupMaxHours
+
+  return (
+    <div className="flex flex-col gap-3">
+      {/* Nagłówek / status */}
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Pill ok={data.backend?.online} label="Backend" />
+          <Pill ok={data.db?.online} label={`DB${data.db?.latencyMs != null ? ` ${data.db.latencyMs}ms` : ''}`} />
+          <Pill ok={!!backupOk} label="Backup" />
+        </div>
+        <span className="text-[10px] flex items-center gap-1" style={{ color: 'var(--eb-text3)' }}>
+          <span style={{ width: 6, height: 6, borderRadius: 999, background: '#22c55e', animation: 'pulse 2s infinite' }} />
+          live · co 5s
+        </span>
+      </div>
+
+      {/* Metryki */}
+      <Metric label="CPU" pct={data.cpu?.pct ?? 0} warn={th.cpu}
+        detail={`${data.cpu?.cores ?? '?'} rdzeni · load ${data.cpu?.load1 ?? '—'} / ${data.cpu?.load5 ?? '—'} / ${data.cpu?.load15 ?? '—'}`} />
+      <Metric label="Pamięć RAM" pct={data.memory?.pct ?? 0} warn={th.ram}
+        detail={`${fmtBytes(data.memory?.usedBytes)} / ${fmtBytes(data.memory?.totalBytes)} użyte`} />
+      {data.disk && (
+        <Metric label="Dysk" pct={data.disk.pct ?? 0} warn={th.disk}
+          detail={`${fmtBytes(data.disk.used)} / ${fmtBytes(data.disk.total)} · wolne ${fmtBytes(data.disk.available)}`} />
+      )}
+
+      {/* Szczegóły */}
+      <div className="grid grid-cols-2 gap-2">
+        <div className="p-3 rounded-xl" style={{ background: 'var(--eb-bg2)', border: '1px solid var(--eb-border)' }}>
+          <p className="text-[10px] uppercase tracking-wide mb-1" style={{ color: 'var(--eb-text3)' }}>Backend</p>
+          <p className="text-xs" style={{ color: 'var(--eb-text1)' }}>Proces: {fmtDur(data.backend?.processUptimeSec)}</p>
+          <p className="text-xs" style={{ color: 'var(--eb-text2)' }}>System: {fmtDur(data.backend?.systemUptimeSec)}</p>
+          <p className="text-[10px] mt-1" style={{ color: 'var(--eb-text3)' }}>RSS {fmtBytes(data.backend?.rssBytes)} · Node {data.backend?.nodeVersion}</p>
+        </div>
+        <div className="p-3 rounded-xl" style={{ background: 'var(--eb-bg2)', border: '1px solid var(--eb-border)' }}>
+          <p className="text-[10px] uppercase tracking-wide mb-1" style={{ color: 'var(--eb-text3)' }}>Ostatni backup</p>
+          {data.backup?.exists ? (
+            <>
+              <p className="text-xs" style={{ color: backupOk ? 'var(--eb-text1)' : '#f59e0b' }}>
+                {data.backup.ageHours != null ? `${data.backup.ageHours} h temu` : '—'}
+              </p>
+              <p className="text-[10px] mt-1 break-all" style={{ color: 'var(--eb-text3)' }}>
+                {data.backup.file} · {fmtBytes(data.backup.sizeBytes)}
+              </p>
+            </>
+          ) : (
+            <p className="text-xs" style={{ color: '#ef4444' }}>Brak kopii zapasowej</p>
+          )}
+        </div>
+      </div>
+
+      {/* Kopie zapasowe — pobieranie */}
+      <div className="p-3 rounded-xl" style={{ background: 'var(--eb-bg2)', border: '1px solid var(--eb-border)' }}>
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs font-semibold" style={{ color: 'var(--eb-text1)' }}>Kopie zapasowe</span>
+          <span className="text-[10px]" style={{ color: 'var(--eb-text3)' }}>
+            {backups == null ? '…' : `${backups.length} szt.`}
+          </span>
+        </div>
+        {backups == null ? (
+          <div className="flex justify-center py-3"><Spinner /></div>
+        ) : backups.length === 0 ? (
+          <p className="text-[11px]" style={{ color: 'var(--eb-text3)' }}>Brak kopii zapasowych.</p>
+        ) : (
+          <div className="flex flex-col gap-1.5">
+            {backups.map((b: any) => {
+              const d = b.date ? new Date(b.date) : null
+              const label = d
+                ? d.toLocaleString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                : b.file
+              return (
+                <div key={b.file} className="flex items-center justify-between gap-2 py-1.5 px-2 rounded-lg"
+                  style={{ background: 'var(--eb-bg3)' }}>
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium truncate" style={{ color: 'var(--eb-text1)' }}>{label}</p>
+                    <p className="text-[10px]" style={{ color: 'var(--eb-text3)' }}>{fmtBytes(b.sizeBytes)}</p>
+                  </div>
+                  <button onClick={() => downloadBackup(b.file)} disabled={dl === b.file}
+                    className="flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all hover:opacity-80"
+                    style={{ background: 'rgba(168,85,247,0.12)', color: '#a855f7', border: '1px solid rgba(168,85,247,0.25)', opacity: dl === b.file ? 0.5 : 1, cursor: dl === b.file ? 'default' : 'pointer' }}>
+                    {dl === b.file ? 'Pobieranie…' : (
+                      <>
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+                        </svg>
+                        Pobierz
+                      </>
+                    )}
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      <p className="text-[10px] text-center" style={{ color: 'var(--eb-text3)' }}>
+        Host: {data.host} · Progi alertów: CPU {th.cpu}% · RAM {th.ram}% · Dysk {th.disk}%
+      </p>
+    </div>
+  )
+}
+
 function DevManager({ token }: { token: string }) {
   const [subTab,   setSubTab]   = useState<'users' | 'patchnotes'>('users')
   const [users,    setUsers]    = useState<any[]>([])
@@ -2467,7 +2798,7 @@ function GhostLauncher({ token }: { token: string }) {
 export function TicketsModal({ onClose }: { onClose: () => void }) {
   const t = useT()
   const { token } = useStore()
-  const [tab,       setTab]       = useState<'new' | 'my' | 'warnings' | 'tickets' | 'warnreply' | 'users' | 'ghost' | 'dev' | 'mods'>('new')
+  const [tab,       setTab]       = useState<'new' | 'my' | 'warnings' | 'tickets' | 'warnreply' | 'users' | 'ghost' | 'dev' | 'mods' | 'monitor' | 'billing'>('new')
   const [isCreator, setIsCreator] = useState(false)
   const [isMod,     setIsMod]     = useState(false)
   const [myCount,   setMyCount]   = useState(0)
@@ -2499,6 +2830,8 @@ export function TicketsModal({ onClose }: { onClose: () => void }) {
     { key: 'ghost',    label: `👻 ${t('tickets.tabGhost')}` },
     { key: 'dev',      label: `⚡ Dev` },
     { key: 'mods',     label: `🛡 Mody` },
+    { key: 'monitor',  label: `📊 Monitoring` },
+    { key: 'billing',  label: `💳 Płatności` },
   ] as const
 
   const modTabs = [
@@ -2593,6 +2926,8 @@ export function TicketsModal({ onClose }: { onClose: () => void }) {
           {tab === 'ghost'     && (isCreator || isMod) && <GhostLauncher token={token!} />}
           {tab === 'dev'       && isCreator && <DevManager token={token!} />}
           {tab === 'mods'      && isCreator && <ModManager token={token!} />}
+          {tab === 'monitor'   && isCreator && <MonitorPanel token={token!} />}
+          {tab === 'billing'   && isCreator && <BillingAdmin token={token!} />}
         </div>
       </div>
     </div>
