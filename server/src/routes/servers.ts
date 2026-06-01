@@ -38,72 +38,10 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
   }
 })
 
-router.post('/', requireAuth, async (req: Request, res: Response) => {
-  return res.status(403).json({ error: 'Tworzenie serwerów jest tymczasowo wyłączone. Skontaktuj się z administracją.' })
-
-  try {
-    const { name, iconColor, description } = req.body
-
-    if (!name?.trim() || name.length > 100) {
-      return res.status(400).json({ error: 'Nazwa serwera musi mieć 1-100 znaków' })
-    }
-
-    const { id: serverId, inviteCode } = await serverQueries.create({
-      name: name.trim(),
-      ownerId: req.user!.userId,
-      iconColor,
-      description,
-    })
-
-    await memberQueries.add(req.user!.userId, serverId)
-
-    const FIXED_ROLES = [
-      { name: 'Administrator', color: '#f87171', position: 40, hoist: true,  mentionable: true,  permissions: ['ADMINISTRATOR','VIEW_CHANNELS','MANAGE_CHANNELS','MANAGE_ROLES','MANAGE_SERVER','KICK_MEMBERS','BAN_MEMBERS','MANAGE_INVITES','SEND_MESSAGES','EMBED_LINKS','ATTACH_FILES','ADD_REACTIONS','MENTION_EVERYONE','MANAGE_MESSAGES','READ_HISTORY','CONNECT','SPEAK','MUTE_MEMBERS','DEAFEN_MEMBERS','MOVE_MEMBERS','STREAM','USE_VOICE_ACTIVITY'] },
-      { name: 'Moderator',     color: '#fb923c', position: 30, hoist: true,  mentionable: true,  permissions: ['VIEW_CHANNELS','KICK_MEMBERS','BAN_MEMBERS','MANAGE_INVITES','SEND_MESSAGES','EMBED_LINKS','ATTACH_FILES','ADD_REACTIONS','MANAGE_MESSAGES','READ_HISTORY','CONNECT','SPEAK','MUTE_MEMBERS','DEAFEN_MEMBERS','MOVE_MEMBERS','STREAM','USE_VOICE_ACTIVITY'] },
-      { name: 'Członek',       color: '#60a5fa', position: 20, hoist: false, mentionable: false, permissions: ['VIEW_CHANNELS','SEND_MESSAGES','EMBED_LINKS','ATTACH_FILES','ADD_REACTIONS','READ_HISTORY','CONNECT','SPEAK','STREAM','USE_VOICE_ACTIVITY'] },
-      { name: 'Do Weryfikacji',color: '#94a3b8', position: 10, hoist: false, mentionable: false, permissions: [] },
-      { name: '@everyone',     color: '#a8a9af', position: 0,  hoist: false, mentionable: false, permissions: [] },
-    ]
-
-    let adminRoleId = ''
-    for (const role of FIXED_ROLES) {
-      const id = await roleQueries.create({
-        serverId,
-        name: role.name,
-        color: role.color,
-        permissions: role.permissions,
-        position: role.position,
-        hoist: role.hoist,
-        mentionable: role.mentionable,
-      })
-      if (role.name === 'Administrator') adminRoleId = id
-    }
-
-    if (adminRoleId) {
-      await memberQueries.assignRole(req.user!.userId, serverId, adminRoleId)
-    }
-
-    const catGeneralId = uuidv4()
-    await require('../db/pool').execute(
-      'INSERT INTO channel_categories (id, server_id, name, position) VALUES (?, ?, ?, ?)',
-      [catGeneralId, serverId, 'Ogólne', 0]
-    )
-    const catVoiceId = uuidv4()
-    await require('../db/pool').execute(
-      'INSERT INTO channel_categories (id, server_id, name, position) VALUES (?, ?, ?, ?)',
-      [catVoiceId, serverId, 'Voice', 1]
-    )
-
-    await channelQueries.create({ serverId, categoryId: catGeneralId, type: 'text',  name: 'ogólny',  position: 0 })
-    await channelQueries.create({ serverId, categoryId: catGeneralId, type: 'text',  name: 'off-topic', position: 1 })
-    await channelQueries.create({ serverId, categoryId: catVoiceId,   type: 'voice', name: 'Ogólny',  position: 2, bitrate: 128000 })
-
-    const server = await serverQueries.findById(serverId)
-    return res.status(201).json({ server, inviteCode })
-  } catch (err) {
-    console.error('[servers/create]', err)
-    return res.status(500).json({ error: 'Błąd serwera' })
-  }
+// Tworzenie serwerów odbywa się przez przepływ pakietów: POST /api/billing/checkout
+// (provisioning po opłaceniu). Ten endpoint pozostaje jako jawna blokada legacy.
+router.post('/', requireAuth, async (_req: Request, res: Response) => {
+  return res.status(403).json({ error: 'Tworzenie serwerów odbywa się przez wybór pakietu.' })
 })
 
 router.get('/:serverId/permissions', requireAuth, async (req: Request, res: Response) => {
