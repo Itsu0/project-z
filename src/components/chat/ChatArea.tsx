@@ -12,6 +12,7 @@ import { ChatInput } from './ChatInput'
 import { SearchPanel } from './SearchPanel'
 import { JoinVoiceButton } from '@/components/voice/JoinVoiceButton'
 import { ScreenShareBar } from '@/components/voice/ScreenShareView'
+import { TacticsPanel } from '@/components/tactics/TacticsPanel'
 import { ForumView } from '@/components/forum/ForumView'
 import type { RealChannel } from '@/lib/store'
 
@@ -98,6 +99,7 @@ function ChannelTabBar({ channels, activeId, serverId, serverName, serverColor, 
   const [showCreate, setShowCreate] = useState(false)
   const [newName,    setNewName]    = useState('')
   const [newType,    setNewType]    = useState<'text' | 'voice' | 'forum'>('text')
+  const [showTactics, setShowTactics] = useState(false)
   const [creating,   setCreating]   = useState(false)
   const [expandedVoice, setExpandedVoice] = useState<string | null>(null)
   const [dragSrcId,  setDragSrcId]  = useState<string | null>(null)
@@ -251,6 +253,15 @@ function ChannelTabBar({ channels, activeId, serverId, serverName, serverColor, 
           </svg>
         )}
       </div>
+
+      {/* Taktyki */}
+      <button onClick={(e) => { e.stopPropagation(); setShowTactics(true) }} title="Zeszyt taktyczny"
+        className="flex items-center gap-1.5 px-2.5 self-stretch flex-shrink-0 border-r transition-colors hover:bg-white/[0.04]"
+        style={{ borderColor: 'var(--eb-border)', color: 'var(--eb-text2)' }}>
+        <span className="text-sm">⚔️</span>
+        <span className="text-xs font-medium whitespace-nowrap hidden lg:inline">Taktyki</span>
+      </button>
+      {showTactics && <TacticsPanel serverId={serverId} onClose={() => setShowTactics(false)} />}
 
       {}
       <div className="flex flex-wrap items-center gap-0.5 px-2 py-1 flex-1" style={{ minWidth: 0 }}>

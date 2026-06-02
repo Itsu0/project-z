@@ -427,6 +427,37 @@ export async function runMigrations(): Promise<void> {
     console.warn('   ⚠ Tabela billing_orders:', e.message)
   }
 
+  // ── Zeszyt taktyczny (notatki per przeciwnik, współedycja Yjs) ───────────────
+  try {
+    await conn.query(`CREATE TABLE IF NOT EXISTS \`tactics_targets\` (
+      \`id\`         CHAR(36)     NOT NULL,
+      \`server_id\`  CHAR(36)     NOT NULL,
+      \`name\`       VARCHAR(120) NOT NULL,
+      \`doc_state\`  MEDIUMBLOB   DEFAULT NULL,
+      \`created_by\` CHAR(36)     DEFAULT NULL,
+      \`updated_by\` CHAR(36)     DEFAULT NULL,
+      \`created_at\` DATETIME     DEFAULT CURRENT_TIMESTAMP,
+      \`updated_at\` DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (\`id\`),
+      INDEX \`idx_tactics_server\` (\`server_id\`, \`updated_at\` DESC),
+      FOREIGN KEY (\`server_id\`) REFERENCES \`servers\`(\`id\`) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`)
+    await conn.query(`CREATE TABLE IF NOT EXISTS \`tactics_revisions\` (
+      \`id\`         CHAR(36)   NOT NULL,
+      \`target_id\`  CHAR(36)   NOT NULL,
+      \`content\`    MEDIUMTEXT NOT NULL,
+      \`label\`      VARCHAR(120) DEFAULT NULL,
+      \`author_id\`  CHAR(36)   DEFAULT NULL,
+      \`created_at\` DATETIME   DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (\`id\`),
+      INDEX \`idx_trev_target\` (\`target_id\`, \`created_at\` DESC),
+      FOREIGN KEY (\`target_id\`) REFERENCES \`tactics_targets\`(\`id\`) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`)
+    console.log('   ↳ Tabele tactics OK')
+  } catch (e: any) {
+    console.warn('   ⚠ Tabele tactics:', e.message)
+  }
+
   console.log('✅ Migracje zakończone pomyślnie')
   await conn.end()
 }

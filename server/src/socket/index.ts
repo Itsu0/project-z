@@ -6,6 +6,7 @@ import { isMuted, hasPermission, canViewChannel } from '../middleware/permission
 import { v4 as uuidv4 } from 'uuid'
 import { invalidateChannel } from '../cache/messages'
 import { checkAutoMod, addStrike, logModAction, isRaidLocked } from '../routes/serverMod'
+import { loadDoc, encodeState, applyClientUpdate, persist, releaseIfEmpty } from './tactics'
 import fs   from 'fs'
 import path from 'path'
 
@@ -23,6 +24,9 @@ const typingTimers = new Map<string, NodeJS.Timeout>()
 interface WbStroke { id: string; color: string; size: number; erase: boolean; points: { x: number; y: number }[] }
 const whiteboards = new Map<string, WbStroke[]>()
 const WB_MAX_STROKES = 6000
+
+// Uprawnienia edycji taktyk per socket: klucz `${socketId}:${targetId}`
+const tacEditPerms = new Set<string>()
 
 function applyWbOp(channelId: string, op: any): void {
   let strokes = whiteboards.get(channelId)
@@ -273,6 +277,37 @@ export function setupSocket(io: SocketIO) {
       if (!socket.rooms.has(`wb:${data.channelId}`)) return // tylko uczestnicy pokoju
       applyWbOp(data.channelId, data.op)
       socket.to(`wb:${data.channelId}`).emit('WB_OP', { channelId: data.channelId, op: data.op })
+    })
+
+    // ── Zeszyt taktyczny — współedycja (Yjs) ──
+    const tacJoined = new Set<string>() // targetId, do których socket dołączył
+    socket.on('TAC_JOIN', async (targetId: string) => {
+      if (typeof targetId !== 'string') return
+      const t = await queryOne<{ server_id: string }>('SELECT server_id FROM tactics_targets WHERE id = ?', [targetId])
+      if (!t || !(await memberQueries.isMember(userId, t.server_id))) return
+      const srv = await queryOne<{ owner_id: string }>('SELECT owner_id FROM servers WHERE id = ?', [t.server_id])
+      const canEdit = srv?.owner_id === userId || await hasPermission(userId, t.server_id, 'MANAGE_MESSAGES')
+      if (canEdit) tacEditPerms.add(`${socket.id}:${targetId}`)
+      await loadDoc(targetId)
+      socket.join(`tac:${targetId}`)
+      tacJoined.add(targetId)
+      const state = encodeState(targetId)
+      if (state) socket.emit('TAC_SYNC', { targetId, update: state, canEdit })
+    })
+    socket.on('TAC_UPDATE', (data: { targetId: string; update: Uint8Array }) => {
+      if (!data?.targetId || !data.update) return
+      if (!tacEditPerms.has(`${socket.id}:${data.targetId}`)) return // tylko oficerowie
+      const u = data.update instanceof Uint8Array ? data.update : new Uint8Array(data.update as any)
+      applyClientUpdate(data.targetId, u, userId)
+      socket.to(`tac:${data.targetId}`).emit('TAC_UPDATE', { targetId: data.targetId, update: data.update })
+    })
+    socket.on('TAC_LEAVE', async (targetId: string) => {
+      if (typeof targetId !== 'string') return
+      socket.leave(`tac:${targetId}`)
+      tacJoined.delete(targetId)
+      tacEditPerms.delete(`${socket.id}:${targetId}`)
+      const size = io.sockets.adapter.rooms.get(`tac:${targetId}`)?.size ?? 0
+      await releaseIfEmpty(targetId, size, userId)
     })
 
     socket.on('MESSAGE_CREATE', async (data: {
@@ -678,6 +713,12 @@ export function setupSocket(io: SocketIO) {
 
     socket.on('disconnect', async () => {
       console.log(`❌ ${username} rozłączony`)
+      // Sprzątanie taktyk: zapisz/zwolnij Y.Doc gdy pokój pusty
+      for (const targetId of tacJoined) {
+        tacEditPerms.delete(`${socket.id}:${targetId}`)
+        const size = io.sockets.adapter.rooms.get(`tac:${targetId}`)?.size ?? 0
+        await releaseIfEmpty(targetId, size, userId)
+      }
       const userSockets = onlineUsers.get(userId)
       if (userSockets) {
         userSockets.delete(socket.id)

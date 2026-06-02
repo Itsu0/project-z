@@ -36,6 +36,7 @@
     "socket.io-client": "^4.7.5",
     "tweetnacl": "^1.0.3",
     "uiohook-napi": "^1.5.5",
+    "yjs": "^13.6.31",
     "zustand": "^4.5.4"
   },
   "devDependencies": {
