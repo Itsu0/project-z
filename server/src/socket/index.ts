@@ -19,6 +19,27 @@ const onlineUsers = new Map<string, Set<string>>()
 const typingUsers = new Map<string, Set<string>>()
 const typingTimers = new Map<string, NodeJS.Timeout>()
 
+// ── Tablica współdzielona (stan w pamięci per kanał) ─────────────────────────
+interface WbStroke { id: string; color: string; size: number; erase: boolean; points: { x: number; y: number }[] }
+const whiteboards = new Map<string, WbStroke[]>()
+const WB_MAX_STROKES = 6000
+
+function applyWbOp(channelId: string, op: any): void {
+  let strokes = whiteboards.get(channelId)
+  if (!strokes) { strokes = []; whiteboards.set(channelId, strokes) }
+  if (op?.t === 'begin' && op.id && op.p) {
+    strokes.push({ id: String(op.id), color: String(op.color ?? '#111'), size: Number(op.size) || 4, erase: !!op.erase, points: [{ x: +op.p.x, y: +op.p.y }] })
+    if (strokes.length > WB_MAX_STROKES) strokes.shift()
+  } else if (op?.t === 'point' && op.id && op.p) {
+    const s = strokes.find(x => x.id === op.id)
+    if (s && s.points.length < 5000) s.points.push({ x: +op.p.x, y: +op.p.y })
+  } else if (op?.t === 'undo' && op.id) {
+    whiteboards.set(channelId, strokes.filter(x => x.id !== op.id))
+  } else if (op?.t === 'clear') {
+    whiteboards.set(channelId, [])
+  }
+}
+
 async function handleMentions(
   io: SocketIO,
   content: string,
@@ -236,6 +257,23 @@ export function setupSocket(io: SocketIO) {
     })
     socket.on('leave_channel', (channelId: string) => socket.leave(`channel:${channelId}`))
     socket.on('leave_server',  (serverId: string)  => socket.leave(`server:${serverId}`))
+
+    // ── Tablica współdzielona ──
+    socket.on('WB_JOIN', async (channelId: string) => {
+      if (typeof channelId !== 'string') return
+      const ch = await queryOne<{ server_id: string }>('SELECT server_id FROM channels WHERE id = ?', [channelId])
+      if (!ch || !(await memberQueries.isMember(userId, ch.server_id))) return
+      if (!await canViewChannel(userId, channelId)) return
+      socket.join(`wb:${channelId}`)
+      socket.emit('WB_STATE', { channelId, strokes: whiteboards.get(channelId) ?? [] })
+    })
+    socket.on('WB_LEAVE', (channelId: string) => { if (typeof channelId === 'string') socket.leave(`wb:${channelId}`) })
+    socket.on('WB_OP', (data: { channelId: string; op: any }) => {
+      if (!data?.channelId || !data.op) return
+      if (!socket.rooms.has(`wb:${data.channelId}`)) return // tylko uczestnicy pokoju
+      applyWbOp(data.channelId, data.op)
+      socket.to(`wb:${data.channelId}`).emit('WB_OP', { channelId: data.channelId, op: data.op })
+    })
 
     socket.on('MESSAGE_CREATE', async (data: {
       channelId:      string

@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom'
 import { useVoice } from '@/hooks/useVoice'
 import { useStore } from '@/lib/store'
 import { useT } from '@/lib/i18n'
+import { Whiteboard } from '@/components/voice/Whiteboard'
 
 interface DesktopSource { id: string; name: string; thumbnail: string; appIcon: string | null }
 
@@ -206,6 +207,7 @@ export function VoiceDock() {
   const isElectron = typeof window !== 'undefined' && !!(window as any).electronPZ
   const [overlayVisible, setOverlayVisible] = useState(false)
   const [showSourcePicker, setShowSourcePicker] = useState(false)
+  const [showBoard, setShowBoard] = useState(false)
 
   useEffect(() => {
     const onState = (e: Event) => {
@@ -375,6 +377,17 @@ export function VoiceDock() {
         </DockBtn>
 
         {}
+        {voice.channelId && (
+          <DockBtn onClick={() => setShowBoard(true)} title="Tablica współdzielona" accent={showBoard}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="18" height="14" rx="2"/>
+              <path d="M7 21h10M12 17v4"/>
+              <path d="M7 9l3 3 2-2 3 3"/>
+            </svg>
+          </DockBtn>
+        )}
+
+        {}
         {isElectron && (
           <DockBtn
             onClick={async () => {
@@ -413,6 +426,11 @@ export function VoiceDock() {
           }}
           onClose={() => setShowSourcePicker(false)}
         />,
+        document.body
+      )}
+
+      {showBoard && voice.channelId && createPortal(
+        <Whiteboard channelId={voice.channelId} onClose={() => setShowBoard(false)} />,
         document.body
       )}
     </div>
