@@ -271,7 +271,7 @@ export function MembersPanel() {
   useEffect(() => { fetchRoles() }, [fetchRoles])
 
   const filtered = serverMembers.filter(m =>
-    (m.nickname ?? m.display_name).toLowerCase().includes(search.toLowerCase())
+    (m.nickname ?? m.display_name ?? '').toLowerCase().includes(search.toLowerCase())
   )
 
   const ROLE_ORDER = ['Administrator', 'Moderator', 'Członek', 'Do Weryfikacji']

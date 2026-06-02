@@ -538,11 +538,14 @@ export function ServerRail() {
   useEffect(() => {
     if (!token) return
     fetch(`${BASE}/api/billing/plans`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.ok ? r.json() : Promise.reject(new Error('niedostępne')))
-      .then(d => setBilling({
-        available: true,
-        catalog: { minSlots: d.minSlots, currency: d.currency, sharedFeatures: d.sharedFeatures ?? [], tiers: d.tiers ?? [] },
-      }))
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (d?.available) {
+          setBilling({ available: true, catalog: { minSlots: d.minSlots, currency: d.currency, sharedFeatures: d.sharedFeatures ?? [], tiers: d.tiers ?? [] } })
+        } else {
+          setBilling({ available: false, catalog: null })
+        }
+      })
       .catch(() => setBilling({ available: false, catalog: null }))
   }, [token])
 

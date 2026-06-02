@@ -13,7 +13,7 @@ interface Props {
 
 export function UserAvatar({ user, size = 32, showStatus = false, statusOverride, className }: Props) {
   const status = statusOverride ?? user.status
-  const initials = user.displayName.slice(0, 1).toUpperCase()
+  const initials = (user.displayName ?? '?').slice(0, 1).toUpperCase()
   const [imgError, setImgError] = useState(false)
 
   return (

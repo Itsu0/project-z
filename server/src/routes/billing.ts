@@ -51,9 +51,10 @@ async function runProvisioning(order: any): Promise<{ status: string; serverId?:
 router.get('/plans', requireAuth, async (req: Request, res: Response) => {
   try {
     if (!(await billingAccess(req.user!.userId))) {
-      return res.status(403).json({ error: 'Funkcja niedostępna', billingEnabled: false })
+      // Funkcja ukryta — 200 bez katalogu (brak szumu 403 w konsoli).
+      return res.json({ available: false, billingEnabled: false })
     }
-    return res.json({ billingEnabled: isBillingEnabled(), ...publicSlotCatalog() })
+    return res.json({ available: true, billingEnabled: isBillingEnabled(), ...publicSlotCatalog() })
   } catch (err) {
     console.error('[billing/plans]', err)
     return res.status(500).json({ error: 'Błąd serwera' })

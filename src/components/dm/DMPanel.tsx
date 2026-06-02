@@ -45,7 +45,7 @@ function UserAvatar({ user, size = 36 }: { user: { avatar_url?: string | null; a
   return (
     <div className="rounded-full flex items-center justify-center font-bold flex-shrink-0 text-white"
       style={{ width: size, height: size, background: user.avatar_color, fontSize: size * 0.38 }}>
-      {user.display_name.charAt(0).toUpperCase()}
+      {(user.display_name ?? '?').charAt(0).toUpperCase()}
     </div>
   )
 }
