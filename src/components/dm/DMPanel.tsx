@@ -6,6 +6,11 @@ import TextareaAutosize from 'react-textarea-autosize'
 import { EmojiPicker } from '@/components/chat/EmojiPicker'
 import { GifPicker } from '@/components/chat/ChatInput'
 import { ImageLightbox } from '@/components/ui/ImageLightbox'
+import {
+  generateIdentity, publicKeyB64, generateRecoveryCode, randomSalt, deriveKey,
+  sealSecretKey, openSecretKey, encryptMessage, decryptMessage,
+  getSessionSecret, setSessionSecret,
+} from '@/lib/e2e'
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
@@ -224,6 +229,113 @@ function MsgBubble({ msg, isMe, showAvatar, onReact, onDelete }: {
 
 // ── Conversation view ─────────────────────────────────────────────────────────
 
+// ── Modal E2E: pierwsza konfiguracja (kod odzyskiwania) lub odblokowanie ──────
+function E2EModal({ mode, token, onClose, onReady }: {
+  mode: 'setup' | 'unlock'
+  token: string | null
+  onClose: () => void
+  onReady: () => void
+}) {
+  const [code, setCode]   = useState('')
+  const [busy, setBusy]   = useState(false)
+  const [error, setError] = useState('')
+  const [copied, setCopied] = useState(false)
+  const authH = token ? { Authorization: `Bearer ${token}` } : undefined
+
+  // Setup: generuj tożsamość + kod od razu (kod pokazujemy użytkownikowi)
+  const [genCode] = useState(() => (mode === 'setup' ? generateRecoveryCode() : ''))
+  const [identity] = useState(() => (mode === 'setup' ? generateIdentity() : null))
+
+  async function confirmSetup() {
+    if (!identity) return
+    setBusy(true); setError('')
+    try {
+      const salt = randomSalt()
+      const dk = await deriveKey(genCode, salt)
+      const privateKeyEnc = sealSecretKey(identity.secretKey, dk)
+      const res = await fetch(`${BASE}/api/e2e/keys`, {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json', ...(authH ?? {}) },
+        body: JSON.stringify({ publicKey: publicKeyB64(identity), privateKeyEnc, kdfSalt: salt }),
+      })
+      if (!res.ok) throw new Error('Nie udało się zapisać kluczy')
+      setSessionSecret(identity.secretKey)
+      onReady()
+    } catch (e: any) { setError(e.message || 'Błąd') } finally { setBusy(false) }
+  }
+
+  async function confirmUnlock() {
+    setBusy(true); setError('')
+    try {
+      const res = await fetch(`${BASE}/api/e2e/keys/me`, { credentials: 'include', headers: authH })
+      const d = await res.json()
+      if (!d.keys) throw new Error('Brak zapisanych kluczy')
+      const dk = await deriveKey(code, d.keys.kdfSalt)
+      const secret = openSecretKey(d.keys.privateKeyEnc, dk)
+      if (!secret) throw new Error('Nieprawidłowy kod odzyskiwania')
+      setSessionSecret(secret)
+      onReady()
+    } catch (e: any) { setError(e.message || 'Błąd') } finally { setBusy(false) }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)' }}
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="rounded-2xl p-6 w-full max-w-md"
+        style={{ background: 'var(--eb-bg2)', border: '0.5px solid var(--eb-border2)' }}>
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-lg">🔒</span>
+          <h2 className="text-base font-semibold" style={{ color: 'var(--eb-text1)' }}>
+            {mode === 'setup' ? 'Skonfiguruj szyfrowanie' : 'Odblokuj szyfrowanie'}
+          </h2>
+        </div>
+
+        {mode === 'setup' ? (
+          <>
+            <p className="text-xs mb-3" style={{ color: 'var(--eb-text3)' }}>
+              Zapisz ten <b style={{ color: 'var(--eb-text1)' }}>kod odzyskiwania</b>. To jedyny sposób odzyskania
+              szyfrowanych wiadomości na innym urządzeniu lub po wylogowaniu. Nie pokażemy go ponownie i nie znamy go.
+            </p>
+            <div className="p-3 rounded-xl mb-2 font-mono text-sm tracking-wide text-center break-all"
+              style={{ background: 'var(--eb-bg0)', border: '0.5px solid var(--eb-border2)', color: 'var(--eb-accent)' }}>
+              {genCode}
+            </div>
+            <button onClick={() => { navigator.clipboard.writeText(genCode); setCopied(true); setTimeout(() => setCopied(false), 1500) }}
+              className="text-xs mb-4" style={{ color: 'var(--eb-text3)' }}>
+              {copied ? '✓ Skopiowano' : '📋 Kopiuj kod'}
+            </button>
+            {error && <p className="text-xs mb-2" style={{ color: 'var(--eb-accent2)' }}>{error}</p>}
+            <div className="flex gap-2">
+              <button onClick={onClose} className="ember-btn-ghost flex-1 py-2 text-sm">Anuluj</button>
+              <button onClick={confirmSetup} disabled={busy} className="ember-btn flex-1 py-2 text-sm font-semibold">
+                {busy ? '…' : 'Zapisałem — włącz'}
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="text-xs mb-3" style={{ color: 'var(--eb-text3)' }}>
+              Wpisz swój kod odzyskiwania, aby odblokować szyfrowane wiadomości na tym urządzeniu.
+            </p>
+            <input value={code} onChange={e => setCode(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && confirmUnlock()}
+              placeholder="XXXX-XXXX-XXXX-…" autoFocus
+              className="ember-input w-full px-3 py-2.5 mb-2 font-mono text-sm" />
+            {error && <p className="text-xs mb-2" style={{ color: 'var(--eb-accent2)' }}>{error}</p>}
+            <div className="flex gap-2">
+              <button onClick={onClose} className="ember-btn-ghost flex-1 py-2 text-sm">Anuluj</button>
+              <button onClick={confirmUnlock} disabled={busy || !code.trim()} className="ember-btn flex-1 py-2 text-sm font-semibold">
+                {busy ? '…' : 'Odblokuj'}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export function ConvView({ conv, onBack }: { conv: DmConversation; onBack?: () => void }) {
   const {
     currentUser, token, dmMessages, addDmMessage, updateDmMessage, deleteDmMessage,
@@ -245,6 +357,14 @@ export function ConvView({ conv, onBack }: { conv: DmConversation; onBack?: () =
   const msgs = dmMessages[conv.id] ?? []
   const typing = dmTyping[conv.id] ?? []
 
+  // ── E2E ──
+  const [e2eEnabled, setE2eEnabled] = useState(false)
+  const [peerPub, setPeerPub]       = useState<string | null>(null)
+  const [secretReady, setSecretReady] = useState<boolean>(() => !!getSessionSecret())
+  const [e2eModal, setE2eModal]     = useState<null | 'setup' | 'unlock'>(null)
+  const [enabling, setEnabling]     = useState(false)
+  const e2eUnlocked = e2eEnabled && secretReady && !!peerPub
+
   const authHeaders = useCallback(
     (extra?: HeadersInit): HeadersInit => ({
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -258,10 +378,18 @@ export function ConvView({ conv, onBack }: { conv: DmConversation; onBack?: () =
     emit('DM_JOIN', conv.id)
     clearDmUnread(conv.id)
 
+    setE2eEnabled(false); setPeerPub(null)
     fetch(`${BASE}/api/dm/${conv.id}/messages`, { credentials: 'include', headers: authHeaders() })
       .then(r => r.json())
       .then(d => {
         if (d.messages) { setDmMessages(conv.id, d.messages); setHasMore(d.hasMore ?? false) }
+        if (d.e2eEnabled && d.peerId) {
+          setE2eEnabled(true)
+          fetch(`${BASE}/api/e2e/keys/${d.peerId}`, { credentials: 'include', headers: authHeaders() })
+            .then(r => r.ok ? r.json() : null)
+            .then(k => setPeerPub(k?.publicKey ?? null))
+            .catch(() => {})
+        }
       })
       .catch(() => {})
     return () => { emit('DM_LEAVE', conv.id) }
@@ -277,7 +405,7 @@ export function ConvView({ conv, onBack }: { conv: DmConversation; onBack?: () =
     const onNew = (msg: DmMessage) => {
       if (msg.conversation_id !== conv.id) return
       addDmMessage(conv.id, msg)
-      updateDmConvLastMsg(conv.id, msg.content, msg.created_at)
+      updateDmConvLastMsg(conv.id, (msg as any).encrypted ? '🔒 Wiadomość szyfrowana' : msg.content, msg.created_at)
       clearDmUnread(conv.id)
       // mark read
       fetch(`${BASE}/api/dm/${conv.id}/read`, {
@@ -298,15 +426,25 @@ export function ConvView({ conv, onBack }: { conv: DmConversation; onBack?: () =
       if (d.convId !== conv.id || d.userId === currentUser?.id) return
       setDmTyping(conv.id, d.username, d.typing)
     }
+    const onE2e = (d: any) => {
+      if (d.conversationId !== conv.id) return
+      setE2eEnabled(true)
+      // Pobierz peerId (z endpointu wiadomości) i jego klucz publiczny
+      fetch(`${BASE}/api/dm/${conv.id}/messages?limit=1`, { credentials: 'include', headers: authHeaders() })
+        .then(r => r.json()).then(m => m?.peerId && fetch(`${BASE}/api/e2e/keys/${m.peerId}`, { credentials: 'include', headers: authHeaders() })
+          .then(r => r.ok ? r.json() : null).then(k => setPeerPub(k?.publicKey ?? null))).catch(() => {})
+    }
     on('DM_MESSAGE_CREATE', onNew)
     on('DM_MESSAGE_UPDATE', onUpd)
     on('DM_MESSAGE_DELETE', onDel)
     on('DM_TYPING',         onTyping)
+    on('DM_E2E_ENABLED',    onE2e)
     return () => {
       off('DM_MESSAGE_CREATE', onNew)
       off('DM_MESSAGE_UPDATE', onUpd)
       off('DM_MESSAGE_DELETE', onDel)
       off('DM_TYPING',         onTyping)
+      off('DM_E2E_ENABLED',    onE2e)
     }
   }, [conv.id, currentUser?.id])
 
@@ -323,6 +461,15 @@ export function ConvView({ conv, onBack }: { conv: DmConversation; onBack?: () =
   const sendMsg = async () => {
     if (!text.trim() || sending) return
     const content = text.trim()
+
+    let body: any = { content }
+    if (e2eEnabled) {
+      const secret = getSessionSecret()
+      if (!secret) { setE2eModal('unlock'); return }
+      if (!peerPub) { return }
+      body = { content: encryptMessage(content, peerPub, secret), encrypted: true }
+    }
+
     setText('')
     setSending(true)
     emit('DM_TYPING_STOP', conv.id)
@@ -330,9 +477,29 @@ export function ConvView({ conv, onBack }: { conv: DmConversation; onBack?: () =
       await fetch(`${BASE}/api/dm/${conv.id}/messages`, {
         method: 'POST', credentials: 'include',
         headers: authHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ content }),
+        body: JSON.stringify(body),
       })
     } finally { setSending(false) }
+  }
+
+  // Włączanie szyfrowania rozmowy (zapewnij klucze → POST /e2e)
+  async function startE2E() {
+    setEnabling(true)
+    try {
+      const st = await fetch(`${BASE}/api/e2e/keys/status`, { credentials: 'include', headers: authHeaders() }).then(r => r.json())
+      if (!st.hasKeys) { setE2eModal('setup'); return }
+      if (!getSessionSecret()) { setE2eModal('unlock'); return }
+      await enableConv()
+    } catch {} finally { setEnabling(false) }
+  }
+  async function enableConv() {
+    const res = await fetch(`${BASE}/api/dm/${conv.id}/e2e`, {
+      method: 'POST', credentials: 'include', headers: authHeaders({ 'Content-Type': 'application/json' }),
+    })
+    const d = await res.json().catch(() => ({}))
+    if (res.status === 400 && d.needKeys) { setE2eModal('setup'); return }
+    if (res.status === 409) { alert('Druga osoba nie ma jeszcze włączonego szyfrowania. Poproś ją, by skonfigurowała E2E.'); return }
+    if (res.ok) { setE2eEnabled(true); setPeerPub(d.peerPublicKey ?? null) }
   }
 
   const onKeyDown = (e: React.KeyboardEvent) => {
@@ -403,8 +570,32 @@ export function ConvView({ conv, onBack }: { conv: DmConversation; onBack?: () =
     } finally { setUploading(false) }
   }
 
+  // Odszyfrowanie wiadomości do wyświetlenia (treść jawna żyje tylko w pamięci)
+  const secret = secretReady ? getSessionSecret() : null
+  const displayMsgs = msgs.map(m => {
+    if (!(m as any).encrypted) return m
+    if (!secret || !peerPub) return { ...m, content: '🔒 Zaszyfrowana wiadomość' }
+    const dec = decryptMessage(m.content, peerPub, secret)
+    return { ...m, content: dec ?? '🔒 Nie można odszyfrować' }
+  })
+
+  function onE2EReady() {
+    setSecretReady(true)
+    setE2eModal(null)
+    // Po konfiguracji/odblokowaniu włącz szyfrowanie rozmowy, jeśli jeszcze nie aktywne
+    if (!e2eEnabled) enableConv()
+    else if (!peerPub) {
+      fetch(`${BASE}/api/dm/${conv.id}/messages?limit=1`, { credentials: 'include', headers: authHeaders() })
+        .then(r => r.json()).then(d => d?.peerId && fetch(`${BASE}/api/e2e/keys/${d.peerId}`, { credentials: 'include', headers: authHeaders() })
+          .then(r => r.ok ? r.json() : null).then(k => setPeerPub(k?.publicKey ?? null))).catch(() => {})
+    }
+  }
+
   return (
     <div className="flex flex-col h-full">
+      {e2eModal && (
+        <E2EModal mode={e2eModal} token={token} onClose={() => setE2eModal(null)} onReady={onE2EReady} />
+      )}
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3 border-b flex-shrink-0"
         style={{ borderColor: 'var(--eb-border)', background: 'var(--eb-bg1)' }}>
@@ -421,6 +612,39 @@ export function ConvView({ conv, onBack }: { conv: DmConversation; onBack?: () =
           <div className="font-semibold text-sm" style={{ color: 'var(--eb-text1)' }}>{conv.display_name}</div>
           <div className="text-xs" style={{ color: 'var(--eb-text4)' }}>@{conv.username}</div>
         </div>
+
+        {/* E2E — przycisk / wskaźnik */}
+        <div className="ml-auto flex-shrink-0">
+          {!e2eEnabled ? (
+            <button onClick={startE2E} disabled={enabling} title="Włącz szyfrowanie end-to-end"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all"
+              style={{ background: 'var(--eb-bg3)', color: 'var(--eb-text3)', border: '0.5px solid var(--eb-border2)' }}
+              onMouseEnter={e => (e.currentTarget.style.color = 'var(--eb-text1)')}
+              onMouseLeave={e => (e.currentTarget.style.color = 'var(--eb-text3)')}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/>
+              </svg>
+              {enabling ? '…' : 'Szyfruj'}
+            </button>
+          ) : e2eUnlocked ? (
+            <span title="Rozmowa szyfrowana end-to-end" className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium"
+              style={{ background: 'rgba(34,197,94,0.12)', color: 'var(--eb-online)', border: '0.5px solid rgba(34,197,94,0.3)' }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+              Szyfrowana
+            </span>
+          ) : (
+            <button onClick={() => setE2eModal('unlock')} title="Odblokuj szyfrowane wiadomości"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium"
+              style={{ background: 'rgba(245,158,11,0.12)', color: 'var(--eb-accent)', border: '0.5px solid rgba(245,158,11,0.3)' }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+              Odblokuj
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Messages */}
@@ -433,9 +657,9 @@ export function ConvView({ conv, onBack }: { conv: DmConversation; onBack?: () =
             {loadingMore ? '…' : '↑ Załaduj starsze'}
           </button>
         )}
-        {msgs.map((msg, i) => {
+        {displayMsgs.map((msg, i) => {
           const isMe = msg.author_id === currentUser?.id
-          const prev = msgs[i - 1]
+          const prev = displayMsgs[i - 1]
           const showAvatar = !prev || prev.author_id !== msg.author_id ||
             (new Date(msg.created_at).getTime() - new Date(prev.created_at).getTime()) > 5 * 60000
           return (

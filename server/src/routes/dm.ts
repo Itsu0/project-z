@@ -107,7 +107,7 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
       `SELECT
          dc.id, dc.user1_id, dc.user2_id, dc.last_message_at,
          u.id AS other_id, u.username, u.display_name, u.avatar_url, u.avatar_color, u.status,
-         (SELECT dm.content FROM dm_messages dm
+         (SELECT IF(COALESCE(dm.encrypted,0)=1, '🔒 Wiadomość szyfrowana', dm.content) FROM dm_messages dm
           WHERE dm.conversation_id = dc.id AND dm.deleted_at IS NULL
           ORDER BY dm.created_at DESC LIMIT 1) AS last_content,
          (SELECT dm.author_id FROM dm_messages dm
