@@ -89,6 +89,7 @@ export async function runMigrations(): Promise<void> {
   const indexes: [string, string, string][] = [
     ['idx_messages_channel_created', 'messages',       'channel_id, created_at DESC'],
     ['idx_messages_author',          'messages',       'author_id'],
+    ['idx_messages_server_created',  'messages',       'server_id, created_at'],
     ['idx_notif_user_unread',        'notifications',  'user_id, read_at'],
     ['idx_notif_created',            'notifications',  'created_at'],
     ['idx_members_user',             'server_members', 'user_id'],

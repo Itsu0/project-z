@@ -342,4 +342,94 @@ router.delete('/:serverId/emoji/:emojiId', requireAuth, async (req: Request, res
   }
 })
 
+// ── Analityka serwera (właściciel / MANAGE_SERVER) ───────────────────────────
+router.get('/:serverId/analytics', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { serverId } = req.params
+    const userId = req.user!.userId
+    const server = await serverQueries.findById(serverId)
+    if (!server) return res.status(404).json({ error: 'Serwer nie znaleziony' })
+
+    if (server.owner_id !== userId) {
+      const { hasPermission } = await import('../middleware/permissions')
+      if (!(await hasPermission(userId, serverId, 'MANAGE_SERVER'))) {
+        return res.status(403).json({ error: 'Brak uprawnień' })
+      }
+    }
+
+    const { queryOne } = await import('../db/pool')
+
+    const [summary, growth, hours, weekdays, topChannels, topMembers] = await Promise.all([
+      queryOne<any>(
+        `SELECT
+           (SELECT COUNT(*) FROM server_members WHERE server_id = ?)                                          AS total_members,
+           (SELECT COUNT(*) FROM server_members WHERE server_id = ? AND joined_at > NOW() - INTERVAL 30 DAY)  AS new_members_30d,
+           (SELECT COUNT(*) FROM messages WHERE server_id = ? AND created_at > NOW() - INTERVAL 30 DAY)        AS messages_30d,
+           (SELECT COUNT(*) FROM messages WHERE server_id = ? AND created_at >= CURDATE())                     AS messages_today,
+           (SELECT COUNT(DISTINCT author_id) FROM messages WHERE server_id = ? AND created_at > NOW() - INTERVAL 7 DAY)  AS active_7d,
+           (SELECT COUNT(DISTINCT author_id) FROM messages WHERE server_id = ? AND created_at > NOW() - INTERVAL 30 DAY) AS active_30d`,
+        [serverId, serverId, serverId, serverId, serverId, serverId]
+      ),
+      queryMany<any>(
+        `SELECT DATE(joined_at) AS d, COUNT(*) AS c
+         FROM server_members WHERE server_id = ? AND joined_at > NOW() - INTERVAL 30 DAY
+         GROUP BY DATE(joined_at) ORDER BY d ASC`,
+        [serverId]
+      ),
+      queryMany<any>(
+        `SELECT HOUR(created_at) AS h, COUNT(*) AS c
+         FROM messages WHERE server_id = ? AND created_at > NOW() - INTERVAL 30 DAY
+         GROUP BY HOUR(created_at)`,
+        [serverId]
+      ),
+      queryMany<any>(
+        `SELECT WEEKDAY(created_at) AS wd, COUNT(*) AS c
+         FROM messages WHERE server_id = ? AND created_at > NOW() - INTERVAL 30 DAY
+         GROUP BY WEEKDAY(created_at)`,
+        [serverId]
+      ),
+      queryMany<any>(
+        `SELECT m.channel_id, c.name, COUNT(*) AS cnt
+         FROM messages m JOIN channels c ON c.id = m.channel_id
+         WHERE m.server_id = ? AND m.created_at > NOW() - INTERVAL 30 DAY
+         GROUP BY m.channel_id, c.name ORDER BY cnt DESC LIMIT 8`,
+        [serverId]
+      ),
+      queryMany<any>(
+        `SELECT m.author_id, u.display_name, u.username, u.avatar_color, u.avatar_url, COUNT(*) AS cnt
+         FROM messages m JOIN users u ON u.id = m.author_id
+         WHERE m.server_id = ? AND m.created_at > NOW() - INTERVAL 30 DAY
+         GROUP BY m.author_id, u.display_name, u.username, u.avatar_color, u.avatar_url
+         ORDER BY cnt DESC LIMIT 8`,
+        [serverId]
+      ),
+    ])
+
+    // Uzupełnij 24 godziny i 7 dni zerami
+    const hoursArr = Array.from({ length: 24 }, (_, i) => ({ h: i, c: 0 }))
+    for (const r of hours) hoursArr[r.h] = { h: r.h, c: Number(r.c) }
+    const weekArr = Array.from({ length: 7 }, (_, i) => ({ wd: i, c: 0 }))
+    for (const r of weekdays) weekArr[r.wd] = { wd: r.wd, c: Number(r.c) }
+
+    return res.json({
+      summary: {
+        totalMembers:  Number(summary?.total_members ?? 0),
+        newMembers30d: Number(summary?.new_members_30d ?? 0),
+        messages30d:   Number(summary?.messages_30d ?? 0),
+        messagesToday: Number(summary?.messages_today ?? 0),
+        active7d:      Number(summary?.active_7d ?? 0),
+        active30d:     Number(summary?.active_30d ?? 0),
+      },
+      growth:      growth.map(r => ({ date: r.d, count: Number(r.c) })),
+      hours:       hoursArr,
+      weekdays:    weekArr,
+      topChannels: topChannels.map(r => ({ channelId: r.channel_id, name: r.name, count: Number(r.cnt) })),
+      topMembers:  topMembers.map(r => ({ userId: r.author_id, displayName: r.display_name, username: r.username, avatarColor: r.avatar_color, avatarUrl: r.avatar_url, count: Number(r.cnt) })),
+    })
+  } catch (err) {
+    console.error('[settings/analytics]', err)
+    return res.status(500).json({ error: 'Błąd serwera' })
+  }
+})
+
 export default router

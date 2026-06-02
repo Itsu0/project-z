@@ -9,7 +9,7 @@ import { useT } from '@/lib/i18n'
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
-type Tab = 'ogólne' | 'kanały' | 'role' | 'członkowie' | 'emoji' | 'zbanowani' | 'moderacja' | 'zaproszenia'
+type Tab = 'ogólne' | 'kanały' | 'role' | 'członkowie' | 'emoji' | 'zbanowani' | 'moderacja' | 'zaproszenia' | 'analityka'
 
 async function apiFetch(path: string, token: string, options: RequestInit = {}) {
   const res = await fetch(`${BASE}${path}`, {
@@ -1241,6 +1241,122 @@ function TabModeration({ server }: { server: any }) {
   )
 }
 
+function TabAnalytics({ server }: { server: any }) {
+  const token = useStore(s => s.token)
+  const [data, setData]       = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError]     = useState('')
+
+  useEffect(() => {
+    if (!token) return
+    setLoading(true)
+    fetch(`${BASE}/api/servers/${server.id}/analytics`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : Promise.reject(new Error('Brak dostępu')))
+      .then(d => { setData(d); setError('') })
+      .catch(e => setError(e.message || 'Błąd'))
+      .finally(() => setLoading(false))
+  }, [token, server.id])
+
+  if (loading) return <div className="flex justify-center py-12"><div className="animate-spin w-6 h-6 rounded-full border-2 border-transparent" style={{ borderTopColor: 'var(--eb-accent)', borderRightColor: 'var(--eb-accent)' }} /></div>
+  if (error || !data) return <p className="text-sm py-8 text-center" style={{ color: 'var(--eb-text3)' }}>{error || 'Brak danych'}</p>
+
+  const s = data.summary
+  const maxHour = Math.max(1, ...data.hours.map((h: any) => h.c))
+  const maxCh   = Math.max(1, ...data.topChannels.map((c: any) => c.count))
+  const WD = ['Pon', 'Wt', 'Śr', 'Czw', 'Pt', 'Sob', 'Nd']
+  const maxWd = Math.max(1, ...data.weekdays.map((w: any) => w.c))
+  const fmt = (n: number) => n.toLocaleString('pl-PL')
+
+  const Card = ({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) => (
+    <div className="p-3 rounded-xl" style={{ background: 'var(--eb-bg2)', border: '0.5px solid var(--eb-border)' }}>
+      <div className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--eb-text3)' }}>{label}</div>
+      <div className="text-lg font-bold mt-0.5" style={{ color: color ?? 'var(--eb-text1)' }}>{value}</div>
+      {sub && <div className="text-[10px] mt-0.5" style={{ color: 'var(--eb-text3)' }}>{sub}</div>}
+    </div>
+  )
+
+  return (
+    <div className="flex flex-col gap-4">
+      <p className="text-[11px]" style={{ color: 'var(--eb-text3)' }}>Dane z ostatnich 30 dni.</p>
+
+      {/* Podsumowanie */}
+      <div className="grid grid-cols-3 gap-2">
+        <Card label="Członkowie" value={fmt(s.totalMembers)} sub={`+${fmt(s.newMembers30d)} w 30 dni`} />
+        <Card label="Wiadomości 30 dni" value={fmt(s.messages30d)} sub={`${fmt(s.messagesToday)} dziś`} />
+        <Card label="Aktywni (7 dni)" value={fmt(s.active7d)} sub={`${fmt(s.active30d)} w 30 dni`} color="var(--eb-online)" />
+      </div>
+      <div className="text-[11px] -mt-2" style={{ color: 'var(--eb-text3)' }}>
+        Zaangażowanie: <b style={{ color: 'var(--eb-text2)' }}>{s.totalMembers > 0 ? Math.round(s.active30d / s.totalMembers * 100) : 0}%</b> członków napisało coś w 30 dni.
+      </div>
+
+      {/* Godziny szczytu */}
+      <div>
+        <div className="text-[10px] uppercase tracking-wide mb-2" style={{ color: 'var(--eb-text3)' }}>Aktywność wg godziny (UTC)</div>
+        <div className="flex items-end gap-[2px]" style={{ height: 70 }}>
+          {data.hours.map((h: any) => (
+            <div key={h.h} className="flex-1 flex flex-col items-center justify-end" title={`${h.h}:00 — ${fmt(h.c)} wiad.`}>
+              <div style={{ width: '100%', height: `${Math.max(2, h.c / maxHour * 60)}px`, background: 'var(--eb-gradient)', borderRadius: '3px 3px 0 0', opacity: h.c === 0 ? 0.15 : 1 }} />
+            </div>
+          ))}
+        </div>
+        <div className="flex justify-between mt-1 text-[9px]" style={{ color: 'var(--eb-text3)' }}>
+          <span>0</span><span>6</span><span>12</span><span>18</span><span>23</span>
+        </div>
+      </div>
+
+      {/* Dni tygodnia */}
+      <div>
+        <div className="text-[10px] uppercase tracking-wide mb-2" style={{ color: 'var(--eb-text3)' }}>Aktywność wg dnia tygodnia</div>
+        <div className="flex gap-1.5">
+          {data.weekdays.map((w: any) => (
+            <div key={w.wd} className="flex-1 text-center">
+              <div className="rounded-md mb-1" style={{ height: `${Math.max(3, w.c / maxWd * 44)}px`, background: 'rgba(168,85,247,0.5)' }} />
+              <span className="text-[9px]" style={{ color: 'var(--eb-text3)' }}>{WD[w.wd]}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Najaktywniejsze kanały */}
+      <div>
+        <div className="text-[10px] uppercase tracking-wide mb-2" style={{ color: 'var(--eb-text3)' }}>Najaktywniejsze kanały</div>
+        {data.topChannels.length === 0 ? <p className="text-[11px]" style={{ color: 'var(--eb-text3)' }}>Brak danych.</p> : (
+          <div className="flex flex-col gap-1.5">
+            {data.topChannels.map((c: any) => (
+              <div key={c.channelId} className="flex items-center gap-2">
+                <span className="text-xs flex-shrink-0" style={{ color: 'var(--eb-text2)', width: 90 }}># {c.name}</span>
+                <div className="flex-1 h-2.5 rounded-full overflow-hidden" style={{ background: 'var(--eb-bg3)' }}>
+                  <div style={{ width: `${c.count / maxCh * 100}%`, height: '100%', background: 'var(--eb-gradient)' }} />
+                </div>
+                <span className="text-[10px] tabular-nums flex-shrink-0" style={{ color: 'var(--eb-text3)', width: 44, textAlign: 'right' }}>{fmt(c.count)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Najaktywniejsi członkowie */}
+      <div>
+        <div className="text-[10px] uppercase tracking-wide mb-2" style={{ color: 'var(--eb-text3)' }}>Najaktywniejsi członkowie</div>
+        {data.topMembers.length === 0 ? <p className="text-[11px]" style={{ color: 'var(--eb-text3)' }}>Brak danych.</p> : (
+          <div className="flex flex-col gap-1">
+            {data.topMembers.map((m: any, i: number) => (
+              <div key={m.userId} className="flex items-center gap-2 py-1">
+                <span className="text-[10px] w-4 text-center font-bold" style={{ color: i < 3 ? 'var(--eb-accent)' : 'var(--eb-text3)' }}>{i + 1}</span>
+                <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0 overflow-hidden" style={{ background: m.avatarColor ?? 'var(--eb-gradient)' }}>
+                  {m.avatarUrl ? <img src={m.avatarUrl} alt="" className="w-full h-full object-cover" /> : (m.displayName?.[0]?.toUpperCase() ?? '?')}
+                </div>
+                <span className="text-xs flex-1 truncate" style={{ color: 'var(--eb-text1)' }}>{m.displayName}</span>
+                <span className="text-[10px] tabular-nums" style={{ color: 'var(--eb-text3)' }}>{fmt(m.count)} wiad.</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function TabInvites({ server }: { server: any }) {
   const token = useStore(s => s.token)
   const [invites, setInvites]   = useState<any[]>([])
@@ -1390,6 +1506,7 @@ export function ServerSettings({ onClose }: { onClose: () => void }) {
     { id: 'role'       as Tab, label: t('serverSettings.tab.roles'),    icon: '🏷' },
     { id: 'członkowie' as Tab, label: t('serverSettings.tab.members'),  icon: '👥' },
     { id: 'emoji'      as Tab, label: t('serverSettings.tab.emoji'),    icon: '😄' },
+    { id: 'analityka'  as Tab, label: 'Analityka',   icon: '📊' },
     { id: 'zaproszenia' as Tab, label: 'Zaproszenia', icon: '🔗' },
     { id: 'zbanowani'   as Tab, label: 'Zbanowani',   icon: '🔨' },
     { id: 'moderacja'   as Tab, label: 'Moderacja',   icon: '🛡' },
@@ -1399,6 +1516,7 @@ export function ServerSettings({ onClose }: { onClose: () => void }) {
     if (tab.id === 'role')        return canManageRoles || canKick || canBan || canMute
     if (tab.id === 'członkowie')  return canKick || canBan || canMute
     if (tab.id === 'emoji')       return canManageServer
+    if (tab.id === 'analityka')   return canManageServer
     if (tab.id === 'zaproszenia') return canManageServer
     if (tab.id === 'zbanowani')   return canBan
     if (tab.id === 'moderacja')   return canManageServer
@@ -1488,6 +1606,7 @@ export function ServerSettings({ onClose }: { onClose: () => void }) {
           {activeTab === 'role'       && <RolesTab server={server} />}
           {activeTab === 'członkowie' && <TabMembers server={server} />}
           {activeTab === 'emoji'        && <TabEmoji server={server} />}
+          {activeTab === 'analityka'    && <TabAnalytics server={server} />}
           {activeTab === 'zaproszenia'  && <TabInvites server={server} />}
           {activeTab === 'zbanowani'    && <TabBans server={server} />}
           {activeTab === 'moderacja'    && <TabModeration server={server} />}
