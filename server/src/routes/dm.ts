@@ -44,6 +44,13 @@ async function isFriend(myId: string, otherId: string): Promise<boolean> {
   return !!r
 }
 
+// Czy odbiorca przyjmuje wiadomości od osób spoza znajomych (domyślnie tak).
+async function recipientAllowsNonFriendDm(otherId: string): Promise<boolean> {
+  const row = await queryOne<{ settings: any }>('SELECT settings FROM user_settings WHERE user_id=?', [otherId])
+  const s = row?.settings && typeof row.settings === 'object' ? row.settings : {}
+  return s.allowDmFromNonFriends !== false // brak ustawienia = dozwolone
+}
+
 async function isBlocked(myId: string, otherId: string): Promise<boolean> {
   const r = await queryOne(
     'SELECT 1 FROM dm_blocks WHERE (blocker_id=? AND blocked_id=?) OR (blocker_id=? AND blocked_id=?)',
@@ -143,8 +150,11 @@ router.post('/open/:userId', requireAuth, async (req: Request, res: Response) =>
     const target = await queryOne<{ id: string }>('SELECT id FROM users WHERE id=?', [other])
     if (!target) return res.status(404).json({ error: 'Użytkownik nie istnieje' })
 
-    if (!await isFriend(me, other)) return res.status(403).json({ error: 'Możesz pisać tylko do znajomych' })
     if (await isBlocked(me, other)) return res.status(403).json({ error: 'Zablokowany' })
+    // Nie-znajomi mogą pisać, chyba że odbiorca to wyłączył w ustawieniach.
+    if (!await isFriend(me, other) && !await recipientAllowsNonFriendDm(other)) {
+      return res.status(403).json({ error: 'Ta osoba przyjmuje wiadomości tylko od znajomych' })
+    }
 
     const convId = await getOrCreateConv(me, other)
     return res.json({ conversationId: convId })

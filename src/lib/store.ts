@@ -17,6 +17,7 @@ export interface UserSettings {
   compactMode: boolean
   colorTheme: string
   language: 'pl' | 'en'
+  allowDmFromNonFriends: boolean
 }
 
 export const DEFAULT_SETTINGS: UserSettings = {
@@ -27,6 +28,7 @@ export const DEFAULT_SETTINGS: UserSettings = {
   pttEnabled: false, pttKey: 'Space',
   fontSize: 'normal', compactMode: false, colorTheme: 'ember',
   language: 'pl',
+  allowDmFromNonFriends: true,
 }
 
 export interface AuthUser {

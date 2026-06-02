@@ -426,7 +426,37 @@ export function MemberActions({
   const btnRef     = useRef<HTMLButtonElement>(null)
   const portalRef  = useRef<HTMLDivElement>(null)
   const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
-  const { token } = useStore()
+  const { token, setDmOpen, setActiveDmConvId } = useStore()
+  const [friendState, setFriendState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
+  const [dmLoading,   setDmLoading]   = useState(false)
+  const [dmError,     setDmError]     = useState('')
+
+  async function addFriend() {
+    if (!token || friendState === 'sending' || friendState === 'sent') return
+    setFriendState('sending')
+    try {
+      const r = await fetch(`${BASE_URL}/api/friends/request/${member.userId}`, {
+        method: 'POST', headers: { Authorization: `Bearer ${token}` },
+      })
+      setFriendState(r.ok ? 'sent' : 'error')
+    } catch { setFriendState('error') }
+  }
+
+  async function openDm() {
+    if (!token || dmLoading) return
+    setDmLoading(true); setDmError('')
+    try {
+      const r = await fetch(`${BASE_URL}/api/dm/open/${member.userId}`, {
+        method: 'POST', headers: { Authorization: `Bearer ${token}` },
+      })
+      const d = await r.json()
+      if (!r.ok) { setDmError(d.error || 'Nie można otworzyć rozmowy'); return }
+      setActiveDmConvId(d.conversationId)
+      setDmOpen(true)
+      setOpen(false)
+    } catch { setDmError('Błąd połączenia') }
+    finally { setDmLoading(false) }
+  }
 
   useEffect(() => {
     if (!token || !open) return
@@ -491,7 +521,8 @@ export function MemberActions({
   const effectiveCanMute = canMute && (!targetIsAdmin || isAdmin)
   const effectiveCanKick = canKick && (!targetIsAdmin || isAdmin)
   const effectiveCanBan  = canBan  && (!targetIsAdmin || isAdmin)
-  if (member.userId === currentUserId || (!effectiveCanKick && !effectiveCanBan && !effectiveCanMute && !canManageRoles)) return null
+  // Menu pokazujemy zawsze dla innych osób — akcje znajomych/DM są uniwersalne.
+  if (member.userId === currentUserId) return null
 
   async function handleKickConfirm() {
     setKickLoading(true); setKickError('')
@@ -613,6 +644,28 @@ export function MemberActions({
               paddingBottom: 4,
             }}
           >
+
+            {/* Znajomi + wiadomość (uniwersalne) */}
+            <button onClick={openDm} disabled={dmLoading}
+              className="flex items-center gap-2 w-full px-3 py-2 text-xs hover:bg-white/[0.05] transition-colors"
+              style={{ color: 'var(--eb-voice)' }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+              </svg>
+              {dmLoading ? 'Otwieranie…' : 'Wyślij wiadomość'}
+            </button>
+            <button onClick={addFriend} disabled={friendState === 'sending' || friendState === 'sent'}
+              className="flex items-center gap-2 w-full px-3 py-2 text-xs hover:bg-white/[0.05] transition-colors"
+              style={{ color: friendState === 'sent' ? 'var(--eb-online)' : 'var(--eb-text2)' }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                {friendState === 'sent'
+                  ? <polyline points="20 6 9 17 4 12"/>
+                  : <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></>}
+              </svg>
+              {friendState === 'sent' ? 'Zaproszenie wysłane' : friendState === 'sending' ? 'Wysyłanie…' : friendState === 'error' ? 'Nie udało się' : 'Dodaj do znajomych'}
+            </button>
+            {dmError && <div className="px-3 py-1 text-[10px]" style={{ color: 'var(--eb-accent2)' }}>{dmError}</div>}
+            {(canManageRoles || hasModActions) && <div style={{ height: '0.5px', background: 'var(--eb-border)', margin: '2px 8px' }} />}
 
             {}
             {canManageRoles && (

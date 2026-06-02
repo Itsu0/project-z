@@ -630,6 +630,7 @@ function TabAppearance() {
   const [fontSize,    setFontSize]    = useState(userSettings.fontSize)
   const [compactMode, setCompactMode] = useState(userSettings.compactMode)
   const [colorTheme,  setColorTheme]  = useState(userSettings.colorTheme)
+  const [allowDm,     setAllowDm]     = useState(userSettings.allowDmFromNonFriends !== false)
   const saveRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   function queueSave(patch: Partial<typeof userSettings>) {
@@ -715,6 +716,27 @@ function TabAppearance() {
           <div className="absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all"
             style={{ left: compactMode ? '22px' : '2px' }} />
         </button>
+      </div>
+
+      {/* Prywatność — wiadomości od osób spoza znajomych */}
+      <div>
+        <label className="block text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--eb-text2)' }}>
+          Prywatność
+        </label>
+        <div className="flex items-center justify-between p-4 rounded-xl" style={{ background: 'rgba(255,255,255,0.02)', border: '0.5px solid var(--eb-border)' }}>
+          <div className="pr-4">
+            <div className="text-sm font-medium" style={{ color: 'var(--eb-text1)' }}>Wiadomości od osób spoza znajomych</div>
+            <div className="text-xs mt-0.5" style={{ color: 'var(--eb-text3)' }}>
+              Gdy wyłączone, tylko znajomi mogą rozpocząć z Tobą rozmowę prywatną.
+            </div>
+          </div>
+          <button onClick={() => { const next = !allowDm; setAllowDm(next); queueSave({ allowDmFromNonFriends: next }) }}
+            className="relative w-10 h-5 rounded-full transition-all flex-shrink-0"
+            style={{ background: allowDm ? 'var(--eb-gradient)' : 'var(--eb-bg4)' }}>
+            <div className="absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all"
+              style={{ left: allowDm ? '22px' : '2px' }} />
+          </button>
+        </div>
       </div>
 
     </div>
