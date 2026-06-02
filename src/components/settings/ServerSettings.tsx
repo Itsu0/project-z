@@ -1360,6 +1360,7 @@ function TabAnalytics({ server }: { server: any }) {
 function TabInvites({ server }: { server: any }) {
   const token = useStore(s => s.token)
   const [invites, setInvites]   = useState<any[]>([])
+  const [stats,   setStats]     = useState<any>(null)
   const [loading, setLoading]   = useState(true)
   const [creating, setCreating] = useState(false)
   const [copied,   setCopied]   = useState<string | null>(null)
@@ -1367,8 +1368,12 @@ function TabInvites({ server }: { server: any }) {
   async function load() {
     setLoading(true)
     try {
-      const d = await apiFetch(`/api/servers/${server.id}/invites`, token!)
+      const [d, st] = await Promise.all([
+        apiFetch(`/api/servers/${server.id}/invites`, token!),
+        apiFetch(`/api/servers/${server.id}/invite-stats`, token!).catch(() => null),
+      ])
       setInvites(d.invites ?? [])
+      setStats(st)
     } catch {} finally { setLoading(false) }
   }
 
@@ -1399,8 +1404,36 @@ function TabInvites({ server }: { server: any }) {
 
   const isExpired = (exp: string) => new Date(exp) < new Date()
 
+  const MEDAL = ['🥇', '🥈', '🥉']
+
   return (
     <div className="flex flex-col gap-3">
+      {/* Ranking zapraszających */}
+      {stats && stats.leaderboard.length > 0 && (
+        <div className="p-3 rounded-xl" style={{ background: 'var(--eb-bg2)', border: '0.5px solid var(--eb-border)' }}>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-semibold" style={{ color: 'var(--eb-text1)' }}>🏆 Ranking zapraszających</p>
+            <span className="text-[10px]" style={{ color: 'var(--eb-text3)' }}>
+              {stats.totals.viaInvite} z {stats.totals.totalMembers} przez zaproszenia
+            </span>
+          </div>
+          <div className="flex flex-col gap-1">
+            {stats.leaderboard.slice(0, 5).map((m: any, i: number) => (
+              <div key={m.userId} className="flex items-center gap-2 py-0.5">
+                <span className="w-5 text-center text-xs">{MEDAL[i] ?? <span style={{ color: 'var(--eb-text3)' }}>{i + 1}</span>}</span>
+                <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0 overflow-hidden" style={{ background: m.avatarColor ?? 'var(--eb-gradient)' }}>
+                  {m.avatarUrl ? <img src={m.avatarUrl} alt="" className="w-full h-full object-cover" /> : (m.displayName?.[0]?.toUpperCase() ?? '?')}
+                </div>
+                <span className="text-xs flex-1 truncate" style={{ color: 'var(--eb-text1)' }}>{m.displayName}</span>
+                <span className="text-[11px] font-semibold tabular-nums" style={{ color: i === 0 ? 'var(--eb-accent)' : 'var(--eb-text2)' }}>
+                  {m.count} {m.count === 1 ? 'osoba' : 'osób'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm font-semibold" style={{ color: 'var(--eb-text1)' }}>Linki zaproszenia</p>

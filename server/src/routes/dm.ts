@@ -163,8 +163,8 @@ router.get('/:convId/messages', requireAuth, async (req: Request, res: Response)
     const before = req.query.before as string | undefined
     const limit  = Math.max(1, Math.min(parseInt(req.query.limit as string) || 50, 100))
 
-    const conv = await queryOne<{ user1_id: string; user2_id: string }>(
-      'SELECT user1_id, user2_id FROM dm_conversations WHERE id=?', [convId]
+    const conv = await queryOne<{ user1_id: string; user2_id: string; e2e_enabled: number }>(
+      'SELECT user1_id, user2_id, COALESCE(e2e_enabled,0) AS e2e_enabled FROM dm_conversations WHERE id=?', [convId]
     )
     if (!conv || (conv.user1_id !== me && conv.user2_id !== me))
       return res.status(403).json({ error: 'Brak dostępu' })
@@ -178,6 +178,7 @@ router.get('/:convId/messages', requireAuth, async (req: Request, res: Response)
 
     const msgs = await queryMany<any>(
       `SELECT m.id, m.conversation_id, m.author_id, m.content, m.edited_at, m.deleted_at, m.created_at,
+              COALESCE(m.encrypted,0) AS encrypted,
               u.username AS author_username, u.display_name AS author_display_name,
               u.avatar_color AS author_avatar_color, u.avatar_url AS author_avatar_url
        FROM dm_messages m
@@ -189,7 +190,7 @@ router.get('/:convId/messages', requireAuth, async (req: Request, res: Response)
     )
 
     const enriched = await enrichMessages(msgs.reverse(), me)
-    return res.json({ messages: enriched, hasMore: msgs.length === limit })
+    return res.json({ messages: enriched, hasMore: msgs.length === limit, e2eEnabled: !!conv.e2e_enabled, peerId: otherId })
   } catch (err) {
     console.error('[dm/messages]', err)
     return res.status(500).json({ error: 'Błąd serwera' })
@@ -202,10 +203,12 @@ router.post('/:convId/messages', requireAuth, async (req: Request, res: Response
   try {
     const me     = req.user!.userId
     const convId = req.params.convId
-    const { content, attachmentId } = req.body
+    const { content, attachmentId, encrypted } = req.body
+    const isEnc = encrypted === true || encrypted === 1
+    const maxLen = isEnc ? 8000 : 4000 // szyfrogram (base64) jest dłuższy niż tekst
 
-    if ((!content?.trim() && !attachmentId) || (content && content.length > 4000))
-      return res.status(400).json({ error: 'Treść wiadomości jest wymagana (maks. 4000 znaków)' })
+    if ((!content?.trim() && !attachmentId) || (content && content.length > maxLen))
+      return res.status(400).json({ error: `Treść wiadomości jest wymagana (maks. ${isEnc ? 4000 : 4000} znaków)` })
 
     const conv = await queryOne<{ user1_id: string; user2_id: string }>(
       'SELECT user1_id, user2_id FROM dm_conversations WHERE id=?', [convId]
@@ -217,8 +220,9 @@ router.post('/:convId/messages', requireAuth, async (req: Request, res: Response
     if (await isBlocked(me, otherId)) return res.status(403).json({ error: 'Zablokowany' })
 
     const id = uuidv4()
-    await execute('INSERT INTO dm_messages (id,conversation_id,author_id,content) VALUES (?,?,?,?)',
-      [id, convId, me, content?.trim() ?? ''])
+    // Szyfrogram przechowujemy dosłownie (nie trim — base64 nie zawiera spacji brzegowych)
+    await execute('INSERT INTO dm_messages (id,conversation_id,author_id,content,encrypted) VALUES (?,?,?,?,?)',
+      [id, convId, me, isEnc ? (content ?? '') : (content?.trim() ?? ''), isEnc ? 1 : 0])
     await execute('UPDATE dm_conversations SET last_message_at=UTC_TIMESTAMP() WHERE id=?', [convId])
 
     // Link attachment to the new message (verify ownership + conv before linking)
@@ -250,6 +254,35 @@ router.post('/:convId/messages', requireAuth, async (req: Request, res: Response
     return res.status(201).json({ message: { ...msg, reactions: [], attachments } })
   } catch (err) {
     console.error('[dm/send]', err)
+    return res.status(500).json({ error: 'Błąd serwera' })
+  }
+})
+
+// ── E2E: włącz szyfrowanie dla rozmowy (oba klucze wymagane) ─────────────────
+router.post('/:convId/e2e', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const me = req.user!.userId
+    const convId = req.params.convId
+    const conv = await queryOne<{ user1_id: string; user2_id: string; e2e_enabled: number }>(
+      'SELECT user1_id, user2_id, COALESCE(e2e_enabled,0) AS e2e_enabled FROM dm_conversations WHERE id=?', [convId]
+    )
+    if (!conv || (conv.user1_id !== me && conv.user2_id !== me))
+      return res.status(403).json({ error: 'Brak dostępu' })
+    const otherId = conv.user1_id === me ? conv.user2_id : conv.user1_id
+
+    const myKey   = await queryOne<{ public_key: string }>('SELECT public_key FROM e2e_keys WHERE user_id=?', [me])
+    const peerKey = await queryOne<{ public_key: string }>('SELECT public_key FROM e2e_keys WHERE user_id=?', [otherId])
+    if (!myKey)   return res.status(400).json({ error: 'Najpierw skonfiguruj swoje klucze E2E', needKeys: true })
+    if (!peerKey) return res.status(409).json({ error: 'Druga osoba nie ma jeszcze włączonego E2E' })
+
+    await execute('UPDATE dm_conversations SET e2e_enabled=1 WHERE id=?', [convId])
+
+    const { getSocketInstance } = await import('../socket')
+    getSocketInstance()?.to(`dm:${convId}`).emit('DM_E2E_ENABLED', { conversationId: convId })
+
+    return res.json({ ok: true, peerId: otherId, peerPublicKey: peerKey.public_key })
+  } catch (err) {
+    console.error('[dm/e2e/enable]', err)
     return res.status(500).json({ error: 'Błąd serwera' })
   }
 })

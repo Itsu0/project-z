@@ -28,6 +28,7 @@ import serverModRoutes from './routes/serverMod'
 import friendsRoutes from './routes/friends'
 import dmRoutes from './routes/dm'
 import billingRoutes from './routes/billing'
+import e2eRoutes from './routes/e2e'
 
 dotenv.config()
 
@@ -156,6 +157,7 @@ app.use('/api/servers',       serverModRoutes)
 app.use('/api/friends',       friendsRoutes)
 app.use('/api/dm',            messageLimiter, dmRoutes)
 app.use('/api/billing',       billingRoutes)
+app.use('/api/e2e',           e2eRoutes)
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', uptime: process.uptime(), timestamp: new Date().toISOString() })

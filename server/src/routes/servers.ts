@@ -276,8 +276,8 @@ router.get('/invite/:code', requireAuth, async (req: Request, res: Response) => 
 router.post('/invite/:code/join', requireAuth, async (req: Request, res: Response) => {
   try {
     const { code } = req.params
-    const invite = await queryOne<{ server_id: string; expires_at: string }>(
-      'SELECT server_id, expires_at FROM invites WHERE code = ? AND expires_at > UTC_TIMESTAMP()',
+    const invite = await queryOne<{ server_id: string; expires_at: string; created_by: string | null }>(
+      'SELECT server_id, expires_at, created_by FROM invites WHERE code = ? AND expires_at > UTC_TIMESTAMP()',
       [code]
     )
     if (!invite) return res.status(404).json({ error: 'Link zaproszenia wygasł lub jest nieprawidłowy' })
@@ -294,6 +294,14 @@ router.post('/invite/:code/join', requireAuth, async (req: Request, res: Respons
 
     await memberQueries.add(req.user!.userId, invite.server_id)
     await assignVerificationRole(req.user!.userId, invite.server_id)
+
+    // Śledzenie zaproszeń: kto kogo przyprowadził (nie liczymy samozaproszeń)
+    const inviterId = invite.created_by && invite.created_by !== req.user!.userId ? invite.created_by : null
+    if (inviterId) {
+      await execute('UPDATE server_members SET invited_by = ? WHERE user_id = ? AND server_id = ?',
+        [inviterId, req.user!.userId, invite.server_id]).catch(() => {})
+    }
+    await execute('UPDATE invites SET uses = uses + 1 WHERE code = ?', [code]).catch(() => {})
 
     try {
       const { io } = await import('../index')

@@ -59,6 +59,7 @@ export async function runMigrations(): Promise<void> {
     ['users',         'is_dev',      'TINYINT(1) DEFAULT 0'],
     ['users',         'is_creator',  'TINYINT(1) DEFAULT 0'],
     ['polls',         'closed',      'TINYINT(1) DEFAULT 0'],
+    ['server_members','invited_by',  'CHAR(36) DEFAULT NULL'],
   ]
 
   const columnModifications: [string, string, string][] = [
@@ -352,6 +353,30 @@ export async function runMigrations(): Promise<void> {
     }
   }
   console.log('   ↳ Tabele DM OK')
+
+  // ── E2E (szyfrowane DM) ──────────────────────────────────────────────────────
+  try {
+    await conn.query(`CREATE TABLE IF NOT EXISTS \`e2e_keys\` (
+      \`user_id\`         CHAR(36)     NOT NULL,
+      \`public_key\`      VARCHAR(64)  NOT NULL,
+      \`private_key_enc\` TEXT         NOT NULL,
+      \`kdf_salt\`        VARCHAR(64)  NOT NULL,
+      \`created_at\`      DATETIME     DEFAULT CURRENT_TIMESTAMP,
+      \`updated_at\`      DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (\`user_id\`),
+      FOREIGN KEY (\`user_id\`) REFERENCES \`users\`(\`id\`) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`)
+    for (const [tb, col, def] of [
+      ['dm_conversations', 'e2e_enabled', 'TINYINT(1) DEFAULT 0'],
+      ['dm_messages',      'encrypted',   'TINYINT(1) DEFAULT 0'],
+    ] as [string, string, string][]) {
+      try { await conn.query(`ALTER TABLE \`${tb}\` ADD COLUMN \`${col}\` ${def}`) }
+      catch (e: any) { if (e.errno !== 1060) console.warn(`   ⚠ ${tb}.${col}:`, e.message) }
+    }
+    console.log('   ↳ E2E (e2e_keys + kolumny) OK')
+  } catch (e: any) {
+    console.warn('   ⚠ E2E:', e.message)
+  }
 
   try {
     await conn.query(`CREATE TABLE IF NOT EXISTS \`patch_notes\` (

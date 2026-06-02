@@ -342,6 +342,56 @@ router.delete('/:serverId/emoji/:emojiId', requireAuth, async (req: Request, res
   }
 })
 
+// ── Statystyki zaproszeń: ranking zapraszających (właściciel / MANAGE_SERVER) ─
+router.get('/:serverId/invite-stats', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { serverId } = req.params
+    const userId = req.user!.userId
+    const server = await serverQueries.findById(serverId)
+    if (!server) return res.status(404).json({ error: 'Serwer nie znaleziony' })
+    if (server.owner_id !== userId) {
+      const { hasPermission } = await import('../middleware/permissions')
+      if (!(await hasPermission(userId, serverId, 'MANAGE_SERVER'))) {
+        return res.status(403).json({ error: 'Brak uprawnień' })
+      }
+    }
+    const { queryOne } = await import('../db/pool')
+
+    const [leaderboard, totals] = await Promise.all([
+      queryMany<any>(
+        `SELECT sm.invited_by, u.display_name, u.username, u.avatar_color, u.avatar_url, COUNT(*) AS cnt
+         FROM server_members sm JOIN users u ON u.id = sm.invited_by
+         WHERE sm.server_id = ? AND sm.invited_by IS NOT NULL
+         GROUP BY sm.invited_by, u.display_name, u.username, u.avatar_color, u.avatar_url
+         ORDER BY cnt DESC LIMIT 20`,
+        [serverId]
+      ),
+      queryOne<any>(
+        `SELECT
+           (SELECT COUNT(*) FROM server_members WHERE server_id = ?)                              AS total_members,
+           (SELECT COUNT(*) FROM server_members WHERE server_id = ? AND invited_by IS NOT NULL)   AS via_invite,
+           (SELECT COALESCE(SUM(uses),0) FROM invites WHERE server_id = ?)                         AS total_uses`,
+        [serverId, serverId, serverId]
+      ),
+    ])
+
+    return res.json({
+      totals: {
+        totalMembers: Number(totals?.total_members ?? 0),
+        viaInvite:    Number(totals?.via_invite ?? 0),
+        totalUses:    Number(totals?.total_uses ?? 0),
+      },
+      leaderboard: leaderboard.map(r => ({
+        userId: r.invited_by, displayName: r.display_name, username: r.username,
+        avatarColor: r.avatar_color, avatarUrl: r.avatar_url, count: Number(r.cnt),
+      })),
+    })
+  } catch (err) {
+    console.error('[settings/invite-stats]', err)
+    return res.status(500).json({ error: 'Błąd serwera' })
+  }
+})
+
 // ── Analityka serwera (właściciel / MANAGE_SERVER) ───────────────────────────
 router.get('/:serverId/analytics', requireAuth, async (req: Request, res: Response) => {
   try {
