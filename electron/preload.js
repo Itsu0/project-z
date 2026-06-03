@@ -55,6 +55,11 @@ contextBridge.exposeInMainWorld('electronPZ', {
 
   getAppVersion: () => ipcRenderer.invoke('get-app-version'),
 
+  // Bezpieczny zapis kodu odzyskiwania E2E (DPAPI/keychain, per konto systemowe)
+  saveRecoveryCode:  (code) => ipcRenderer.invoke('e2e-save-recovery', code),
+  getRecoveryCode:   () => ipcRenderer.invoke('e2e-get-recovery'),
+  clearRecoveryCode: () => ipcRenderer.invoke('e2e-clear-recovery'),
+
   version:  process.versions.electron,
   platform: process.platform,
 })

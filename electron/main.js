@@ -1,7 +1,7 @@
 
 'use strict'
 
-const { app, BrowserWindow, globalShortcut, ipcMain, Tray, Menu, nativeImage, shell, session, screen, dialog } = require('electron')
+const { app, BrowserWindow, globalShortcut, ipcMain, Tray, Menu, nativeImage, shell, session, screen, dialog, safeStorage } = require('electron')
 
 Menu.setApplicationMenu(null)
 const path = require('path')
@@ -486,6 +486,31 @@ ipcMain.handle('update-check', () => {
   autoUpdater?.checkForUpdates().catch(() => {})
 })
 ipcMain.handle('get-app-version', () => app.getVersion())
+
+// ── Bezpieczny zapis kodu odzyskiwania E2E (DPAPI / OS keychain) ─────────────
+// Plik na dysku jest zaszyfrowany kluczem konta systemowego — skopiowanie go
+// na inny komputer/konto jest bezużyteczne. Plaintext nigdy nie trafia na dysk.
+const e2eRecoveryFile = () => path.join(app.getPath('userData'), 'e2e', 'recovery.bin')
+ipcMain.handle('e2e-save-recovery', (_e, code) => {
+  try {
+    if (!safeStorage.isEncryptionAvailable()) return { ok: false, reason: 'unavailable' }
+    const file = e2eRecoveryFile()
+    fs.mkdirSync(path.dirname(file), { recursive: true })
+    fs.writeFileSync(file, safeStorage.encryptString(String(code ?? '')))
+    return { ok: true }
+  } catch (err) { return { ok: false, reason: String(err?.message ?? err) } }
+})
+ipcMain.handle('e2e-get-recovery', () => {
+  try {
+    const file = e2eRecoveryFile()
+    if (!fs.existsSync(file) || !safeStorage.isEncryptionAvailable()) return { code: null }
+    return { code: safeStorage.decryptString(fs.readFileSync(file)) }
+  } catch { return { code: null } }
+})
+ipcMain.handle('e2e-clear-recovery', () => {
+  try { fs.unlinkSync(e2eRecoveryFile()) } catch {}
+  return { ok: true }
+})
 
 ipcMain.handle('get-desktop-sources', async (_, opts = {}) => {
   try {

@@ -240,11 +240,19 @@ function E2EModal({ mode, token, onClose, onReady }: {
   const [busy, setBusy]   = useState(false)
   const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
+  const [hasDeviceCode, setHasDeviceCode] = useState(false) // dostępny zapisany kod (unlock)
   const authH = token ? { Authorization: `Bearer ${token}` } : undefined
+  const electron = typeof window !== 'undefined' ? (window as any).electronPZ : null
 
   // Setup: generuj tożsamość + kod od razu (kod pokazujemy użytkownikowi)
   const [genCode] = useState(() => (mode === 'setup' ? generateRecoveryCode() : ''))
   const [identity] = useState(() => (mode === 'setup' ? generateIdentity() : null))
+
+  // Unlock: sprawdź czy jest zapisany kod na tym komputerze
+  useEffect(() => {
+    if (mode !== 'unlock' || !electron?.getRecoveryCode) return
+    electron.getRecoveryCode().then((r: any) => { if (r?.code) setHasDeviceCode(true) }).catch(() => {})
+  }, [mode])
 
   async function confirmSetup() {
     if (!identity) return
@@ -259,9 +267,29 @@ function E2EModal({ mode, token, onClose, onReady }: {
         body: JSON.stringify({ publicKey: publicKeyB64(identity), privateKeyEnc, kdfSalt: salt }),
       })
       if (!res.ok) throw new Error('Nie udało się zapisać kluczy')
+      // Zapisz kod bezpiecznie na tym komputerze (DPAPI) — wygoda bez wycieku.
+      try { await electron?.saveRecoveryCode?.(genCode) } catch {}
       setSessionSecret(identity.secretKey)
       onReady()
     } catch (e: any) { setError(e.message || 'Błąd') } finally { setBusy(false) }
+  }
+
+  // Odblokowanie zapisanym kodem (z bezpiecznego magazynu systemowego)
+  async function unlockWithDevice() {
+    if (!electron?.getRecoveryCode) return
+    setBusy(true); setError('')
+    try {
+      const r = await electron.getRecoveryCode()
+      if (!r?.code) throw new Error('Brak zapisanego kodu na tym komputerze')
+      const res = await fetch(`${BASE}/api/e2e/keys/me`, { credentials: 'include', headers: authH })
+      const d = await res.json()
+      if (!d.keys) throw new Error('Brak zapisanych kluczy')
+      const dk = await deriveKey(r.code, d.keys.kdfSalt)
+      const secret = openSecretKey(d.keys.privateKeyEnc, dk)
+      if (!secret) throw new Error('Zapisany kod nie pasuje (klucze zmienione?)')
+      setSessionSecret(secret)
+      onReady()
+    } catch (e: any) { setError(e.message || 'Błąd'); setHasDeviceCode(false) } finally { setBusy(false) }
   }
 
   async function confirmUnlock() {
@@ -302,9 +330,14 @@ function E2EModal({ mode, token, onClose, onReady }: {
               {genCode}
             </div>
             <button onClick={() => { navigator.clipboard.writeText(genCode); setCopied(true); setTimeout(() => setCopied(false), 1500) }}
-              className="text-xs mb-4" style={{ color: 'var(--eb-text3)' }}>
+              className="text-xs mb-2" style={{ color: 'var(--eb-text3)' }}>
               {copied ? '✓ Skopiowano' : '📋 Kopiuj kod'}
             </button>
+            {electron?.saveRecoveryCode && (
+              <p className="text-[11px] mb-3 px-2 py-1.5 rounded-lg" style={{ background: 'rgba(34,197,94,0.08)', color: 'var(--eb-online)', border: '0.5px solid rgba(34,197,94,0.2)' }}>
+                🔐 Kod zostanie też <b>zapisany bezpiecznie na tym komputerze</b> (zaszyfrowany kontem Windows) — odblokujesz jednym kliknięciem. Skopiowany na inny komputer plik jest bezużyteczny.
+              </p>
+            )}
             {error && <p className="text-xs mb-2" style={{ color: 'var(--eb-accent2)' }}>{error}</p>}
             <div className="flex gap-2">
               <button onClick={onClose} className="ember-btn-ghost flex-1 py-2 text-sm">Anuluj</button>
@@ -318,6 +351,13 @@ function E2EModal({ mode, token, onClose, onReady }: {
             <p className="text-xs mb-3" style={{ color: 'var(--eb-text3)' }}>
               Wpisz swój kod odzyskiwania, aby odblokować szyfrowane wiadomości na tym urządzeniu.
             </p>
+            {hasDeviceCode && (
+              <button onClick={unlockWithDevice} disabled={busy}
+                className="w-full py-2.5 mb-3 rounded-xl text-sm font-semibold"
+                style={{ background: 'rgba(34,197,94,0.12)', color: 'var(--eb-online)', border: '0.5px solid rgba(34,197,94,0.3)' }}>
+                {busy ? '…' : '🔐 Odblokuj zapisanym kodem (z tego komputera)'}
+              </button>
+            )}
             <input value={code} onChange={e => setCode(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && confirmUnlock()}
               placeholder="XXXX-XXXX-XXXX-…" autoFocus
