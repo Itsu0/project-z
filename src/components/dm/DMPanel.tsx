@@ -389,6 +389,8 @@ export function ConvView({ conv, onBack }: { conv: DmConversation; onBack?: () =
             .then(r => r.ok ? r.json() : null)
             .then(k => setPeerPub(k?.publicKey ?? null))
             .catch(() => {})
+          // Klucz prywatny nie wczytany w tej sesji → poproś o odblokowanie kodem.
+          if (!getSessionSecret()) setE2eModal('unlock')
         }
       })
       .catch(() => {})
@@ -574,9 +576,10 @@ export function ConvView({ conv, onBack }: { conv: DmConversation; onBack?: () =
   const secret = secretReady ? getSessionSecret() : null
   const displayMsgs = msgs.map(m => {
     if (!(m as any).encrypted) return m
-    if (!secret || !peerPub) return { ...m, content: '🔒 Zaszyfrowana wiadomość' }
+    if (!secret) return { ...m, content: '🔒 Kliknij „Odblokuj" i podaj kod, aby odczytać' }
+    if (!peerPub) return { ...m, content: '🔒 Wczytywanie kluczy…' }
     const dec = decryptMessage(m.content, peerPub, secret)
-    return { ...m, content: dec ?? '🔒 Nie można odszyfrować' }
+    return { ...m, content: dec ?? '🔒 Nie można odszyfrować (inny klucz?)' }
   })
 
   function onE2EReady() {
