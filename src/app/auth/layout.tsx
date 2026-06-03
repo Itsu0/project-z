@@ -3,10 +3,16 @@ import Link from 'next/link'
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
     <div
-      className="min-h-screen flex flex-col items-center justify-center p-4 gap-6"
+      className="flex flex-col items-center p-4 gap-6"
       style={{
         background: 'var(--eb-bg0)',
         backgroundImage: 'var(--eb-glow)',
+        height: '100dvh',
+        overflowY: 'auto',
+        WebkitOverflowScrolling: 'touch',
+        justifyContent: 'safe center',
+        paddingTop: 'calc(1rem + env(safe-area-inset-top, 0px))',
+        paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))',
       }}
     >
       {children}
