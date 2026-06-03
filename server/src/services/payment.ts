@@ -44,10 +44,8 @@ export const stubPaymentProvider: PaymentProvider = {
 }
 
 export function getPaymentProvider(): PaymentProvider {
-  // switch (process.env.PAYMENT_PROVIDER) {
-  //   case 'stripe':      return stripeProvider
-  //   case 'przelewy24':  return p24Provider
-  //   case 'payu':        return payuProvider
-  // }
+  if (process.env.PAYMENT_PROVIDER === 'stripe') {
+    return require('./paymentStripe').stripeProvider as PaymentProvider
+  }
   return stubPaymentProvider
 }
