@@ -23,15 +23,16 @@ export interface SlotTier {
 }
 
 // Punkty zatrzymania suwaka = tiery sprzętowe z dokumentacji.
-// Ceny w GROSZACH (placeholdery do korekty). Yearly ≈ 10× miesiąc (2 mies. gratis).
+// CENY TESTOWE: 2 zł (200 gr) dla każdego pakietu — minimum Stripe dla PLN.
+// (10 gr jest poniżej minimum Stripe i zostałoby odrzucone.) Przywróć realne po teście.
 export const SLOT_TIERS: SlotTier[] = [
-  { slots: 10,   label: 'Znajomi',            ram: '2 GB',  vcpu: 1,  disk: '20 GB',  transfer: '100 Mbps', priceMonthly: 1500,  priceYearly: 15000 },
-  { slots: 25,   label: 'Mała społeczność',   ram: '2 GB',  vcpu: 1,  disk: '20 GB',  transfer: '100 Mbps', priceMonthly: 2500,  priceYearly: 25000 },
-  { slots: 50,   label: 'Mała społeczność',   ram: '2 GB',  vcpu: 2,  disk: '40 GB',  transfer: '200 Mbps', priceMonthly: 3900,  priceYearly: 39000 },
-  { slots: 100,  label: 'Średnia społeczność',ram: '4 GB',  vcpu: 2,  disk: '80 GB',  transfer: '500 Mbps', priceMonthly: 6900,  priceYearly: 69000 },
-  { slots: 250,  label: 'Duża platforma',     ram: '8 GB',  vcpu: 4,  disk: '150 GB', transfer: '1 Gbps',   priceMonthly: 12900, priceYearly: 129000, recommended: true },
-  { slots: 500,  label: 'Enterprise',         ram: '16 GB', vcpu: 8,  disk: '300 GB', transfer: '2 Gbps',   priceMonthly: 24900, priceYearly: 249000 },
-  { slots: 1000, label: 'Klaster',            ram: '32 GB', vcpu: 16, disk: '500 GB', transfer: '5 Gbps',   priceMonthly: 44900, priceYearly: 449000 },
+  { slots: 10,   label: 'Znajomi',            ram: '2 GB',  vcpu: 1,  disk: '20 GB',  transfer: '100 Mbps', priceMonthly: 200, priceYearly: 200 },
+  { slots: 25,   label: 'Mała społeczność',   ram: '2 GB',  vcpu: 1,  disk: '20 GB',  transfer: '100 Mbps', priceMonthly: 200, priceYearly: 200 },
+  { slots: 50,   label: 'Mała społeczność',   ram: '2 GB',  vcpu: 2,  disk: '40 GB',  transfer: '200 Mbps', priceMonthly: 200, priceYearly: 200 },
+  { slots: 100,  label: 'Średnia społeczność',ram: '4 GB',  vcpu: 2,  disk: '80 GB',  transfer: '500 Mbps', priceMonthly: 200, priceYearly: 200 },
+  { slots: 250,  label: 'Duża platforma',     ram: '8 GB',  vcpu: 4,  disk: '150 GB', transfer: '1 Gbps',   priceMonthly: 200, priceYearly: 200, recommended: true },
+  { slots: 500,  label: 'Enterprise',         ram: '16 GB', vcpu: 8,  disk: '300 GB', transfer: '2 Gbps',   priceMonthly: 200, priceYearly: 200 },
+  { slots: 1000, label: 'Klaster',            ram: '32 GB', vcpu: 16, disk: '500 GB', transfer: '5 Gbps',   priceMonthly: 200, priceYearly: 200 },
 ]
 
 // Funkcje wspólne — takie same dla każdej liczby slotów.
