@@ -9,7 +9,6 @@ import { useVoice } from '@/hooks/useVoice'
 import { usePermissions } from '@/hooks/usePermissions'
 import { MessageItem } from './MessageItem'
 import { ChatInput } from './ChatInput'
-import { SearchPanel } from './SearchPanel'
 import { JoinVoiceButton } from '@/components/voice/JoinVoiceButton'
 import { ScreenShareBar } from '@/components/voice/ScreenShareView'
 import { TacticsPanel } from '@/components/tactics/TacticsPanel'
@@ -78,7 +77,7 @@ function PinnedPanel({ channelId, onClose }: { channelId: string; onClose: () =>
   )
 }
 
-function ChannelTabBar({ channels, activeId, serverId, serverName, serverColor, serverLogo, memberCount, onSelect, onOpenSettings, onSearch, onPins, onBulkDelete }: {
+function ChannelTabBar({ channels, activeId, serverId, serverName, serverColor, serverLogo, memberCount, onSelect, onOpenSettings, onPins, onBulkDelete }: {
   channels: RealChannel[]
   activeId: string
   serverId: string
@@ -88,7 +87,6 @@ function ChannelTabBar({ channels, activeId, serverId, serverName, serverColor, 
   memberCount?: number
   onSelect: (id: string) => void
   onOpenSettings?: () => void
-  onSearch?: () => void
   onPins?: () => void
   onBulkDelete?: () => void
 }) {
@@ -361,11 +359,6 @@ function ChannelTabBar({ channels, activeId, serverId, serverName, serverColor, 
             </svg>
           </button>
         )}
-        <button className="icon-btn" title="Szukaj wiadomości (Ctrl+F)" onClick={onSearch}>
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-          </svg>
-        </button>
         {onBulkDelete && (
           <button className="icon-btn" title="Zaznacz wiadomości do usunięcia" onClick={onBulkDelete}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -398,7 +391,6 @@ export function ChatArea({ onOpenSettings }: { onOpenSettings?: () => void }) {
           automodBlock, setAutomodBlock, raidLockdown, clearRaidLockdown, token, currentUser } = useStore()
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesTopRef = useRef<HTMLDivElement>(null)
-  const [searchOpen, setSearchOpen] = useState(false)
   const [pinsOpen, setPinsOpen] = useState(false)
   const [replyTo, setReplyTo] = useState<{ id: string; content: string; authorName: string } | null>(null)
   const pinsBtnRef = useRef<HTMLDivElement>(null)
@@ -481,16 +473,6 @@ export function ChatArea({ onOpenSettings }: { onOpenSettings?: () => void }) {
     finally { setBulkDeleting(false) }
   }
 
-  useEffect(() => {
-    const fn = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
-        e.preventDefault()
-        setSearchOpen(true)
-      }
-    }
-    window.addEventListener('keydown', fn)
-    return () => window.removeEventListener('keydown', fn)
-  }, [])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -616,7 +598,6 @@ export function ChatArea({ onOpenSettings }: { onOpenSettings?: () => void }) {
           memberCount={serverMembers.length}
           onSelect={setCurrentChannel}
           onOpenSettings={onOpenSettings}
-          onSearch={() => setSearchOpen(true)}
           onPins={currentChannel?.type === 'text' || currentChannel?.type === 'announcement' ? () => setPinsOpen(p => !p) : undefined}
           onBulkDelete={canManageMessages && (currentChannel?.type === 'text' || currentChannel?.type === 'announcement') ? () => { setBulkMode(m => !m); setSelected(new Set()) } : undefined}
         />
@@ -626,16 +607,6 @@ export function ChatArea({ onOpenSettings }: { onOpenSettings?: () => void }) {
           </div>
         )}
       </div>
-
-      {searchOpen && (
-        <SearchPanel
-          onClose={() => setSearchOpen(false)}
-          onJumpTo={(chId, _msgId) => {
-            setCurrentChannel(chId)
-            setSearchOpen(false)
-          }}
-        />
-      )}
 
       {}
       {currentChannel?.type === 'forum' ? (

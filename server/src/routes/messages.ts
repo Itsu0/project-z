@@ -141,46 +141,7 @@ router.get('/:channelId/messages', requireAuth, async (req: Request, res: Respon
   }
 })
 
-router.get('/:serverId/search', requireAuth, async (req: Request, res: Response) => {
-  try {
-    const { serverId } = req.params
-    const q     = ((req.query.q as string) ?? '').trim()
-    const limit = Math.max(1, Math.min(Number(req.query.limit ?? 25) || 25, 50))
-
-    if (!q || q.length < 3) return res.json({ messages: [] })
-
-    const isMember = await memberQueries.isMember(req.user!.userId, serverId)
-    if (!isMember) return res.status(403).json({ error: 'Brak dostępu' })
-
-    if (!await hasPermission(req.user!.userId, serverId, 'VIEW_CHANNELS')) {
-      return res.status(403).json({ error: 'Brak dostępu' })
-    }
-
-    const { queryMany } = await import('../db/pool')
-    const ftQuery = q.trim().split(/\s+/).filter(Boolean).map(w => `+${w}*`).join(' ')
-    const rows = await queryMany<any>(
-      `SELECT m.id, m.channel_id, m.content, m.created_at, m.type,
-              u.id as author_id, u.username as author_username,
-              u.display_name as author_display_name, u.avatar_color as author_avatar_color,
-              CASE WHEN LENGTH(u.avatar_url) > 512 THEN u.avatar_url ELSE NULL END AS author_avatar_url,
-              c.name as channel_name
-       FROM messages m
-       INNER JOIN users u ON u.id = m.author_id
-       INNER JOIN channels c ON c.id = m.channel_id
-       WHERE c.server_id = ?
-         AND COALESCE(c.mod_only, 0) = 0
-         AND MATCH(m.content) AGAINST (? IN BOOLEAN MODE)
-         AND m.type = 'DEFAULT'
-       ORDER BY m.created_at DESC
-       LIMIT ?`,
-      [serverId, ftQuery, limit]
-    )
-    return res.json({ messages: rows })
-  } catch (err) {
-    console.error('[messages/search]', err)
-    return res.status(500).json({ error: 'Błąd serwera' })
-  }
-})
+// Wyszukiwanie wiadomości usunięte (funkcja wycofana).
 
 router.post('/:channelId/messages', requireAuth, async (req: Request, res: Response) => {
   try {
