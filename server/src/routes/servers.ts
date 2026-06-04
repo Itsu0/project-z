@@ -292,6 +292,12 @@ router.post('/invite/:code/join', requireAuth, async (req: Request, res: Respons
     )
     if (inviteBan) return res.status(403).json({ error: 'Jesteś zbanowany na tym serwerze' })
 
+    // Limit slotów — egzekwowany także przy dołączaniu przez link zaproszenia.
+    const memberCount = await serverQueries.memberCount(invite.server_id)
+    if (memberCount >= server.member_limit) {
+      return res.status(403).json({ error: 'Serwer jest pełny' })
+    }
+
     await memberQueries.add(req.user!.userId, invite.server_id)
     await assignVerificationRole(req.user!.userId, invite.server_id)
 
