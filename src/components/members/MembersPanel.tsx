@@ -131,20 +131,20 @@ function MemberRow({ member, serverId, currentUserId, canKick, canBan, canMute, 
           </div>
         )}
       </div>
-      {(canKick || canBan || canMute || canManageRoles) && (
-        <MemberActions
-          member={{ userId: member.user_id, displayName: member.display_name, username: member.username }}
-          serverId={serverId}
-          currentUserId={currentUserId}
-          canKick={canKick}
-          canBan={canBan}
-          canMute={canMute}
-          canManageRoles={canManageRoles}
-          isAdmin={isAdmin}
-          currentRole={memberRole}
-          onRoleChanged={onRoleChanged}
-        />
-      )}
+      {/* Menu renderujemy zawsze (akcje znajomych/DM są uniwersalne; mod-akcje
+          pokazują się warunkowo wewnątrz). MemberActions sam zwraca null dla siebie. */}
+      <MemberActions
+        member={{ userId: member.user_id, displayName: member.display_name, username: member.username }}
+        serverId={serverId}
+        currentUserId={currentUserId}
+        canKick={canKick}
+        canBan={canBan}
+        canMute={canMute}
+        canManageRoles={canManageRoles}
+        isAdmin={isAdmin}
+        currentRole={memberRole}
+        onRoleChanged={onRoleChanged}
+      />
     </div>
   )
 }

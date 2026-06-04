@@ -7,6 +7,7 @@ import { tokenStore } from '@/lib/api'
 import { ImageCropModal } from '@/components/ui/ImageCropModal'
 import { Select } from '@/components/ui/Select'
 import { applyColorTheme, THEME_META } from '@/lib/themes'
+import { useIsMobile } from '@/hooks/usePlatform'
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
@@ -1436,6 +1437,7 @@ interface Props { onClose: () => void }
 export function UserSettings({ onClose }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>('audio')
   const t = useT()
+  const isMobile = useIsMobile()
   const lang = useStore(s => s.userSettings.language ?? 'pl')
 
   const TABS: { id: Tab; label: string; icon: string }[] = [
@@ -1494,9 +1496,20 @@ export function UserSettings({ onClose }: Props) {
 
         {}
         <div className="flex-1 overflow-y-auto p-6">
-          <h2 className="text-base font-semibold mb-5" style={{ color: 'var(--eb-text1)' }}>
-            {TABS.find(tab => tab.id === activeTab)?.icon} {TABS.find(tab => tab.id === activeTab)?.label}
-          </h2>
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-base font-semibold" style={{ color: 'var(--eb-text1)' }}>
+              {TABS.find(tab => tab.id === activeTab)?.icon} {TABS.find(tab => tab.id === activeTab)?.label}
+            </h2>
+            {isMobile && (
+              <button onClick={onClose} aria-label="Zamknij"
+                className="w-9 h-9 flex items-center justify-center rounded-xl flex-shrink-0"
+                style={{ background: 'var(--eb-bg3)', color: 'var(--eb-text2)', border: '0.5px solid var(--eb-border2)' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            )}
+          </div>
           {activeTab === 'profil'   && <TabProfile />}
           {activeTab === 'audio'   && <TabAudio />}
           {activeTab === 'wygląd'  && <TabAppearance />}

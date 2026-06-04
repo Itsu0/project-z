@@ -682,16 +682,29 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   const startScreenShareFromSource = useCallback(async (sourceId: string) => {
     if (!roomRef.current) return
     try {
-      const el = (window as any).electronPZ
-
-      if (el?.selectDesktopSource) {
-        await el.selectDesktopSource(sourceId)
+      let stream: MediaStream
+      try {
+        // Najpewniejsze: przechwyć DOKŁADNIE wybrane źródło po id (okno/ekran),
+        // bez polegania na handlerze getDisplayMedia (który bywał zastępowany całym ekranem).
+        stream = await (navigator.mediaDevices as any).getUserMedia({
+          audio: false,
+          video: {
+            mandatory: {
+              chromeMediaSource: 'desktop',
+              chromeMediaSourceId: sourceId,
+              maxWidth: 1920, maxHeight: 1080, maxFrameRate: 30,
+            },
+          },
+        })
+      } catch {
+        // Fallback: handler getDisplayMedia (gdy getUserMedia desktop niedostępne w tej wersji)
+        const el = (window as any).electronPZ
+        if (el?.selectDesktopSource) await el.selectDesktopSource(sourceId)
+        stream = await (navigator.mediaDevices as any).getDisplayMedia({
+          video: { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 } },
+          audio: false,
+        })
       }
-
-      const stream = await (navigator.mediaDevices as any).getDisplayMedia({
-        video: { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 } },
-        audio: false,
-      })
       const videoTrack = stream.getVideoTracks()[0]
       if (!videoTrack) throw new Error('Brak track wideo')
 
