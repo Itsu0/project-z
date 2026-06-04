@@ -77,7 +77,7 @@ function PinnedPanel({ channelId, onClose }: { channelId: string; onClose: () =>
   )
 }
 
-function ChannelTabBar({ channels, activeId, serverId, serverName, serverColor, serverLogo, memberCount, onSelect, onOpenSettings, onPins, onBulkDelete }: {
+function ChannelTabBar({ channels, activeId, serverId, serverName, serverColor, serverLogo, memberCount, memberLimit, onSelect, onOpenSettings, onPins, onBulkDelete }: {
   channels: RealChannel[]
   activeId: string
   serverId: string
@@ -85,6 +85,7 @@ function ChannelTabBar({ channels, activeId, serverId, serverName, serverColor, 
   serverColor: string
   serverLogo?: string | null
   memberCount?: number
+  memberLimit?: number
   onSelect: (id: string) => void
   onOpenSettings?: () => void
   onPins?: () => void
@@ -240,7 +241,7 @@ function ChannelTabBar({ channels, activeId, serverId, serverName, serverColor, 
           <div className="text-sm font-semibold whitespace-nowrap" style={{ color: 'var(--eb-text1)' }}>{serverName}</div>
           {memberCount && (
             <div className="text-[10px] whitespace-nowrap" style={{ color: 'var(--eb-accent)' }}>
-              {memberCount} członków
+              {memberLimit ? `${memberCount}/${memberLimit}` : memberCount} członków
             </div>
           )}
         </div>
@@ -596,6 +597,7 @@ export function ChatArea({ onOpenSettings }: { onOpenSettings?: () => void }) {
           serverColor={currentServer.icon_color}
           serverLogo={currentServer.icon_url ?? null}
           memberCount={serverMembers.length}
+          memberLimit={currentServer.member_limit}
           onSelect={setCurrentChannel}
           onOpenSettings={onOpenSettings}
           onPins={currentChannel?.type === 'text' || currentChannel?.type === 'announcement' ? () => setPinsOpen(p => !p) : undefined}
