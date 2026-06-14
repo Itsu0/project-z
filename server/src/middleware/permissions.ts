@@ -61,6 +61,22 @@ export async function canViewChannel(userId: string, channelId: string): Promise
   return !denied
 }
 
+export async function canSendInChannel(userId: string, channelId: string): Promise<boolean> {
+  const ch = await queryOne<{ server_id: string }>('SELECT server_id FROM channels WHERE id = ?', [channelId])
+  if (!ch) return false
+  // Właściciel/administrator zawsze może pisać (np. na ogłoszeniach).
+  if (await canModerate(userId, ch.server_id, 'ADMINISTRATOR')) return true
+  // Blokada pisania, gdy którakolwiek rola użytkownika ma deny_send na tym kanale.
+  const denied = await queryOne<{ id: string }>(
+    `SELECT crp.channel_id as id FROM channel_role_permissions crp
+     INNER JOIN member_roles mr ON mr.role_id = crp.role_id
+     WHERE crp.channel_id = ? AND mr.user_id = ? AND mr.server_id = ? AND crp.deny_send = 1
+     LIMIT 1`,
+    [channelId, userId, ch.server_id]
+  )
+  return !denied
+}
+
 export async function isMuted(userId: string, serverId: string): Promise<boolean> {
   const row = await queryOne<{ expires_at: string }>(
     'SELECT expires_at FROM server_mutes WHERE user_id = ? AND server_id = ? AND expires_at > UTC_TIMESTAMP()',

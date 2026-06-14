@@ -383,8 +383,8 @@ router.get('/:serverId/channels/:channelId/role-permissions', requireAuth, async
     }
     const ch = await queryOne<{ id: string }>('SELECT id FROM channels WHERE id = ? AND server_id = ?', [channelId, serverId])
     if (!ch) return res.status(404).json({ error: 'Kanał nie istnieje' })
-    const perms = await queryMany<{ role_id: string; deny_view: number }>(
-      'SELECT role_id, deny_view FROM channel_role_permissions WHERE channel_id = ?',
+    const perms = await queryMany<{ role_id: string; deny_view: number; deny_send: number }>(
+      'SELECT role_id, deny_view, deny_send FROM channel_role_permissions WHERE channel_id = ?',
       [channelId]
     )
     return res.json({ permissions: perms })
@@ -401,20 +401,29 @@ router.put('/:serverId/channels/:channelId/role-permissions', requireAuth, async
     }
     const ch = await queryOne<{ id: string }>('SELECT id FROM channels WHERE id = ? AND server_id = ?', [channelId, serverId])
     if (!ch) return res.status(404).json({ error: 'Kanał nie istnieje' })
-    const { roleId, denyView } = req.body
+    const { roleId, denyView, denySend } = req.body
     if (!roleId) return res.status(400).json({ error: 'Wymagane: roleId' })
     const roleCheck = await queryOne<{ id: string }>('SELECT id FROM roles WHERE id = ? AND server_id = ?', [roleId, serverId])
     if (!roleCheck) return res.status(404).json({ error: 'Rola nie istnieje' })
-    if (denyView) {
+
+    // Aktualizacja częściowa: nieprzekazane pole zachowuje obecną wartość.
+    const current = await queryOne<{ deny_view: number; deny_send: number }>(
+      'SELECT deny_view, deny_send FROM channel_role_permissions WHERE channel_id = ? AND role_id = ?',
+      [channelId, roleId]
+    )
+    const newView = denyView === undefined ? (current?.deny_view ?? 0) : (denyView ? 1 : 0)
+    const newSend = denySend === undefined ? (current?.deny_send ?? 0) : (denySend ? 1 : 0)
+
+    if (!newView && !newSend) {
       await execute(
-        `INSERT INTO channel_role_permissions (channel_id, role_id, deny_view) VALUES (?, ?, 1)
-         ON DUPLICATE KEY UPDATE deny_view = 1`,
+        'DELETE FROM channel_role_permissions WHERE channel_id = ? AND role_id = ?',
         [channelId, roleId]
       )
     } else {
       await execute(
-        'DELETE FROM channel_role_permissions WHERE channel_id = ? AND role_id = ?',
-        [channelId, roleId]
+        `INSERT INTO channel_role_permissions (channel_id, role_id, deny_view, deny_send) VALUES (?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE deny_view = VALUES(deny_view), deny_send = VALUES(deny_send)`,
+        [channelId, roleId, newView, newSend]
       )
     }
     return res.json({ ok: true })

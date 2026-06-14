@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express'
 import { requireAuth } from '../middleware/auth'
 import { messageQueries, memberQueries, reactionQueries } from '../db/queries'
-import { canModerate, isMuted, hasPermission, canViewChannel } from '../middleware/permissions'
+import { canModerate, isMuted, hasPermission, canViewChannel, canSendInChannel } from '../middleware/permissions'
 import { queryOne, queryMany, execute } from '../db/pool'
 import { getCached, setCached, invalidateChannel } from '../cache/messages'
 import fs   from 'fs'
@@ -181,6 +181,10 @@ router.post('/:channelId/messages', requireAuth, async (req: Request, res: Respo
 
     if (!await hasPermission(req.user!.userId, postServerId, 'SEND_MESSAGES')) {
       return res.status(403).json({ error: 'Nie masz uprawnień do wysyłania wiadomości na tym serwerze' })
+    }
+
+    if (!await canSendInChannel(req.user!.userId, channelId)) {
+      return res.status(403).json({ error: 'Pisanie na tym kanale jest zablokowane dla Twojej roli' })
     }
 
     const messageId = await messageQueries.create({

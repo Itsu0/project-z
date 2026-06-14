@@ -125,6 +125,7 @@ CREATE TABLE IF NOT EXISTS channel_role_permissions (
   channel_id    CHAR(36)      NOT NULL,
   role_id       CHAR(36)      NOT NULL,
   deny_view     TINYINT(1)    DEFAULT 0,
+  deny_send     TINYINT(1)    DEFAULT 0,
   PRIMARY KEY (channel_id, role_id),
   FOREIGN KEY (channel_id) REFERENCES channels(id) ON DELETE CASCADE,
   FOREIGN KEY (role_id)    REFERENCES roles(id)    ON DELETE CASCADE,

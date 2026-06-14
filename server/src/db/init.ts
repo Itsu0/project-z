@@ -60,6 +60,7 @@ export async function runMigrations(): Promise<void> {
     ['users',         'is_creator',  'TINYINT(1) DEFAULT 0'],
     ['polls',         'closed',      'TINYINT(1) DEFAULT 0'],
     ['server_members','invited_by',  'CHAR(36) DEFAULT NULL'],
+    ['channel_role_permissions', 'deny_send', 'TINYINT(1) DEFAULT 0'],
   ]
 
   const columnModifications: [string, string, string][] = [

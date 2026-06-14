@@ -2,7 +2,7 @@ import { Server as SocketIO, Socket } from 'socket.io'
 import { verifySocketToken } from '../middleware/auth'
 import { messageQueries, userQueries, reactionQueries, memberQueries } from '../db/queries'
 import { execute, queryMany, queryOne } from '../db/pool'
-import { isMuted, hasPermission, canViewChannel } from '../middleware/permissions'
+import { isMuted, hasPermission, canViewChannel, canSendInChannel } from '../middleware/permissions'
 import { v4 as uuidv4 } from 'uuid'
 import { invalidateChannel } from '../cache/messages'
 import { checkAutoMod, addStrike, logModAction, isRaidLocked } from '../routes/serverMod'
@@ -366,6 +366,11 @@ export function setupSocket(io: SocketIO) {
         if (banCheck) return
 
         if (!await hasPermission(userId, data.serverId, 'SEND_MESSAGES')) return
+
+        if (!await canSendInChannel(userId, data.channelId)) {
+          socket.emit('ERROR', { message: 'Pisanie na tym kanale jest zablokowane dla Twojej roli' })
+          return
+        }
 
         if (await isMuted(userId, data.serverId)) {
           const mute = await queryOne<{ expires_at: string }>(
