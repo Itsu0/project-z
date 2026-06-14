@@ -249,7 +249,15 @@ router.post('/:serverId/invites', requireAuth, async (req: Request, res: Respons
     if (!isMember) return res.status(403).json({ error: 'Brak dostępu' })
 
     const code = generateInviteCode()
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+
+    // Czas ważności w godzinach z body; 0 = nigdy nie wygasa; domyślnie 7 dni (168 h).
+    const raw = (req.body ?? {}).expiresInHours
+    let hours = 168
+    if (typeof raw === 'number' && isFinite(raw) && raw >= 0) hours = raw
+    const expiresAt = hours === 0
+      ? new Date('2999-12-31T23:59:59Z')
+      : new Date(Date.now() + Math.min(Math.max(hours, 0.5), 8760) * 3600 * 1000)
+
     await execute(
       'INSERT INTO invites (code, server_id, created_by, expires_at) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE expires_at = VALUES(expires_at)',
       [code, serverId, req.user!.userId, expiresAt]

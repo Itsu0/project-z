@@ -1364,6 +1364,18 @@ function TabInvites({ server }: { server: any }) {
   const [loading, setLoading]   = useState(true)
   const [creating, setCreating] = useState(false)
   const [copied,   setCopied]   = useState<string | null>(null)
+  const [expiresInHours, setExpiresInHours] = useState('168')
+
+  const EXPIRY_OPTIONS = [
+    { value: '0.5', label: '30 minut' },
+    { value: '1',   label: '1 godzina' },
+    { value: '6',   label: '6 godzin' },
+    { value: '12',  label: '12 godzin' },
+    { value: '24',  label: '1 dzień' },
+    { value: '168', label: '7 dni' },
+    { value: '720', label: '30 dni' },
+    { value: '0',   label: 'Nigdy' },
+  ]
 
   async function load() {
     setLoading(true)
@@ -1382,7 +1394,10 @@ function TabInvites({ server }: { server: any }) {
   async function createInvite() {
     setCreating(true)
     try {
-      await apiFetch(`/api/servers/${server.id}/invites`, token!, { method: 'POST' })
+      await apiFetch(`/api/servers/${server.id}/invites`, token!, {
+        method: 'POST',
+        body: JSON.stringify({ expiresInHours: Number(expiresInHours) }),
+      })
       await load()
     } catch {} finally { setCreating(false) }
   }
@@ -1402,7 +1417,8 @@ function TabInvites({ server }: { server: any }) {
     return new Date(iso).toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
   }
 
-  const isExpired = (exp: string) => new Date(exp) < new Date()
+  const isNever   = (exp: string) => new Date(exp).getFullYear() >= 2900
+  const isExpired = (exp: string) => !isNever(exp) && new Date(exp) < new Date()
 
   const MEDAL = ['🥇', '🥈', '🥉']
 
@@ -1439,11 +1455,17 @@ function TabInvites({ server }: { server: any }) {
           <p className="text-sm font-semibold" style={{ color: 'var(--eb-text1)' }}>Linki zaproszenia</p>
           <p className="text-xs mt-0.5" style={{ color: 'var(--eb-text3)' }}>Zarządzaj linkami do dołączenia do serwera</p>
         </div>
-        <button onClick={createInvite} disabled={creating}
-          className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all disabled:opacity-50"
-          style={{ background: 'var(--eb-accent)', color: '#fff' }}>
-          {creating ? '…' : '+ Nowy link'}
-        </button>
+        <div className="flex items-end gap-2 flex-shrink-0">
+          <div className="w-32">
+            <label className="text-[10px] font-semibold uppercase mb-1 block" style={{ color: 'var(--eb-text3)' }}>Ważność</label>
+            <Select value={expiresInHours} onChange={setExpiresInHours} options={EXPIRY_OPTIONS} />
+          </div>
+          <button onClick={createInvite} disabled={creating}
+            className="px-3 py-2 rounded-lg text-xs font-semibold transition-all disabled:opacity-50"
+            style={{ background: 'var(--eb-accent)', color: '#fff' }}>
+            {creating ? '…' : '+ Nowy link'}
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -1490,7 +1512,7 @@ function TabInvites({ server }: { server: any }) {
                     </span>
                     <span className="text-[10px]" style={{ color: 'var(--eb-text4)' }}>·</span>
                     <span className="text-[10px]" style={{ color: expired ? '#f87171' : 'var(--eb-text3)' }}>
-                      Wygasa: {fmtDate(inv.expires_at)}
+                      {isNever(inv.expires_at) ? 'Nigdy nie wygasa' : `Wygasa: ${fmtDate(inv.expires_at)}`}
                     </span>
                   </div>
                 </div>
