@@ -2,7 +2,8 @@
 import { useState, FormEvent } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { api } from '@/lib/api'
+import { api, tokenStore } from '@/lib/api'
+import { useStore } from '@/lib/store'
 
 const AVATAR_COLORS = [
   'linear-gradient(135deg,#dc2626,#991b1b)',
@@ -54,6 +55,7 @@ function PasswordStrength({ password }: { password: string }) {
 
 export default function RegisterPage() {
   const router = useRouter()
+  const { setAuth } = useStore()
   const [step, setStep] = useState<1 | 2 | 3>(1)
 
   const [email,           setEmail]           = useState('')
@@ -111,6 +113,11 @@ export default function RegisterPage() {
       if (data.pendingVerification) {
         setRegisteredEmail(data.email ?? email)
         setStep(3)
+      } else if (data.token) {
+        // Weryfikacja wyłączona — backend od razu zwraca token i loguje.
+        tokenStore.set(data.token)
+        setAuth(data.token, data.user)
+        router.push('/')
       }
     } catch (err: any) {
       setError(err.message ?? 'Błąd rejestracji')

@@ -19,6 +19,12 @@ function isStrongPassword(p: string): boolean {
   return cats >= 3
 }
 
+// Weryfikacja e-mail jest domyślnie wymagana; można ją wyłączyć ustawiając
+// EMAIL_VERIFICATION=off (np. na czas testów). Produkcja bez tej zmiennej = wymagana.
+function emailVerificationDisabled(): boolean {
+  return process.env.EMAIL_VERIFICATION === 'off'
+}
+
 const DUMMY_HASH = bcrypt.hashSync('__timing_protection_dummy__', 12)
 const resendCooldown = new Map<string, number>()
 const avatarRateMap  = new Map<string, number>()
@@ -113,6 +119,17 @@ router.post('/register', async (req: Request, res: Response) => {
       await execute('UPDATE users SET avatar_color = ? WHERE id = ?', [avatarColor, userId])
     }
 
+    recordIp(userId, getClientIp(req)).catch(() => {})
+
+    // Weryfikacja wyłączona → konto od razu aktywne i zalogowane.
+    if (emailVerificationDisabled()) {
+      await execute('UPDATE users SET email_verified = 1 WHERE id = ?', [userId])
+      const user = await userQueries.publicProfile(userId)
+      const jwtToken = signToken({ userId, username: user?.username ?? username })
+      res.cookie(AUTH_COOKIE, jwtToken, cookieOpts)
+      return res.status(201).json({ token: jwtToken, user })
+    }
+
     const verToken = crypto.randomBytes(32).toString('hex')
     const { v4: uuidv4 } = await import('uuid')
     await execute(
@@ -123,7 +140,6 @@ router.post('/register', async (req: Request, res: Response) => {
     const user = await userQueries.publicProfile(userId)
     sendVerificationEmail(email, user?.display_name ?? username, verToken).catch(() => {})
 
-    recordIp(userId, getClientIp(req)).catch(() => {})
     return res.status(201).json({ pendingVerification: true, email })
   } catch (err) {
     console.error('[auth/register]', err)
@@ -235,11 +251,13 @@ router.post('/login', async (req: Request, res: Response) => {
 
     await execute('DELETE FROM login_lockouts WHERE lookup_key = ?', [attemptKey])
 
-    const verCheck = await queryOne<{ email_verified: number }>(
-      'SELECT email_verified FROM users WHERE id = ?', [user.id]
-    )
-    if (!verCheck?.email_verified) {
-      return res.status(403).json({ error: 'EMAIL_NOT_VERIFIED', email: user.email })
+    if (!emailVerificationDisabled()) {
+      const verCheck = await queryOne<{ email_verified: number }>(
+        'SELECT email_verified FROM users WHERE id = ?', [user.id]
+      )
+      if (!verCheck?.email_verified) {
+        return res.status(403).json({ error: 'EMAIL_NOT_VERIFIED', email: user.email })
+      }
     }
 
     const twoFaRow = await queryOne<{ totp_enabled: number }>(
