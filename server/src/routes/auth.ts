@@ -6,6 +6,7 @@ import { signToken, requireAuth, getClientIp, recordIp } from '../middleware/aut
 import { execute, queryOne } from '../db/pool'
 import { sendVerificationEmail, sendPasswordResetEmail } from '../lib/mailer'
 import { generateSecret, verify as totpVerify, generateURI } from 'otplib'
+import { encryptSecret, decryptSecret } from '../lib/secretCrypto'
 
 const router = Router()
 
@@ -452,7 +453,7 @@ router.post('/2fa/setup', requireAuth, async (req: Request, res: Response) => {
 
     await execute(
       `UPDATE users SET totp_secret = ?, totp_enabled = 0 WHERE id = ?`,
-      [secret, req.user!.userId]
+      [encryptSecret(secret), req.user!.userId]
     )
     return res.json({ secret, qrDataUrl })
   } catch (err) {
@@ -470,7 +471,7 @@ router.post('/2fa/enable', requireAuth, async (req: Request, res: Response) => {
     )
     if (!row?.totp_secret) return res.status(400).json({ error: 'Najpierw skonfiguruj 2FA' })
 
-    const { valid } = await totpVerify({ token: code, secret: row.totp_secret! })
+    const { valid } = await totpVerify({ token: code, secret: decryptSecret(row.totp_secret) })
     if (!valid) return res.status(400).json({ error: 'Nieprawidłowy kod' })
     await execute('UPDATE users SET totp_enabled = 1 WHERE id = ?', [req.user!.userId])
     return res.json({ ok: true })
@@ -489,7 +490,7 @@ router.post('/2fa/disable', requireAuth, async (req: Request, res: Response) => 
     )
     if (!row?.totp_enabled) return res.status(400).json({ error: '2FA nie jest włączone' })
 
-    const { valid } = await totpVerify({ token: code, secret: row.totp_secret! })
+    const { valid } = await totpVerify({ token: code, secret: decryptSecret(row.totp_secret!) })
     if (!valid) return res.status(400).json({ error: 'Nieprawidłowy kod' })
     await execute('UPDATE users SET totp_enabled = 0, totp_secret = NULL WHERE id = ?', [req.user!.userId])
     return res.json({ ok: true })
@@ -526,7 +527,7 @@ router.post('/2fa/verify-login', async (req: Request, res: Response) => {
     )
     if (!row?.totp_secret) return res.status(400).json({ error: 'Błąd konfiguracji 2FA' })
 
-    const { valid } = await totpVerify({ token: code, secret: row.totp_secret! })
+    const { valid } = await totpVerify({ token: code, secret: decryptSecret(row.totp_secret) })
     if (!valid) {
       twoFaRec.count++
       twoFaAttempts.set(ipKey, twoFaRec)
