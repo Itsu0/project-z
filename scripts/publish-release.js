@@ -77,7 +77,7 @@ for (const f of exeFiles) {
   console.log(`\n✅ Lokalny instalator: dist-electron/${f}  (${sizeMB} MB)`)
 }
 console.log('\n✅ Release opublikowany na GitHub Releases!')
-console.log('   https://github.com/Itsu0/nexus/releases')
+console.log('   https://github.com/Itsu0/project-z/releases')
 
 function copyDir(src, dst) {
   fs.mkdirSync(dst, { recursive: true })
