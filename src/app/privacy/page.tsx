@@ -9,9 +9,9 @@ function PrivacyContent() {
 
   const termsHref = `/terms?lang=${lang}`
   const backLabel = lang === 'en' ? 'Back' : 'Powrót'
-  const backApp   = lang === 'en' ? 'Back to Project-Z' : 'Powrót do Nexusa'
+  const backApp   = lang === 'en' ? 'Back to Project-Z' : 'Powrót do Project-Z'
   const termsLabel = lang === 'en' ? 'Terms of Service' : 'Regulamin'
-  const updated = lang === 'en' ? 'Last updated: May 2026' : 'Ostatnia aktualizacja: maj 2026'
+  const updated = lang === 'en' ? 'Last updated: June 2026' : 'Ostatnia aktualizacja: czerwiec 2026'
 
   if (lang === 'en') {
     return (
@@ -44,7 +44,8 @@ function PrivacyContent() {
               <ul style={ul}>
                 <li style={li}><strong style={{ color: '#f1f5f9' }}>Registration data</strong> — email address, username, password (stored only as a bcrypt hash, never in plaintext), display name, avatar color. <br/><span style={{ fontSize: 12, color: '#64748b' }}>Legal basis: Art. 6(1)(b) GDPR (performance of a contract).</span></li>
                 <li style={li}><strong style={{ color: '#f1f5f9' }}>Profile data</strong> — custom status, avatar image (optional, uploaded voluntarily), interface preferences. <br/><span style={{ fontSize: 12, color: '#64748b' }}>Legal basis: Art. 6(1)(b) GDPR.</span></li>
-                <li style={li}><strong style={{ color: '#f1f5f9' }}>Two-factor authentication (2FA) data</strong> — if you enable 2FA, the TOTP secret key is stored in encrypted form in the database. The secret is used solely for login verification and is never shared with third parties. <br/><span style={{ fontSize: 12, color: '#64748b' }}>Legal basis: Art. 6(1)(b) GDPR.</span></li>
+                <li style={li}><strong style={{ color: '#f1f5f9' }}>Two-factor authentication (2FA) data</strong> — if you enable 2FA, the TOTP secret key is stored in the database with access restricted to the application server. The secret is used solely for login verification and is never shared with third parties. <br/><span style={{ fontSize: 12, color: '#64748b' }}>Legal basis: Art. 6(1)(b) GDPR.</span></li>
+                <li style={li}><strong style={{ color: '#f1f5f9' }}>E2E encryption keys</strong> — if you enable end-to-end encryption for private messages (DMs), we store your public key and a client-side-encrypted private key (the operator cannot access it). The content of encrypted DMs is unreadable to us. <br/><span style={{ fontSize: 12, color: '#64748b' }}>Legal basis: Art. 6(1)(b) GDPR.</span></li>
                 <li style={li}><strong style={{ color: '#f1f5f9' }}>User content</strong> — messages, files, reactions sent on the Platform. <br/><span style={{ fontSize: 12, color: '#64748b' }}>Legal basis: Art. 6(1)(b) GDPR.</span></li>
                 <li style={li}><strong style={{ color: '#f1f5f9' }}>IP address and technical data</strong> — IP address at login and registration, server error logs. Used to detect abuse, attacks, and unauthorized access. <br/><span style={{ fontSize: 12, color: '#64748b' }}>Legal basis: Art. 6(1)(f) GDPR (legitimate interests — system security). Retention: 12 months.</span></li>
                 <li style={li}><strong style={{ color: '#f1f5f9' }}>Activity data</strong> — last login time, online/offline status, voice session history (duration only, no recordings). <br/><span style={{ fontSize: 12, color: '#64748b' }}>Legal basis: Art. 6(1)(b) GDPR.</span></li>
@@ -74,7 +75,7 @@ function PrivacyContent() {
               <ul style={ul}>
                 <li style={li}><strong style={{ color: '#f1f5f9' }}>OVH SAS</strong> (France, EEA) — VPS server provider. Data processed within the EU.</li>
                 <li style={li}><strong style={{ color: '#f1f5f9' }}>Vercel Inc.</strong> (USA, outside EEA) — frontend hosting. Transfer is based on Standard Contractual Clauses (SCCs) approved by the European Commission (Art. 46(2)(c) GDPR). Vercel privacy policy: <a href="https://vercel.com/legal/privacy-policy" target="_blank" rel="noreferrer" style={link}>vercel.com/legal/privacy-policy</a>.</li>
-                <li style={li}><strong style={{ color: '#f1f5f9' }}>SMTP provider</strong> — email service used only for transactional messages (account verification, system notifications). No user message content is shared.</li>
+                <li style={li}><strong style={{ color: '#f1f5f9' }}>Resend, Inc.</strong> (USA, outside EEA) — email service provider used solely for transactional messages (account verification, password reset, system notifications). No user message content is shared. Transfer is based on Standard Contractual Clauses (SCCs). Delivery itself is carried out via Amazon SES in an EU region.</li>
                 <li style={li}><strong style={{ color: '#f1f5f9' }}>Public authorities and law enforcement</strong> — when required by applicable law or when there are reasonable grounds to suspect the commission of a criminal offence. Such disclosure may occur without prior notice to the user.</li>
               </ul>
               <p style={p}>No data is transferred to third countries beyond the scope described above.</p>
@@ -88,15 +89,16 @@ function PrivacyContent() {
                 <li style={li}><strong style={{ color: '#f1f5f9' }}>SameSite=Lax</strong> — limits cross-site sending, protecting against CSRF attacks;</li>
                 <li style={li}>valid for the duration of the session and deleted upon logout.</li>
               </ul>
-              <p style={p}>The <strong>desktop application (Nexus)</strong> stores the session token in <strong>sessionStorage</strong> — deleted when the application window is closed.</p>
+              <p style={p}>The <strong>Project-Z desktop application</strong> stores the session token in <strong>sessionStorage</strong> — deleted when the application window is closed.</p>
               <p style={p}>We do not use analytics trackers (e.g. Google Analytics), advertising pixels, or browser fingerprinting tools. We do not set any tracking or advertising cookies.</p>
             </section>
             <section>
               <h2 style={h2}>7. Desktop application — additional data</h2>
-              <p style={p}>The Nexus desktop application may collect additional data locally on your device:</p>
+              <p style={p}>The Project-Z desktop application may collect additional data locally on your device:</p>
               <ul style={ul}>
                 <li style={li}><strong style={{ color: '#f1f5f9' }}>PTT key assignment</strong> — the key you assign for PTT is stored locally on your device and is not sent to our servers.</li>
                 <li style={li}><strong style={{ color: '#f1f5f9' }}>Global keyboard/mouse hooks</strong> — the application uses the uiohook library to detect the assigned PTT key being pressed globally (outside the app window). The library does not log or transmit keystrokes — it only checks whether the specific assigned key was pressed at the moment of detection.</li>
+                <li style={li}><strong style={{ color: '#f1f5f9' }}>E2E encryption recovery code</strong> — if you save your recovery code on the device, it is stored locally, encrypted by the operating system mechanism (Windows DPAPI / Electron safeStorage), and is never sent to our servers.</li>
               </ul>
             </section>
             <section>
@@ -187,7 +189,8 @@ function PrivacyContent() {
             <ul style={ul}>
               <li style={li}><strong style={{ color: '#f1f5f9' }}>Dane rejestracyjne</strong> — adres e-mail, nazwa użytkownika, hasło (przechowywane wyłącznie jako skrót bcrypt, nigdy w postaci jawnej), wyświetlana nazwa, kolor avatara.<br/><span style={{ fontSize: 12, color: '#64748b' }}>Podstawa: art. 6 ust. 1 lit. b RODO (wykonanie umowy).</span></li>
               <li style={li}><strong style={{ color: '#f1f5f9' }}>Dane profilu</strong> — własny status, zdjęcie avatara (opcjonalnie, przesyłane dobrowolnie), preferencje interfejsu.<br/><span style={{ fontSize: 12, color: '#64748b' }}>Podstawa: art. 6 ust. 1 lit. b RODO.</span></li>
-              <li style={li}><strong style={{ color: '#f1f5f9' }}>Dane weryfikacji dwuetapowej (2FA)</strong> — jeśli włączysz 2FA, klucz tajny TOTP jest przechowywany w zaszyfrowanej formie w bazie danych. Klucz służy wyłącznie do weryfikacji logowania i nie jest udostępniany podmiotom trzecim.<br/><span style={{ fontSize: 12, color: '#64748b' }}>Podstawa: art. 6 ust. 1 lit. b RODO.</span></li>
+              <li style={li}><strong style={{ color: '#f1f5f9' }}>Dane weryfikacji dwuetapowej (2FA)</strong> — jeśli włączysz 2FA, klucz tajny TOTP jest przechowywany w bazie danych z dostępem ograniczonym do serwera aplikacji. Klucz służy wyłącznie do weryfikacji logowania i nie jest udostępniany podmiotom trzecim.<br/><span style={{ fontSize: 12, color: '#64748b' }}>Podstawa: art. 6 ust. 1 lit. b RODO.</span></li>
+              <li style={li}><strong style={{ color: '#f1f5f9' }}>Klucze szyfrowania E2E</strong> — jeśli włączysz szyfrowanie end-to-end wiadomości prywatnych (DM), na serwerze przechowujemy Twój klucz publiczny oraz klucz prywatny zaszyfrowany po stronie klienta (operator nie ma do niego dostępu). Treść zaszyfrowanych DM jest dla nas nieczytelna.<br/><span style={{ fontSize: 12, color: '#64748b' }}>Podstawa: art. 6 ust. 1 lit. b RODO.</span></li>
               <li style={li}><strong style={{ color: '#f1f5f9' }}>Treści użytkownika</strong> — wiadomości, pliki, reakcje wysyłane na Platformie.<br/><span style={{ fontSize: 12, color: '#64748b' }}>Podstawa: art. 6 ust. 1 lit. b RODO.</span></li>
               <li style={li}><strong style={{ color: '#f1f5f9' }}>Adres IP i dane techniczne</strong> — adres IP przy logowaniu i rejestracji, logi błędów serwera. Dane służą do wykrywania nadużyć i nieautoryzowanego dostępu.<br/><span style={{ fontSize: 12, color: '#64748b' }}>Podstawa: art. 6 ust. 1 lit. f RODO (uzasadniony interes — bezpieczeństwo). Retencja: 12 miesięcy.</span></li>
               <li style={li}><strong style={{ color: '#f1f5f9' }}>Dane aktywności</strong> — czas ostatniego logowania, status online/offline, historia połączeń głosowych (tylko czas trwania, bez nagrań).<br/><span style={{ fontSize: 12, color: '#64748b' }}>Podstawa: art. 6 ust. 1 lit. b RODO.</span></li>
@@ -217,7 +220,7 @@ function PrivacyContent() {
             <ul style={ul}>
               <li style={li}><strong style={{ color: '#f1f5f9' }}>OVH SAS</strong> (Francja, EOG) — dostawca serwera VPS. Dane przetwarzane w UE.</li>
               <li style={li}><strong style={{ color: '#f1f5f9' }}>Vercel Inc.</strong> (USA, poza EOG) — hosting frontendowy. Transfer na podstawie standardowych klauzul umownych (SCC) zatwierdzonych przez KE (art. 46 ust. 2 lit. c RODO). Polityka prywatności Vercel: <a href="https://vercel.com/legal/privacy-policy" target="_blank" rel="noreferrer" style={link}>vercel.com/legal/privacy-policy</a>.</li>
-              <li style={li}><strong style={{ color: '#f1f5f9' }}>Dostawca SMTP</strong> — usługa e-mail używana wyłącznie do wysyłania wiadomości transakcyjnych. Żadne treści wiadomości użytkowników nie są przekazywane dostawcy SMTP.</li>
+              <li style={li}><strong style={{ color: '#f1f5f9' }}>Resend, Inc.</strong> (USA, poza EOG) — dostawca usługi e-mail, wykorzystywany wyłącznie do wiadomości transakcyjnych (weryfikacja konta, reset hasła, powiadomienia systemowe). Żadne treści wiadomości użytkowników nie są przekazywane. Transfer na podstawie standardowych klauzul umownych (SCC). Samo dostarczanie realizowane jest przez Amazon SES w regionie UE.</li>
               <li style={li}><strong style={{ color: '#f1f5f9' }}>Organy publiczne i organy ścigania</strong> — gdy jest to wymagane przez obowiązujące przepisy prawa lub gdy istnieją uzasadnione podstawy do podejrzenia popełnienia przestępstwa. Przekazanie może nastąpić bez uprzedniego powiadomienia użytkownika.</li>
             </ul>
             <p style={p}>Żadne dane nie są przekazywane do krajów trzecich poza zakresem opisanym powyżej.</p>
@@ -231,15 +234,16 @@ function PrivacyContent() {
               <li style={li}><strong style={{ color: '#f1f5f9' }}>SameSite=Lax</strong> — ogranicza wysyłanie w kontekście cross-site, chroniąc przed atakami CSRF;</li>
               <li style={li}>ważne przez czas sesji, usuwane przy wylogowaniu.</li>
             </ul>
-            <p style={p}><strong>Aplikacja desktopowa (Nexus)</strong> przechowuje token sesji w <strong>sessionStorage</strong> — jest usuwany po zamknięciu okna aplikacji.</p>
+            <p style={p}><strong>Aplikacja desktopowa Project-Z</strong> przechowuje token sesji w <strong>sessionStorage</strong> — jest usuwany po zamknięciu okna aplikacji.</p>
             <p style={p}>Nie stosujemy trackerów analitycznych (np. Google Analytics), pikseli reklamowych ani narzędzi do fingerprintingu przeglądarki. Nie ustawiamy żadnych cookies śledzących ani reklamowych.</p>
           </section>
           <section>
             <h2 style={h2}>7. Aplikacja desktopowa — dodatkowe dane</h2>
-            <p style={p}>Aplikacja desktopowa Nexus może zbierać dodatkowe dane lokalnie na Twoim urządzeniu:</p>
+            <p style={p}>Aplikacja desktopowa Project-Z może zbierać dodatkowe dane lokalnie na Twoim urządzeniu:</p>
             <ul style={ul}>
               <li style={li}><strong style={{ color: '#f1f5f9' }}>Przypisanie klawisza PTT</strong> — klawisz przypisany do PTT jest przechowywany lokalnie na Twoim urządzeniu i nie jest wysyłany na nasze serwery.</li>
               <li style={li}><strong style={{ color: '#f1f5f9' }}>Globalne hooki klawiatury i myszy</strong> — aplikacja używa biblioteki uiohook do wykrywania wciśnięcia przypisanego klawisza PTT globalnie (poza oknem aplikacji). Biblioteka nie rejestruje ani nie przesyła naciśnięć klawiszy — sprawdza wyłącznie, czy w chwili wykrycia został wciśnięty konkretny, przypisany klawisz.</li>
+              <li style={li}><strong style={{ color: '#f1f5f9' }}>Kod odzyskiwania szyfrowania E2E</strong> — jeśli zapiszesz kod odzyskiwania na urządzeniu, jest on przechowywany lokalnie w postaci zaszyfrowanej przez mechanizm systemu operacyjnego (Windows DPAPI / Electron safeStorage) i nie jest przesyłany na nasze serwery.</li>
             </ul>
           </section>
           <section>

@@ -9,9 +9,9 @@ function TermsContent() {
 
   const privacyHref = `/privacy?lang=${lang}`
   const backLabel = lang === 'en' ? 'Back' : 'Powrót'
-  const backApp   = lang === 'en' ? 'Back to Project-Z' : 'Powrót do Nexusa'
+  const backApp   = lang === 'en' ? 'Back to Project-Z' : 'Powrót do Project-Z'
   const privacyLabel = lang === 'en' ? 'Privacy Policy' : 'Polityka prywatności'
-  const updated = lang === 'en' ? 'Last updated: May 2026' : 'Ostatnia aktualizacja: maj 2026'
+  const updated = lang === 'en' ? 'Last updated: June 2026' : 'Ostatnia aktualizacja: czerwiec 2026'
 
   if (lang === 'en') {
     return (
@@ -39,7 +39,7 @@ function TermsContent() {
             </section>
             <section>
               <h2 style={h2}>2. Definitions</h2>
-              <p style={p}><strong>Project-Z / Platform</strong> — an online communication service available at project-z.cloud and via the desktop application (Nexus), enabling the creation of servers, text and voice channels, and real-time messaging.</p>
+              <p style={p}><strong>Project-Z / Platform</strong> — an online communication service available at project-z.cloud and via the Project-Z desktop application, enabling the creation of servers, text and voice channels, and real-time messaging.</p>
               <p style={p}><strong>User</strong> — any individual aged 16 or older (or 13–15 with written parental consent) who has registered an account and uses the Platform.</p>
               <p style={p}><strong>Server</strong> — a space created by Users, containing channels and a group of members.</p>
               <p style={p}><strong>Content</strong> — any material published by Users: messages, files, images, reactions.</p>
@@ -104,7 +104,7 @@ function TermsContent() {
             </section>
             <section>
               <h2 style={h2}>9. Desktop application</h2>
-              <p style={p}>The Project-Z desktop application (Nexus) is available for Windows, macOS, and Linux. By installing and using the desktop application, you additionally accept:</p>
+              <p style={p}>The Project-Z desktop application is available for Windows, macOS, and Linux. By installing and using the desktop application, you additionally accept:</p>
               <ul style={ul}>
                 <li style={li}>The application uses <strong>global keyboard and mouse hooks</strong> — used exclusively for the Push-to-Talk (PTT) feature in voice channels. Hooks are active only while the application is running and are used solely to detect the assigned PTT key.</li>
                 <li style={li}>PTT settings (assigned key) are stored locally on your device.</li>
@@ -127,7 +127,7 @@ function TermsContent() {
             </section>
             <section>
               <h2 style={h2}>13. Account termination</h2>
-              <p style={p}>You may delete your account at any time by contacting us at <a href="mailto:kontakt@project-z.cloud" style={link}>kontakt@project-z.cloud</a>. The account will be deleted within 14 days.</p>
+              <p style={p}>You may delete your account at any time in the application settings, or by contacting us at <a href="mailto:kontakt@project-z.cloud" style={link}>kontakt@project-z.cloud</a>. The account will be deleted within 14 days.</p>
               <p style={p}>We reserve the right to suspend or delete accounts that violate the Terms. We will notify you by email before suspension (unless immediate action is required for security reasons).</p>
             </section>
             <section>
@@ -179,7 +179,7 @@ function TermsContent() {
           </section>
           <section>
             <h2 style={h2}>2. Definicje</h2>
-            <p style={p}><strong>Project-Z / Platforma</strong> — usługa komunikacji online dostępna pod adresem project-z.cloud oraz poprzez aplikację desktopową (Nexus), umożliwiająca tworzenie serwerów, kanałów tekstowych i głosowych oraz wymianę wiadomości w czasie rzeczywistym.</p>
+            <p style={p}><strong>Project-Z / Platforma</strong> — usługa komunikacji online dostępna pod adresem project-z.cloud oraz poprzez aplikację desktopową Project-Z, umożliwiająca tworzenie serwerów, kanałów tekstowych i głosowych oraz wymianę wiadomości w czasie rzeczywistym.</p>
             <p style={p}><strong>Użytkownik</strong> — każda osoba fizyczna, która ukończyła 16 lat (lub 13 lat za pisemną zgodą rodzica/opiekuna prawnego), zarejestrowała konto i korzysta z Platformy.</p>
             <p style={p}><strong>Serwer</strong> — przestrzeń tworzona przez Użytkowników, zawierająca kanały i grono członków.</p>
             <p style={p}><strong>Treści</strong> — wszelkie materiały publikowane przez Użytkowników: wiadomości, pliki, obrazy, reakcje.</p>
@@ -244,7 +244,7 @@ function TermsContent() {
           </section>
           <section>
             <h2 style={h2}>9. Aplikacja desktopowa</h2>
-            <p style={p}>Aplikacja desktopowa Project-Z (Nexus) dostępna jest na systemy Windows, macOS i Linux. Instalując i korzystając z aplikacji desktopowej, akceptujesz dodatkowo:</p>
+            <p style={p}>Aplikacja desktopowa Project-Z dostępna jest na systemy Windows, macOS i Linux. Instalując i korzystając z aplikacji desktopowej, akceptujesz dodatkowo:</p>
             <ul style={ul}>
               <li style={li}>Aplikacja korzysta z <strong>globalnych hooków klawiatury i myszy</strong> — używanych wyłącznie do funkcji Push-to-Talk (PTT) na kanałach głosowych. Hooki są aktywne wyłącznie podczas działania aplikacji i służą jedynie do wykrywania wciśnięcia przypisanego klawisza PTT.</li>
               <li style={li}>Ustawienia PTT (przypisany klawisz) są przechowywane lokalnie na Twoim urządzeniu i nie są przesyłane na serwer.</li>
