@@ -2353,6 +2353,36 @@ function VoiceMonitorPanel({ token }: { token: string }) {
         </div>
       </div>
 
+      {(() => {
+        const net = data.network
+        const lk = data.livekit ?? {}
+        const txPct = net && net.linkMbps ? Math.round((net.txMbps / net.linkMbps) * 100) : null
+        const linkColor = txPct == null ? 'var(--eb-text1)' : txPct >= 85 ? '#f87171' : txPct >= 65 ? '#f59e0b' : 'var(--eb-text1)'
+        const pingColor = lk.latencyMs == null ? 'var(--eb-text3)' : lk.latencyMs > 150 ? '#f87171' : lk.latencyMs > 80 ? '#f59e0b' : '#4ade80'
+        const qColor = lk.qualityScore == null ? 'var(--eb-text3)' : lk.qualityScore >= 4 ? '#4ade80' : lk.qualityScore >= 3 ? '#f59e0b' : '#f87171'
+        return (
+          <div className="grid grid-cols-3 gap-3">
+            <div className="rounded-xl p-3" style={{ background: 'var(--eb-bg3)', border: '0.5px solid var(--eb-border)' }}>
+              <p className="text-[10px] uppercase tracking-wide mb-1" style={{ color: 'var(--eb-text3)' }}>Łącze (wych.)</p>
+              <p className="text-lg font-bold leading-none" style={{ color: linkColor }}>{net ? `${net.txMbps}` : '—'}<span className="text-[10px] font-normal"> Mbps</span></p>
+              <p className="text-[9px] mt-1" style={{ color: 'var(--eb-text3)' }}>
+                {net ? `${txPct}% z ${net.linkMbps} · ↓${net.rxMbps}` : 'brak danych'}
+              </p>
+            </div>
+            <div className="rounded-xl p-3" style={{ background: 'var(--eb-bg3)', border: '0.5px solid var(--eb-border)' }}>
+              <p className="text-[10px] uppercase tracking-wide mb-1" style={{ color: 'var(--eb-text3)' }}>Ping (SFU)</p>
+              <p className="text-lg font-bold leading-none" style={{ color: pingColor }}>{lk.latencyMs ?? '—'}<span className="text-[10px] font-normal"> ms</span></p>
+              <p className="text-[9px] mt-1" style={{ color: 'var(--eb-text3)' }}>{lk.jitterMs != null ? `jitter ${lk.jitterMs} ms` : 'latencja serwera'}</p>
+            </div>
+            <div className="rounded-xl p-3" style={{ background: 'var(--eb-bg3)', border: '0.5px solid var(--eb-border)' }}>
+              <p className="text-[10px] uppercase tracking-wide mb-1" style={{ color: 'var(--eb-text3)' }}>Jakość</p>
+              <p className="text-lg font-bold leading-none" style={{ color: qColor }}>{lk.qualityScore ?? '—'}<span className="text-[10px] font-normal">/5</span></p>
+              <p className="text-[9px] mt-1" style={{ color: 'var(--eb-text3)' }}>ocena połączeń</p>
+            </div>
+          </div>
+        )
+      })()}
+
       {rooms.length === 0 ? (
         <div className="text-center py-8 rounded-xl" style={{ background: 'var(--eb-bg3)', border: '0.5px solid var(--eb-border)' }}>
           <p className="text-2xl mb-1">🔇</p>

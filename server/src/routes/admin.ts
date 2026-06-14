@@ -602,10 +602,65 @@ router.get('/monitor', requireAuth, async (req: Request, res: Response) => {
   }
 })
 
+// Sumaryczny licznik bajtów RX/TX z interfejsów (poza lo) — do pomiaru pasma.
+async function readNetBytes(): Promise<{ rx: number; tx: number } | null> {
+  try {
+    const txt = await fs.readFile('/proc/net/dev', 'utf8')
+    let rx = 0, tx = 0
+    for (const line of txt.split('\n')) {
+      const m = line.trim().match(/^([^:]+):\s+(.*)$/)
+      if (!m || m[1].trim() === 'lo') continue
+      const f = m[2].trim().split(/\s+/).map(Number)
+      rx += f[0] || 0           // rx_bytes
+      tx += f[8] || 0           // tx_bytes
+    }
+    return { rx, tx }
+  } catch { return null }
+}
+
+// Odczyt metryk LiveKit z Prometheus (latencja SFU, jakość, jitter).
+async function readLiveKitMetrics(): Promise<{ latencyMs: number | null; qualityScore: number | null; jitterMs: number | null }> {
+  const empty = { latencyMs: null, qualityScore: null, jitterMs: null }
+  try {
+    const port = process.env.LIVEKIT_PROM_PORT ?? '6789'
+    const r = await fetch(`http://127.0.0.1:${port}/metrics`, { signal: AbortSignal.timeout(2000) })
+    const text = await r.text()
+    const num = (name: string) => {
+      const m = text.match(new RegExp(name + '(?:\\{[^}]*\\})?\\s+([0-9.eE+-]+)'))
+      return m ? Number(m[1]) : null
+    }
+    const latSum = num('livekit_forward_latency_ns_sum')
+    const latCnt = num('livekit_forward_latency_ns_count')
+    const qSum   = num('livekit_quality_score_sum')
+    const qCnt   = num('livekit_quality_score_count')
+    const jit    = num('livekit_forward_jitter')
+    return {
+      latencyMs:    (latSum != null && latCnt && latCnt > 0) ? +(latSum / latCnt / 1e6).toFixed(1) : null,
+      qualityScore: (qSum   != null && qCnt   && qCnt   > 0) ? +(qSum / qCnt).toFixed(2) : null,
+      jitterMs:     (jit    != null) ? +(jit / 1e6).toFixed(2) : null,
+    }
+  } catch { return empty }
+}
+
 // ── MONITORING GŁOSOWY (aktywne pokoje LiveKit + uczestnicy) ─────────────────
 router.get('/voice', requireAuth, async (req: Request, res: Response) => {
   if (!(await requireCreator(req, res))) return
   try {
+    // Pasmo: próbka liczników NIC w oknie ~700 ms.
+    const net1 = await readNetBytes()
+    await new Promise(r => setTimeout(r, 700))
+    const net2 = await readNetBytes()
+    let network: { rxMbps: number; txMbps: number; linkMbps: number } | null = null
+    if (net1 && net2) {
+      const dt = 0.7
+      network = {
+        rxMbps: Math.max(0, +(((net2.rx - net1.rx) * 8) / dt / 1e6).toFixed(1)),
+        txMbps: Math.max(0, +(((net2.tx - net1.tx) * 8) / dt / 1e6).toFixed(1)),
+        linkMbps: Number(process.env.LINK_MBPS ?? 400),
+      }
+    }
+    const livekit = await readLiveKitMetrics()
+
     const apiKey    = process.env.LIVEKIT_API_KEY
     const apiSecret = process.env.LIVEKIT_API_SECRET
     const lkUrl     = process.env.LIVEKIT_URL ?? 'ws://localhost:7880'
@@ -663,6 +718,8 @@ router.get('/voice', requireAuth, async (req: Request, res: Response) => {
       timestamp: new Date().toISOString(),
       totalRooms: out.length,
       totalParticipants,
+      network,
+      livekit,
       rooms: out,
     })
   } catch (err) {
