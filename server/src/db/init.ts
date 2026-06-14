@@ -61,6 +61,7 @@ export async function runMigrations(): Promise<void> {
     ['polls',         'closed',      'TINYINT(1) DEFAULT 0'],
     ['server_members','invited_by',  'CHAR(36) DEFAULT NULL'],
     ['channel_role_permissions', 'deny_send', 'TINYINT(1) DEFAULT 0'],
+    ['users',         'totp_secret', 'VARCHAR(255) DEFAULT NULL'],
   ]
 
   const columnModifications: [string, string, string][] = [
@@ -68,6 +69,9 @@ export async function runMigrations(): Promise<void> {
     ['users',   'avatar_url', 'MEDIUMTEXT DEFAULT NULL'],
 
     ['servers', 'icon_url',   'MEDIUMTEXT DEFAULT NULL'],
+
+    // Sekret 2FA jest szyfrowany (AES-256-GCM) — wymaga szerszej kolumny niż jawny TOTP.
+    ['users',   'totp_secret', 'VARCHAR(255) DEFAULT NULL'],
   ]
   for (const [table, column, def] of columnModifications) {
     try {
