@@ -89,7 +89,7 @@
   "settings.audio.vad.label.normal": "Normal",
   "settings.audio.vad.label.strict": "Strict",
   "settings.audio.qualityProfile": "Default voice quality profile",
-  "settings.audio.qualityHint": "Settings saved locally — you can change them before each call",
+  "settings.audio.qualityHint": "Settings saved to your account and synced across devices — you can change them before each call",
   "settings.audio.ptt": "Push to Talk",
   "settings.audio.pttDesc": "Microphone active only while holding the button",
   "settings.audio.pttKey": "PTT button",

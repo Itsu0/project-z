@@ -89,7 +89,7 @@
   "settings.audio.vad.label.normal": "Normalne",
   "settings.audio.vad.label.strict": "Rygorystyczne",
   "settings.audio.qualityProfile": "Domyślny profil jakości głosu",
-  "settings.audio.qualityHint": "Ustawienia zapisywane lokalnie — możesz je zmienić przed każdym połączeniem",
+  "settings.audio.qualityHint": "Ustawienia zapisywane na koncie i synchronizowane między urządzeniami — możesz je zmienić przed każdym połączeniem",
   "settings.audio.ptt": "Push to Talk",
   "settings.audio.pttDesc": "Mikrofon aktywny tylko gdy trzymasz przycisk",
   "settings.audio.pttKey": "Przycisk PTT",
