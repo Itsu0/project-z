@@ -19,10 +19,10 @@ async function isDevOrCreator(userId: string): Promise<boolean> {
   return !!(row && (row.is_dev || row.is_creator))
 }
 
-// Dostęp dozwolony, gdy płatności włączone globalnie LUB użytkownik to dev/creator.
-async function billingAccess(userId: string): Promise<boolean> {
-  if (isBillingEnabled()) return true
-  return isDevOrCreator(userId)
+// Tworzenie serwerów dostępne wyłącznie, gdy płatności są włączone globalnie.
+// Brak wyjątku dla dev/creator — funkcja ma być ukryta dla wszystkich do startu sprzedaży.
+async function billingAccess(_userId: string): Promise<boolean> {
+  return isBillingEnabled()
 }
 
 // Uruchamia provisioning dla opłaconego zamówienia i aktualizuje jego status.
@@ -165,6 +165,9 @@ router.post('/webhook', async (req: Request, res: Response) => {
 // ── DEV: symulacja opłacenia (test całego flow bez bramki) ───────────────────
 router.post('/orders/:id/simulate-paid', requireAuth, async (req: Request, res: Response) => {
   try {
+    if (!isBillingEnabled()) {
+      return res.status(403).json({ error: 'Funkcja niedostępna' })
+    }
     if (!(await isDevOrCreator(req.user!.userId))) {
       return res.status(403).json({ error: 'Tylko dev/creator' })
     }
