@@ -2304,6 +2304,94 @@ function MonitorPanel({ token }: { token: string }) {
   )
 }
 
+function VoiceMonitorPanel({ token }: { token: string }) {
+  const [data,    setData]    = useState<any>(null)
+  const [err,     setErr]     = useState(false)
+  const [loading, setLoading] = useState(true)
+
+  async function load() {
+    try {
+      const r = await fetch(`${BASE}/api/admin/voice`, { headers: { Authorization: `Bearer ${token}` } })
+      if (!r.ok) throw new Error()
+      setData(await r.json()); setErr(false)
+    } catch { setErr(true) } finally { setLoading(false) }
+  }
+
+  useEffect(() => {
+    load()
+    const id = setInterval(load, 5000)
+    return () => clearInterval(id)
+  }, [])
+
+  function fmtDur(joinedSec: number) {
+    if (!joinedSec) return '—'
+    const s = Math.max(0, Math.floor(Date.now() / 1000 - joinedSec))
+    const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), ss = s % 60
+    return h > 0 ? `${h}h ${m}m` : m > 0 ? `${m}m ${ss}s` : `${ss}s`
+  }
+
+  if (loading && !data) return <div className="flex justify-center py-8"><Spinner /></div>
+  if (err) return <div className="text-center py-8 text-xs" style={{ color: '#f87171' }}>Nie udało się pobrać danych głosowych</div>
+  if (!data) return null
+  if (data.available === false) {
+    return <div className="text-center py-8 text-xs" style={{ color: 'var(--eb-text3)' }}>LiveKit nie jest skonfigurowany (brak kluczy API).</div>
+  }
+
+  const rooms = data.rooms ?? []
+  const hot = (n: number) => n >= 35
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="grid grid-cols-2 gap-3">
+        <div className="rounded-xl p-3" style={{ background: 'var(--eb-bg3)', border: '0.5px solid var(--eb-border)' }}>
+          <p className="text-[10px] uppercase tracking-wide mb-1" style={{ color: 'var(--eb-text3)' }}>Aktywne kanały</p>
+          <p className="text-2xl font-bold" style={{ color: 'var(--eb-text1)' }}>{data.totalRooms}</p>
+        </div>
+        <div className="rounded-xl p-3" style={{ background: 'var(--eb-bg3)', border: '0.5px solid var(--eb-border)' }}>
+          <p className="text-[10px] uppercase tracking-wide mb-1" style={{ color: 'var(--eb-text3)' }}>Osób na głosie</p>
+          <p className="text-2xl font-bold" style={{ color: rooms.some((r: any) => hot(r.numParticipants)) ? '#f59e0b' : 'var(--eb-text1)' }}>{data.totalParticipants}</p>
+        </div>
+      </div>
+
+      {rooms.length === 0 ? (
+        <div className="text-center py-8 rounded-xl" style={{ background: 'var(--eb-bg3)', border: '0.5px solid var(--eb-border)' }}>
+          <p className="text-2xl mb-1">🔇</p>
+          <p className="text-xs" style={{ color: 'var(--eb-text3)' }}>Brak aktywnych połączeń głosowych</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {rooms.map((room: any) => (
+            <div key={room.room} className="rounded-xl p-3" style={{ background: 'var(--eb-bg3)', border: '0.5px solid var(--eb-border)' }}>
+              <div className="flex items-center justify-between mb-2 gap-2">
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold truncate" style={{ color: 'var(--eb-text1)' }}>🔊 {room.channelName ?? room.channelId}</p>
+                  {room.serverName && <p className="text-[10px] truncate" style={{ color: 'var(--eb-text3)' }}>{room.serverName}</p>}
+                </div>
+                <span className="text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0" style={{
+                  background: hot(room.numParticipants) ? 'rgba(245,158,11,0.15)' : 'rgba(168,85,247,0.12)',
+                  color: hot(room.numParticipants) ? '#f59e0b' : '#a855f7',
+                }}>{room.numParticipants} os.</span>
+              </div>
+              <div className="flex flex-col gap-0.5">
+                {room.participants.map((p: any) => (
+                  <div key={p.identity} className="flex items-center justify-between text-[11px] px-2 py-1 rounded-lg gap-2" style={{ background: 'var(--eb-bg2)' }}>
+                    <span className="truncate" style={{ color: 'var(--eb-text2)' }}>{p.tracks > 0 ? '🎙' : '🔇'} {p.name}</span>
+                    <span className="flex-shrink-0 tabular-nums" style={{ color: 'var(--eb-text3)' }}>{fmtDur(p.joinedAtSec)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <p className="text-[10px] text-center" style={{ color: 'var(--eb-text3)' }}>
+        Auto-odświeżanie co 5 s{data.timestamp ? ` · ${new Date(data.timestamp).toLocaleTimeString('pl-PL')}` : ''}
+      </p>
+    </div>
+  )
+}
+
 function DevManager({ token }: { token: string }) {
   const [subTab,   setSubTab]   = useState<'users' | 'patchnotes'>('users')
   const [users,    setUsers]    = useState<any[]>([])
@@ -2798,7 +2886,7 @@ function GhostLauncher({ token }: { token: string }) {
 export function TicketsModal({ onClose }: { onClose: () => void }) {
   const t = useT()
   const { token } = useStore()
-  const [tab,       setTab]       = useState<'new' | 'my' | 'warnings' | 'tickets' | 'warnreply' | 'users' | 'ghost' | 'dev' | 'mods' | 'monitor' | 'billing'>('new')
+  const [tab,       setTab]       = useState<'new' | 'my' | 'warnings' | 'tickets' | 'warnreply' | 'users' | 'ghost' | 'dev' | 'mods' | 'monitor' | 'voicemon' | 'billing'>('new')
   const [isCreator, setIsCreator] = useState(false)
   const [isMod,     setIsMod]     = useState(false)
   const [myCount,   setMyCount]   = useState(0)
@@ -2831,6 +2919,7 @@ export function TicketsModal({ onClose }: { onClose: () => void }) {
     { key: 'dev',      label: `⚡ Dev` },
     { key: 'mods',     label: `🛡 Mody` },
     { key: 'monitor',  label: `📊 Monitoring` },
+    { key: 'voicemon', label: `🎙 Monitoring Głosowy` },
     { key: 'billing',  label: `💳 Płatności` },
   ] as const
 
@@ -2927,6 +3016,7 @@ export function TicketsModal({ onClose }: { onClose: () => void }) {
           {tab === 'dev'       && isCreator && <DevManager token={token!} />}
           {tab === 'mods'      && isCreator && <ModManager token={token!} />}
           {tab === 'monitor'   && isCreator && <MonitorPanel token={token!} />}
+          {tab === 'voicemon'  && isCreator && <VoiceMonitorPanel token={token!} />}
           {tab === 'billing'   && isCreator && <BillingAdmin token={token!} />}
         </div>
       </div>

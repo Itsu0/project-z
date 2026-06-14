@@ -7,6 +7,7 @@ import { promisify } from 'util'
 import { requireAuth } from '../middleware/auth'
 import { queryOne, queryMany, execute } from '../db/pool'
 import { emitToUser, kickUserFromPlatform } from '../socket/index'
+import { RoomServiceClient } from 'livekit-server-sdk'
 
 const execFileP = promisify(execFile)
 const router = Router()
@@ -598,6 +599,75 @@ router.get('/monitor', requireAuth, async (req: Request, res: Response) => {
   } catch (err) {
     console.error('[admin/monitor]', err)
     return res.status(500).json({ error: 'Błąd serwera podczas pobierania metryk' })
+  }
+})
+
+// ── MONITORING GŁOSOWY (aktywne pokoje LiveKit + uczestnicy) ─────────────────
+router.get('/voice', requireAuth, async (req: Request, res: Response) => {
+  if (!(await requireCreator(req, res))) return
+  try {
+    const apiKey    = process.env.LIVEKIT_API_KEY
+    const apiSecret = process.env.LIVEKIT_API_SECRET
+    const lkUrl     = process.env.LIVEKIT_URL ?? 'ws://localhost:7880'
+    if (!apiKey || !apiSecret) {
+      return res.json({ available: false, totalRooms: 0, totalParticipants: 0, rooms: [] })
+    }
+
+    const svc = new RoomServiceClient(lkUrl, apiKey, apiSecret)
+    const rooms = await svc.listRooms()
+
+    let totalParticipants = 0
+    const out: any[] = []
+    for (const room of rooms) {
+      const channelId = room.name.startsWith('channel_') ? room.name.slice('channel_'.length) : room.name
+      let channelName: string | null = null
+      let serverName:  string | null = null
+      try {
+        const ch = await queryOne<{ name: string; server_id: string }>(
+          'SELECT name, server_id FROM channels WHERE id = ?', [channelId]
+        )
+        if (ch) {
+          channelName = ch.name
+          const srv = await queryOne<{ name: string }>('SELECT name FROM servers WHERE id = ?', [ch.server_id])
+          serverName = srv?.name ?? null
+        }
+      } catch {}
+
+      let participants: any[] = []
+      try {
+        const ps = await svc.listParticipants(room.name)
+        participants = ps.map(p => ({
+          identity:    p.identity,
+          name:        p.name || p.identity,
+          joinedAtSec: Number(p.joinedAt),
+          tracks:      (p.tracks ?? []).length,
+        }))
+      } catch {}
+      totalParticipants += participants.length
+
+      out.push({
+        room:            room.name,
+        channelId,
+        channelName,
+        serverName,
+        numParticipants: room.numParticipants,
+        creationTimeSec: Number(room.creationTime),
+        participants,
+      })
+    }
+
+    out.sort((a, b) => b.numParticipants - a.numParticipants)
+
+    return res.json({
+      available: true,
+      timestamp: new Date().toISOString(),
+      totalRooms: out.length,
+      totalParticipants,
+      rooms: out,
+    })
+  } catch (err) {
+    console.error('[admin/voice]', err)
+    return res.status(500).json({ error: 'Błąd pobierania danych głosowych' })
   }
 })
 
