@@ -1049,7 +1049,7 @@ function TabModeration({ server }: { server: any }) {
                 <label className="text-[10px] font-semibold uppercase mb-1 block" style={{ color: 'var(--eb-text3)' }}>Rola weryfikacji (przypisywana nowym)</label>
                 <Select
                   value={settings.verification_role_id ?? ''}
-                  onChange={v => setSettings((s: any) => ({ ...s, verification_role_id: v || null }))}
+                  onChange={v => saveSettings({ verification_role_id: v || null })}
                   placeholder="— Wybierz rolę —"
                   options={roles.map((r: any) => ({ value: r.id, label: r.name }))}
                 />
