@@ -267,14 +267,6 @@ function updateTray() {
   const menu = Menu.buildFromTemplate([
     { label: APP_NAME, enabled: false },
     { type: 'separator' },
-    {
-      label: pttActive ? '🔴 PTT AKTYWNY — kliknij aby wyłączyć' : '🎙 Włącz mikrofon (PTT)',
-      click: () => {
-        pttActive = !pttActive
-        firePTT(pttActive)
-        updateTray()
-      }
-    },
     { label: `PTT: ${pttShortcut || '(nie ustawiono)'}`, enabled: false },
     { type: 'separator' },
     {
@@ -306,12 +298,17 @@ function updateTray() {
 }
 
 function getIcon(size = 256) {
-
-  try {
-    const iconPath = path.join(__dirname, 'icons', `icon${size <= 32 ? 16 : size <= 64 ? 48 : 128}.png`)
-    const fs = require('fs')
-    if (fs.existsSync(iconPath)) return nativeImage.createFromPath(iconPath)
-  } catch {}
+  const file = `icon${size <= 32 ? 16 : size <= 64 ? 48 : 128}.png`
+  const fs = require('fs')
+  // Spakowana apka: extraResources kopiuje extension/icons → resources/icons.
+  // Dev: ikony leżą w extension/icons obok katalogu electron.
+  const candidates = [
+    path.join(process.resourcesPath || '', 'icons', file),
+    path.join(__dirname, '..', 'extension', 'icons', file),
+  ]
+  for (const p of candidates) {
+    try { if (p && fs.existsSync(p)) return nativeImage.createFromPath(p) } catch {}
+  }
 
   return nativeImage.createFromDataURL(
     'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABmJLR0QA/wD/AP+gvaeTAAAA' +
